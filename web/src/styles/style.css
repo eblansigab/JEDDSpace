@@ -1,0 +1,1051 @@
+.inter-text {
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+}
+
+* { 
+  font-family: "Inter", sans-serif;
+
+  -moz-box-sizing: border-box; 
+  -webkit-box-sizing: border-box; 
+  box-sizing: border-box; 
+
+  -webkit-transition: all 0.2s ease;
+  -moz-transition: all 0.2s ease;
+  -ms-transition: all 0.2s ease;
+  -o-transition: all 0.2s ease;
+  transition: all 0.2s ease;
+
+  background-repeat: no-repeat;
+
+  vertical-align: middle;
+}
+
+body {
+  background-color: #f4f6f9;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  background-color: #1E0977; /* Updated bar color */
+  color: white;
+  padding: 10px 0;   /* Slimmer bar */
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+header h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: normal;
+}
+
+
+.container {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin: 40px auto;
+  max-width: 900px;
+}
+
+.form-box {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  width: 75%;
+}
+
+.form-box h3 {
+  margin-top: 0;
+  color: #1E0977;
+}
+
+label {
+  display: block;
+  margin-top: 15px;
+  font-weight: bold;
+}
+
+input[type="email"],
+input[type="text"],
+input[type="password"], select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 15px 0;
+}
+
+.primary-btn {
+  background-color: #1E0977;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.primary-btn:hover {
+  background-color: #1E0977;
+}
+
+/* Layout */
+.layout {
+  display: flex;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 200px;
+  background-color: #f0f2f5;
+  padding: 20px;
+  min-height: calc(100vh - 60px); /* adjust for header height */
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar li {
+  margin: 15px 0;
+}
+
+.sidebar a, .sidebar button {
+  text-decoration: none;
+  color: #004C99;
+  font-weight: bold;
+}
+
+/* Content Area */
+.content {
+  flex: 1;
+  padding: 30px;
+  background-color: #fff;
+}
+
+.profile-section {
+  margin-bottom: 30px;
+}
+
+.picture-box {
+  width: 100px;
+  height: 100px;
+  background-color: #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  border-radius: 4px;
+}
+
+/* Dashboard Widgets */
+.dashboard-widget {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+}
+
+.dashboard-widget h3 {
+  margin-top: 0;
+  color: #1E0977; /* Matches top bar color */
+}
+
+.calendar-box {
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 15px;
+  text-align: center;
+  border-radius: 4px;
+}
+
+/* File List */
+.file-list {
+  list-style: none;
+  padding: 0;
+}
+
+.file-list li {
+  margin: 12px 0;
+  padding: 10px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-list a, .signup {
+  text-decoration: none;
+  color: #1E0977; /* Matches top bar color */
+  font-weight: bold;
+}
+
+.file-list a:hover, .signup:hover {
+  text-decoration: underline;
+}
+
+.file-list span {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* Active Users */
+.active-users {
+  margin-bottom: 20px;
+}
+
+.active-users ul {
+  list-style: none;
+  padding: 0;
+}
+
+.active-users li {
+  margin: 5px 0;
+  color: #333;
+}
+
+.active-users li::after {
+  content: "●";
+  color: green; /* Active indicator */
+  margin-left: 8px;
+}
+
+/* Inbox Table */
+.inbox table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+}
+
+.inbox td {
+  border-bottom: 1px solid #ddd;
+  padding: 10px;
+}
+
+/* Compose Email */
+.compose label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.compose input,
+.compose textarea {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Email Layout */
+.email-layout {
+  display: flex;
+  gap: 20px;
+}
+
+/* Active Employees Bar */
+.active-bar {
+  width: 220px;
+  background: #f4f6f9;
+  border-right: 1px solid #ddd;
+  padding: 15px;
+}
+
+.active-bar h3 {
+  margin-top: 0;
+  color: #1E0977;
+  font-size: 1.1rem;
+}
+
+.active-bar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.active-bar li {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.active-bar img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  margin-right: 10px;
+  border: 2px solid green; /* Active indicator */
+}
+
+/* Inbox */
+.inbox {
+  flex: 1;
+}
+
+.inbox table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.inbox td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.inbox tr:hover {
+  background-color: #f9f9f9;
+  cursor: pointer;
+}
+
+/* Compose Email */
+.compose {
+  margin-top: 30px;
+}
+
+.compose label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.compose input,
+.compose textarea {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Contract Boxes */
+.contract-box {
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.contract-box h3 {
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Status Circles */
+.status {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.status.ongoing {
+  background-color: #f1c40f; /* Yellow */
+}
+
+.status.cancelled {
+  background-color: #e74c3c; /* Red */
+}
+
+.status.completed {
+  background-color: #2ecc71; /* Green */
+}
+
+
+/* Search Bar */
+.search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Announcement Boxes */
+.announcement-box {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 6px;
+}
+
+.announcement-box h3 {
+  margin-top: 0;
+  color: #1E0977;
+}
+
+.announcement-box .date {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 10px;
+}
+
+/* Search Bar */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.search-bar input {
+  flex: 1;                /* Input takes up remaining space */
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.search-bar button {
+  padding: 8px 16px;       /* Compact button */
+  flex: 0;                 /* Prevents button from stretching */
+  background-color: #1E0977;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.search-bar button:hover {
+  background-color: #140555; /* Slightly darker hover */
+}
+
+
+/* Dropdown under HR Forms */
+.sidebar ul .dropdown {
+  list-style: none;
+  padding-left: 15px;
+  margin-top: 5px;
+}
+
+.sidebar ul .dropdown li {
+  margin: 8px 0;
+}
+
+.sidebar ul .dropdown a {
+  font-weight: normal;
+  color: #333;
+}
+
+/* Business Form */
+.business-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 500px;
+}
+
+.business-form label {
+  font-weight: bold;
+}
+
+.business-form input {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.business-form input[type="date"] {
+  width: 48%;
+  display: inline-block;
+}
+
+.business-form button {
+  margin-top: 20px;
+}
+
+/* Leave Form */
+.leave-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 500px;
+}
+
+.leave-form label {
+  font-weight: bold;
+}
+
+.leave-form input[type="date"],
+.leave-form select,
+.leave-form textarea {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.leave-form textarea {
+  resize: vertical;
+}
+
+.leave-form button {
+  margin-top: 20px;
+}
+
+
+/* Admin Dashboard Grid */
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.admin-box {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 20px;
+  border-radius: 6px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.admin-box h3 {
+  margin-top: 0;
+  color: #1E0977;
+}
+
+.admin-box p {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 10px 0 20px;
+}
+
+.admin-box .primary-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #1E0977;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.admin-box .primary-btn:hover {
+  background-color: #140555;
+}
+
+/* Sidebar Dropdown */
+.sidebar ul .dropdown {
+  list-style: none;
+  padding-left: 15px;
+  margin-top: 5px;
+}
+
+.sidebar ul .dropdown li {
+  margin: 6px 0;
+}
+
+.sidebar ul .dropdown a {
+  font-weight: normal;
+  color: #333;
+}
+
+
+/* Announcement Management */
+.announcement-management {
+  margin-bottom: 30px;
+}
+
+.announcement-management input,
+.announcement-management textarea {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Announcement Output */
+.announcement-output .announcement-box {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 20px;
+  border-radius: 6px;
+}
+
+.announcement-output h4 {
+  margin-top: 0;
+  color: #1E0977;
+}
+
+.announcement-output .date {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 10px;
+}
+
+
+/* Employee List */
+.employee-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.employee-list li {
+  margin: 6px 0;
+}
+
+/* Calendar Section */
+.calendar-section .calendar-box {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Active Employees */
+.active-employees ul {
+  list-style: none;
+  padding: 0;
+}
+
+.active-employees li {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.status {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status.online {
+  background-color: green;
+}
+
+.status.offline {
+  background-color: grey;
+}
+
+
+/* Employee Controls */
+.employee-controls {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.employee-controls input {
+  flex: 1;
+  padding: 8px;
+  margin-right: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Employee Table */
+.employee-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+}
+
+.employee-table th, .employee-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: left;
+}
+
+.employee-table th {
+  background-color: #f4f4f4;
+  color: #1E0977;
+}
+
+.edit-btn, .delete-btn {
+  padding: 6px 12px;
+  margin-right: 5px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.edit-btn {
+  background-color: #1E0977;
+  color: white;
+}
+
+.delete-btn {
+  background-color: #e74c3c;
+  color: white;
+}
+
+/* Status Circles */
+.status {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.status.online {
+  background-color: green;
+}
+
+.status.offline {
+  background-color: grey;
+}
+
+/* Employee Controls */
+.employee-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.employee-controls input {
+  flex: 1;                /* Input stretches across available space */
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.employee-controls button {
+  padding: 8px 16px;       /* Compact button */
+  flex: 0;                 /* Prevents button from stretching */
+  background-color: #1E0977;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.employee-controls button:hover {
+  background-color: #140555;
+}
+
+
+/* Job Controls */
+.job-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.job-controls input {
+  flex: 1;                /* Input stretches across available space */
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.job-controls button {
+  padding: 8px 16px;       /* Compact button */
+  flex: 0;
+  background-color: #1E0977;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.job-controls button:hover {
+  background-color: #140555;
+}
+
+/* Job Table */
+.job-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+}
+
+.job-table th, .job-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: left;
+}
+
+.job-table th {
+  background-color: #f4f4f4;
+  color: #1E0977;
+}
+
+.edit-btn, .delete-btn {
+  padding: 6px 12px;
+  margin-right: 5px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.edit-btn {
+  background-color: #1E0977;
+  color: white;
+}
+
+.delete-btn {
+  background-color: #e74c3c;
+  color: white;
+}
+
+/* Status Circles */
+.status {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.status.ongoing {
+  background-color: #f1c40f; /* Yellow */
+}
+
+.status.completed {
+  background-color: #2ecc71; /* Green */
+}
+
+.status.cancelled {
+  background-color: #e74c3c; /* Red */
+}
+
+/* Record Controls */
+.record-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.record-controls input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.record-controls button {
+  padding: 8px 16px;
+  flex: 0;
+  background-color: #1E0977;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.record-controls button:hover {
+  background-color: #140555;
+}
+
+/* Records Table */
+.record-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+}
+
+.record-table th, .record-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: left;
+}
+
+.record-table th {
+  background-color: #f4f4f4;
+  color: #1E0977;
+}
+
+.view-btn {
+  padding: 6px 12px;
+  background-color: #1E0977;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.view-btn:hover {
+  background-color: #140555;
+}
+
+/* Status Circles */
+.status {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.status.completed {
+  background-color: #2ecc71; /* Green */
+}
+
+.status.ongoing {
+  background-color: #f1c40f; /* Yellow */
+}
+
+.status.cancelled {
+  background-color: #e74c3c; /* Red */
+}
+
+/* Utility classes for Tailwind-like functionality */
+.hidden {
+  display: none;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.border-collapse {
+  border-collapse: collapse;
+}
+
+.bg-white {
+  background-color: white;
+}
+
+.shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.border-b {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.bg-gray-100 {
+  background-color: #f3f4f6;
+}
+
+.p-3 {
+  padding: 0.75rem;
+}
+
+.hover\:bg-gray-50:hover {
+  background-color: #f9fafb;
+}
+
+.grid {
+  display: grid;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .xl\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-grow {
+  flex-grow: 1;
+}
+
+.text-2xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+
+.mb-8 {
+  margin-bottom: 2rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.text-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+.border {
+  border: 1px solid #d1d5db;
+}
+
+.rounded {
+  border-radius: 0.25rem;
+}
+
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.p-2 {
+  padding: 0.5rem;
+}
+
+.p-6 {
+  padding: 1.5rem;
+}
+
+.align-bottom {
+  vertical-align: bottom;
+}
+
+.drop-btn {
+  background: none;
+  border: none;
+  color: #004C99;
+  font-weight: bold;
+  cursor: pointer;
+}
