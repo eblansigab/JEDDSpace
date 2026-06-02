@@ -1,98 +1,22 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-
 import '../styles/style.css'
 import logo from '../assets/JEDDSpace Logo (Transparent).png'
-
+import Sidebar from '../components/sideBar'
+import DashboardLayout from '../layouts/dashboardLayout'
 const AdminDashboardPage = () => {
-
-  const [showHRDropdown, setShowHRDropdown] = useState(false)
-
-  const toggleDropdown = () => {
-    setShowHRDropdown(!showHRDropdown)
-  }
 
   return (
     <div className="dashboard-page">
 
       {/* Top Bar */}
-      <header>
-        <Link to="/dashboard">
-          <img
-            className="max-w-3xs"
-            src={logo}
-            alt="JEDDSpace - by JEDDTech Corp."
-            style={{ width: '220px' }}
-          />
-        </Link>
-      </header>
+      <DashboardLayout/>
 
       <div className="layout">
 
         {/* Sidebar */}
-        <nav className="sidebar">
+          <Sidebar />
 
-          <ul>
-
-            <li>
-              <Link to="/dashboard">Dashboard</Link>
-            </li>
-
-            <li>
-              <Link to="/documents">Documents</Link>
-            </li>
-
-            <li>
-              <Link to="/emails">Email</Link>
-            </li>
-
-            <li>
-              <Link to="/contracts">Contracts</Link>
-            </li>
-
-            <li>
-              <Link to="/announcements">Announcements</Link>
-            </li>
-
-            {/* HR Forms Dropdown */}
-            <li>
-
-              <button
-                className="drop-btn"
-                onClick={toggleDropdown}
-              >
-                HR Forms ▼
-              </button>
-
-              {showHRDropdown && (
-                <ul className="dropdown">
-
-                  <li>
-                    <Link to="/official-business">
-                      Official Business Form
-                    </Link>
-                  </li>
-
-                  <li>
-                    <Link to="/leave-form">
-                      Leave Form
-                    </Link>
-                  </li>
-
-                </ul>
-              )}
-
-            </li>
-
-            <li>
-              <Link to="/admin-dashboard">
-                Admin Dashboard
-              </Link>
-            </li>
-
-          </ul>
-
-        </nav>
 
         {/* Main Content */}
         <main className="content">

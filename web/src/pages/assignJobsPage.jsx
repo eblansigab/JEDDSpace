@@ -1,411 +1,371 @@
-import React, { useState, useEffect } from 'react'
-import logo from '../assets/JEDDSpace Logo (Transparent).png'
-import { supabaseClient } from '../supabase/supabaseClient'
+import { useState, useEffect } from 'react'
+import Sidebar from '../components/sideBar'
+import DashboardLayout from '../layouts/dashboardLayout'
+import { jobService } from '../services/jobsService'
+import { employeeService } from '../services/employeeService'
+import { notificationService } from '../services/notificationService'
+import { useAuth } from '../services/authContext'
+import { alertService } from '../utils/alertService'
+import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
 
 const AssignJobsPage = () => {
-  const [isHrOpen, setIsHrOpen] = useState(false)
+  const { user } = useAuth()
   const [jobs, setJobs] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [isFormVisible, setIsFormVisible] = useState(false)
 
-  // FORM STATES
-  const [employeeId, setEmployeeId] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [department, setDepartment] = useState('')
   const [destination, setDestination] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [notes, setNotes] = useState('')
 
-  // FETCH JOBS
   const fetchJobs = async () => {
-    const { data, error } = await supabaseClient
-      .from('job')
-      .select('*')
-
-    if (error) {
+    try {
+      const data = await jobService.getAll()
+      setJobs(data)
+    } catch (error) {
       console.error(error)
-      return
     }
-
-    setJobs(data)
   }
 
-  // RESET FORM
   const resetForm = () => {
-    setEmployeeId('')
+    setFirstName('')
+    setLastName('')
     setDepartment('')
     setDestination('')
     setStartDate('')
     setEndDate('')
+    setNotes('')
     setIsFormVisible(false)
   }
 
-  // ADD JOB
   const handleAddJob = async () => {
-    const parsedEmpId = parseInt(employeeId)
-
-    if (
-      isNaN(parsedEmpId) ||
-      !department ||
-      !destination ||
-      !startDate ||
-      !endDate
-    ) {
-      alert('Please fill all fields')
+    if (!firstName || !lastName || !department || !destination || !startDate || !endDate) {
+      await alertService.warning('Please fill all required fields')
       return
     }
 
-    // CHECK IF EMPLOYEE EXISTS
-    const { data: employee, error: employeeError } = await supabaseClient
-      .from('employee')
-      .select('employee_id')
-      .eq('employee_id', parsedEmpId)
-      .single()
+    try {
+      const employee = await employeeService.findByName(firstName, lastName)
 
-    if (employeeError || !employee) {
-      alert('Employee ID not found')
-      return
-    }
+      if (!employee) {
+        await alertService.error('Employee not found')
+        return
+      }
 
-    // INSERT JOB
-    const { error } = await supabaseClient
-      .from('job')
-      .insert([
-        {
-          employee_id: parsedEmpId,
-          department,
-          destination,
-          start_date: startDate,
-          end_date: endDate,
-          status: 'open'
-        }
+      await jobService.create({
+        employee_id: employee.employee_id,
+        department,
+        destination,
+        start_date: startDate,
+        end_date: endDate,
+        notes: notes || null,
+        status: 'open'
+      })
+
+      await Promise.allSettled([
+        notificationService.createNotification({
+          title: 'New job assignment created',
+          message: `${firstName} ${lastName} was assigned to ${destination}.`,
+          type: 'job_assignment',
+          priority: 'High',
+          userId: user?.id
+        })
       ])
 
-    if (error) {
-      alert(error.message)
+      await alertService.success('Job assigned successfully')
+      resetForm()
+      fetchJobs()
+    } catch (error) {
+      await alertService.error(error.message)
+    }
+  }
+
+  const getStatusColor = (status) => {
+    const normalized = (status || '').toLowerCase()
+    if (normalized === 'closed' || normalized === 'completed' || normalized === 'done') {
+      return 'green'
+    }
+    if (normalized === 'open' || normalized === 'pending' || normalized === 'in progress') {
+      return 'orange'
+    }
+    if (normalized === 'cancelled' || normalized === 'delayed' || normalized === 'problem') {
+      return 'red'
+    }
+    return 'gray'
+  }
+
+  const handleEditJob = async (
+    job_id,
+    currentDestination,
+    currentNotes,
+    currentStartDate,
+    currentEndDate,
+    currentStatus
+  ) => {
+    const destinationResult = await alertService.input({
+      title: 'Edit Destination',
+      text: 'Leave blank to keep the current destination.',
+      input: 'text',
+      inputValue: currentDestination,
+      inputPlaceholder: 'Destination',
+      allowEmpty: true,
+      confirmButtonText: 'Next'
+    })
+    if (!destinationResult.isConfirmed) return
+    const updatedDestination = destinationResult.value?.trim() || currentDestination
+    if (!updatedDestination) {
+      await alertService.warning('Destination cannot be empty')
       return
     }
 
-    alert('Job assigned successfully')
+    const startDateResult = await alertService.input({
+      title: 'Edit Start Date',
+      text: 'Leave blank to keep the current start date.',
+      input: 'date',
+      inputValue: currentStartDate,
+      allowEmpty: true,
+      confirmButtonText: 'Next'
+    })
+    if (!startDateResult.isConfirmed) return
+    const updatedStartDate = startDateResult.value?.trim() || currentStartDate
+    if (!updatedStartDate) {
+      await alertService.warning('Start date cannot be empty')
+      return
+    }
 
-    resetForm()
-    fetchJobs()
-  }
+    const endDateResult = await alertService.input({
+      title: 'Edit End Date',
+      text: 'Leave blank to keep the current end date.',
+      input: 'date',
+      inputValue: currentEndDate,
+      allowEmpty: true,
+      confirmButtonText: 'Next'
+    })
+    if (!endDateResult.isConfirmed) return
+    const updatedEndDate = endDateResult.value?.trim() || currentEndDate
+    if (!updatedEndDate) {
+      await alertService.warning('End date cannot be empty')
+      return
+    }
 
-  // EDIT JOB
-  const handleEditJob = async (job_id) => {
-    const newDestination = prompt('Enter new destination')
+    const statusResult = await alertService.input({
+      title: 'Edit Status',
+      text: 'Leave blank to keep the current status.',
+      input: 'text',
+      inputValue: currentStatus,
+      inputPlaceholder: 'open / closed / pending',
+      allowEmpty: true,
+      confirmButtonText: 'Next'
+    })
+    if (!statusResult.isConfirmed) return
+    const updatedStatus = statusResult.value?.trim() || currentStatus
+    if (!updatedStatus) {
+      await alertService.warning('Status cannot be empty')
+      return
+    }
 
-    if (!newDestination) return
+    const notesResult = await alertService.input({
+      title: 'Edit Notes',
+      text: 'Enter travel notes or leave blank to keep current notes.',
+      input: 'textarea',
+      inputValue: currentNotes || '',
+      inputPlaceholder: 'Travel notes',
+      allowEmpty: true,
+      confirmButtonText: 'Save'
+    })
+    const newNotes = notesResult.isConfirmed ? notesResult.value : currentNotes
 
-    const { error } = await supabaseClient
-      .from('job')
-      .update({
-        destination: newDestination
+    try {
+      await jobService.update(job_id, {
+        destination: updatedDestination,
+        start_date: updatedStartDate,
+        end_date: updatedEndDate,
+        status: updatedStatus,
+        notes: newNotes?.trim() || null
       })
-      .eq('job_id', job_id)
 
-    if (error) {
-      alert(error.message)
-      return
+      await Promise.allSettled([
+        notificationService.createNotification({
+          title: 'Job assignment updated',
+          message: `Job #${job_id} was updated.`,
+          type: 'job_assignment',
+          priority: 'Normal',
+          userId: user?.id
+        })
+      ])
+
+      await alertService.success('Job updated successfully')
+      fetchJobs()
+    } catch (error) {
+      await alertService.error(error.message)
     }
-
-    alert('Job updated successfully')
-
-    fetchJobs()
   }
 
-  // COMPLETE JOB
   const handleCompleteJob = async (job_id) => {
-    const { error } = await supabaseClient
-      .from('job')
-      .update({
+    try {
+      await jobService.update(job_id, {
         status: 'closed'
       })
-      .eq('job_id', job_id)
 
-    if (error) {
-      alert(error.message)
-      return
+      await alertService.success('Job marked as completed')
+      fetchJobs()
+    } catch (error) {
+      await alertService.error(error.message)
     }
-
-    alert('Job marked as completed')
-
-    fetchJobs()
   }
 
-  // DELETE JOB
   const handleDeleteJob = async (job_id) => {
-    const confirmDelete = window.confirm(
-      'Are you sure you want to delete this job?'
-    )
+    const confirmDelete = await alertService.confirm({
+      title: 'Delete this job?',
+      text: 'This action cannot be undone.',
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel'
+    })
 
-    if (!confirmDelete) return
+    if (!confirmDelete.isConfirmed) return
 
-    const { error } = await supabaseClient
-      .from('job')
-      .delete()
-      .eq('job_id', job_id)
-
-    if (error) {
-      alert(error.message)
-      return
+    try {
+      await jobService.remove(job_id)
+      await alertService.success('Job deleted')
+      fetchJobs()
+    } catch (error) {
+      await alertService.error(error.message)
     }
-
-    alert('Job deleted')
-
-    fetchJobs()
   }
 
-  // USE EFFECT
   useEffect(() => {
     fetchJobs()
-
-    const handleOutsideClick = (event) => {
-      if (!event.target.matches('.drop-btn')) {
-        setIsHrOpen(false)
-      }
-    }
-
-    window.addEventListener('click', handleOutsideClick)
-
-    return () =>
-      window.removeEventListener('click', handleOutsideClick)
   }, [])
+
+  const filteredJobs = jobs.filter((job) => {
+    const query = searchTerm.toLowerCase()
+    const employeeName = job.employee
+      ? `${job.employee.first_name || ''} ${job.employee.last_name || ''}`.toLowerCase()
+      : ''
+    return (
+      employeeName.includes(query) ||
+      String(job.department || '').toLowerCase().includes(query) ||
+      String(job.destination || '').toLowerCase().includes(query) ||
+      String(job.status || '').toLowerCase().includes(query)
+    )
+  })
+
+  const columns = [
+    { key: 'job_id', title: 'Job ID' },
+    {
+      key: 'name',
+      title: 'Employee Name',
+      render: (_, row) =>
+        row.employee ? `${row.employee.first_name} ${row.employee.last_name}` : 'Unknown Employee'
+    },
+    { key: 'department', title: 'Department' },
+    { key: 'destination', title: 'Destination' },
+    { key: 'start_date', title: 'Start Date' },
+    { key: 'end_date', title: 'End Date' },
+    {
+      key: 'notes',
+      title: 'Notes',
+      render: (_, row) =>
+        row.notes
+          ? row.notes.length > 40
+            ? `${row.notes.slice(0, 40)}...`
+            : row.notes
+          : '—'
+    },
+    {
+      key: 'status',
+      title: 'Status',
+      render: (_, row) => <StatusBadge status={row.status || 'pending'} />
+    },
+    {
+      key: 'actions',
+      title: 'Actions',
+      render: (_, row) => (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button variant="outline" style={{ minWidth: 80 }} onClick={() => handleEditJob(row.job_id, row.destination, row.notes, row.start_date, row.end_date, row.status)}>
+            Edit
+          </Button>
+          <Button variant="primary" style={{ minWidth: 80 }} onClick={() => handleCompleteJob(row.job_id)}>
+            Complete
+          </Button>
+          <Button variant="danger" style={{ minWidth: 80 }} onClick={() => handleDeleteJob(row.job_id)}>
+            Delete
+          </Button>
+        </div>
+      )
+    }
+  ]
 
   return (
     <div>
-      {/* HEADER */}
-      <header>
-        <a href="/dashboard">
-          <img
-            className="max-w-3xs"
-            src={logo}
-            alt="JEDDSpace Logo"
-            style={{ width: '220px' }}
-          />
-        </a>
-      </header>
+      <DashboardLayout />
 
       <div className="layout">
-        {/* SIDEBAR */}
-        <nav className="sidebar">
-          <ul>
-            <li><a href="/dashboard">Dashboard</a></li>
-            <li><a href="/documents">Documents</a></li>
-            <li><a href="/emails">Email</a></li>
-            <li><a href="/contracts">Contracts</a></li>
-            <li><a href="/announcements">Announcements</a></li>
+        <Sidebar />
 
-            <li>
-              <button
-                className="drop-btn"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setIsHrOpen(!isHrOpen)
-                }}
-              >
-                HR Forms {isHrOpen ? '▲' : '▼'}
-              </button>
-
-              <ul className={`dropdown ${isHrOpen ? '' : 'hidden'}`}>
-                <li>
-                  <a href="/official-business">
-                    Official Business Form
-                  </a>
-                </li>
-
-                <li>
-                  <a href="/leave-form">
-                    Leave Form
-                  </a>
-                </li>
-              </ul>
-            </li>
-
-            <li>
-              <a href="/admin-dashboard">
-                Admin Dashboard
-              </a>
-            </li>
-          </ul>
-        </nav>
-
-        {/* MAIN CONTENT */}
         <main className="content">
-          <h1>Travel Job Assignment</h1>
-
-          {/* TOP CONTROLS */}
-          <div className="job-controls">
-            <input
-              type="text"
-              placeholder="Search jobs..."
-            />
-
-            <button
-              className="primary-btn"
-              onClick={() =>
-                setIsFormVisible(!isFormVisible)
-              }
-            >
-              {isFormVisible
-                ? 'Close Form'
-                : 'Assign New Job'}
-            </button>
-          </div>
-
-          {/* FORM */}
-          {isFormVisible && (
-            <section className="dashboard-widget">
-              <h3 style={{ marginBottom: '15px' }}>
+          <PageHeader
+            title="Travel Job Assignment"
+            actions={[
+              <SearchBar key="search" value={searchTerm} onChange={setSearchTerm} placeholder="Search jobs..." />,
+              <Button key="assign" onClick={() => setIsFormVisible(true)}>
                 Assign New Job
-              </h3>
+              </Button>
+            ]}
+          />
 
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '15px'
-                }}
-              >
-                <div>
-                  <label>Employee ID</label>
-
-                  <input
-                    type="text"
-                    value={employeeId}
-                    onChange={(e) =>
-                      setEmployeeId(e.target.value)
-                    }
-                    placeholder="e.g. 1"
-                  />
-                </div>
-
-                <div>
-                  <label>Department</label>
-
-                  <input
-                    type="text"
-                    value={department}
-                    onChange={(e) =>
-                      setDepartment(e.target.value)
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label>Destination</label>
-
-                  <input
-                    type="text"
-                    value={destination}
-                    onChange={(e) =>
-                      setDestination(e.target.value)
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label>Start Date</label>
-
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) =>
-                      setStartDate(e.target.value)
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label>End Date</label>
-
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) =>
-                      setEndDate(e.target.value)
-                    }
-                  />
-                </div>
-
-                <div style={{ alignSelf: 'end' }}>
-                  <button
-                    className="primary-btn"
-                    onClick={handleAddJob}
-                  >
-                    Confirm
-                  </button>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* JOB TABLE */}
-          <section className="job-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Job ID</th>
-                  <th>Employee ID</th>
-                  <th>Department</th>
-                  <th>Destination</th>
-                  <th>Start Date</th>
-                  <th>End Date</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {jobs.map((job) => (
-                  <tr key={job.job_id}>
-                    <td>{job.job_id}</td>
-                    <td>{job.employee_id}</td>
-                    <td>{job.department}</td>
-                    <td>{job.destination}</td>
-                    <td>{job.start_date}</td>
-                    <td>{job.end_date}</td>
-                    <td>{job.status}</td>
-
-                    <td
-                      style={{
-                        display: 'flex',
-                        gap: '8px'
-                      }}
-                    >
-                      <button
-                        className="edit-btn"
-                        onClick={() =>
-                          handleEditJob(job.job_id)
-                        }
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        className="primary-btn"
-                        onClick={() =>
-                          handleCompleteJob(job.job_id)
-                        }
-                      >
-                        Complete
-                      </button>
-
-                      <button
-                        className="delete-btn"
-                        onClick={() =>
-                          handleDeleteJob(job.job_id)
-                        }
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+          <Table columns={columns} data={filteredJobs} />
         </main>
       </div>
+
+      <Modal
+        visible={isFormVisible}
+        title="Assign New Job"
+        onClose={() => setIsFormVisible(false)}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <Button variant="outline" onClick={() => setIsFormVisible(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddJob}>Confirm</Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
+          <div>
+            <label>First Name</label>
+            <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Juan" />
+          </div>
+          <div>
+            <label>Last Name</label>
+            <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Dela Cruz" />
+          </div>
+          <div>
+            <label>Department</label>
+            <input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} />
+          </div>
+          <div>
+            <label>Destination</label>
+            <input type="text" value={destination} onChange={(e) => setDestination(e.target.value)} />
+          </div>
+          <div>
+            <label>Start Date</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div>
+            <label>End Date</label>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+          <div>
+            <label>Travel Notes (optional)</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add itinerary details, important reminders, or travel notes" rows={4} style={{ width: '100%' }} />
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

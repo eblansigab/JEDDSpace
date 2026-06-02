@@ -1,413 +1,247 @@
-import React, { useState, useEffect } from 'react'
-import logo from '../assets/JEDDSpace Logo (Transparent).png'
-import { supabaseClient } from '../supabase/supabaseClient'
+import { useState, useEffect } from 'react'
+import Sidebar from '../components/sideBar'
+import DashboardLayout from '../layouts/dashboardLayout'
+import { employeeService } from '../services/employeeService'
+import { notificationService } from '../services/notificationService'
+import { useAuth } from '../services/authContext'
+import { alertService } from '../utils/alertService'
+import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
 
 const ManageEmployeesPage = () => {
-
-  const [isHrOpen, setIsHrOpen] = useState(false)
-  const [id, setID] = useState([])
+  const { user } = useAuth()
   const [employees, setEmployees] = useState([])
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [position, setPosition] = useState('')
   const [department, setDepartment] = useState('')
 
-  // =========================
-  // FETCH EMPLOYEES
-  // =========================
-
   const fetchEmployees = async () => {
-
-    const { data, error } = await supabaseClient
-      .from('employee')
-      .select('*')
-
-    if (error) {
-      console.log(error)
-      return
+    try {
+      const data = await employeeService.getAll()
+      setEmployees(data)
+    } catch (error) {
+      console.error(error.message)
     }
-
-    setEmployees(data)
   }
-
-  // =========================
-  // ADD EMPLOYEE
-  // =========================
 
   const handleAddEmployee = async () => {
-if (
-  !firstName ||
-  !lastName ||
-  !position ||
-  !department
-) {
-  alert('Please fill all fields')
-  return
-}
-    const { error } = await supabaseClient
-      .from('employee')
-      .insert([
-        {
-          first_name: firstName,
-          last_name: lastName,
-          position,
-          department
-        }
+    if (!firstName || !lastName || !position || !department) {
+      await alertService.warning('Please fill all fields')
+      return
+    }
+
+    try {
+      await employeeService.create({
+        first_name: firstName,
+        last_name: lastName,
+        position,
+        department
+      })
+
+      await Promise.allSettled([
+        notificationService.createNotification({
+          title: 'Employee record created',
+          message: `${firstName} ${lastName} was added to ${department}.`,
+          type: 'employee_update',
+          priority: 'Normal',
+          userId: user?.id
+        })
       ])
 
-    if (error) {
-      alert(error.message)
-      return
+      await alertService.success('Employee added successfully')
+      setFirstName('')
+      setLastName('')
+      setPosition('')
+      setDepartment('')
+      setIsAddOpen(false)
+      fetchEmployees()
+    } catch (error) {
+      await alertService.error(error.message)
     }
-
-    alert('Employee added successfully')
-
-    setFirstName('')
-    setLastName('')
-    setPosition('')
-    setDepartment('')
-
-    fetchEmployees()
   }
-
-  // =========================
-  // DELETE EMPLOYEE
-  // =========================
 
   const handleDeleteEmployee = async (employee_id) => {
+    const confirmDelete = await alertService.confirm({
+      title: 'Delete employee?',
+      text: 'This action cannot be undone.',
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel'
+    })
 
-    const confirmDelete =
-      window.confirm('Delete this employee?')
+    if (!confirmDelete.isConfirmed) return
 
-    if (!confirmDelete) return
-
-    const { error } = await supabaseClient
-      .from('employee')
-      .delete()
-      .eq('employee_id', employee_id)
-
-    if (error) {
-      alert(error.message)
-      return
+    try {
+      await employeeService.remove(employee_id)
+      await alertService.success('Employee deleted')
+      fetchEmployees()
+    } catch (error) {
+      await alertService.error(error.message)
     }
-
-    alert('Employee deleted')
-
-    fetchEmployees()
   }
-
-  // =========================
-  // EDIT EMPLOYEE
-  // =========================
 
   const handleEditEmployee = async (employee_id) => {
+    const promptResult = await alertService.input({
+      title: 'Edit Position',
+      text: 'Leave blank to keep the current position.',
+      input: 'text',
+      inputValue: '',
+      inputPlaceholder: 'New position',
+      allowEmpty: true,
+      confirmButtonText: 'Save'
+    })
 
-    const newPosition =
-      prompt('Enter new position')
+    if (!promptResult.isConfirmed) return
 
+    const newPosition = promptResult.value?.trim()
     if (!newPosition) return
 
-    const { error } = await supabaseClient
-      .from('employee')
-      .update({
+    try {
+      await employeeService.update(employee_id, {
         position: newPosition
       })
-      .eq('employee_id', employee_id)
 
-    if (error) {
-      alert(error.message)
-      return
+      await Promise.allSettled([
+        notificationService.createNotification({
+          title: 'Employee record updated',
+          message: `Employee #${employee_id} position changed to ${newPosition}.`,
+          type: 'employee_update',
+          priority: 'Normal',
+          userId: user?.id
+        })
+      ])
+
+      await alertService.success('Employee updated')
+      fetchEmployees()
+    } catch (error) {
+      await alertService.error(error.message)
     }
-
-    alert('Employee updated')
-
-    fetchEmployees()
   }
 
-  // =========================
-  // USE EFFECT
-  // =========================
-
   useEffect(() => {
-
     fetchEmployees()
-
-    const handleOutsideClick = (event) => {
-
-      if (!event.target.matches('.drop-btn')) {
-        setIsHrOpen(false)
-      }
-    }
-
-    window.addEventListener(
-      'click',
-      handleOutsideClick
-    )
-
-    return () => {
-      window.removeEventListener(
-        'click',
-        handleOutsideClick
-      )
-    }
-
   }, [])
 
+  const filteredEmployees = employees.filter((emp) => {
+    const query = searchTerm.toLowerCase()
+    const name = `${emp.first_name || ''} ${emp.last_name || ''}`.toLowerCase()
+    return (
+      name.includes(query) ||
+      String(emp.position || '').toLowerCase().includes(query) ||
+      String(emp.department || '').toLowerCase().includes(query)
+    )
+  })
+
+  const columns = [
+    { key: 'employee_id', title: 'ID' },
+    {
+      key: 'name',
+      title: 'Name',
+      render: (_, row) => `${row.first_name} ${row.last_name}`
+    },
+    { key: 'position', title: 'Position' },
+    { key: 'department', title: 'Department' },
+    {
+      key: 'status',
+      title: 'Status',
+      render: () => <StatusBadge status="active" />
+    },
+    {
+      key: 'actions',
+      title: 'Actions',
+      render: (_, row) => (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button variant="outline" style={{ minWidth: 72 }} onClick={() => handleEditEmployee(row.employee_id)}>
+            Edit
+          </Button>
+          <Button variant="danger" style={{ minWidth: 72 }} onClick={() => handleDeleteEmployee(row.employee_id)}>
+            Delete
+          </Button>
+        </div>
+      )
+    }
+  ]
+
   return (
-
     <div>
-
-      {/* HEADER */}
-
-      <header>
-        <a href="/dashboard">
-
-          <img
-            className="max-w-3xs"
-            src={logo}
-            alt="JEDDSpace Logo"
-            style={{ width: '220px' }}
-          />
-
-        </a>
-      </header>
+      <DashboardLayout />
 
       <div className="layout">
-
-        {/* SIDEBAR */}
-
-        <nav className="sidebar">
-
-          <ul>
-
-            <li>
-              <a href="/dashboard">
-                Dashboard
-              </a>
-            </li>
-
-            <li>
-              <a href="/documents">
-                Documents
-              </a>
-            </li>
-
-            <li>
-              <a href="/emails">
-                Email
-              </a>
-            </li>
-
-            <li>
-              <a href="/contracts">
-                Contracts
-              </a>
-            </li>
-
-            <li>
-              <a href="/announcements">
-                Announcements
-              </a>
-            </li>
-
-            {/* HR DROPDOWN */}
-
-            <li>
-
-              <button
-                className="drop-btn"
-                onClick={(e) => {
-
-                  e.stopPropagation()
-
-                  setIsHrOpen(!isHrOpen)
-                }}
-              >
-                HR Forms {isHrOpen ? '▲' : '▼'}
-              </button>
-
-              <ul
-                className={`dropdown ${
-                  isHrOpen ? '' : 'hidden'
-                }`}
-              >
-
-                <li>
-                  <a href="/official-business">
-                    Official Business Form
-                  </a>
-                </li>
-
-                <li>
-                  <a href="/leave-form">
-                    Leave Form
-                  </a>
-                </li>
-
-              </ul>
-
-            </li>
-
-            <li>
-              <a href="/admin-dashboard">
-                Admin Dashboard
-              </a>
-            </li>
-
-          </ul>
-
-        </nav>
-
-        {/* MAIN CONTENT */}
+        <Sidebar />
 
         <main className="content">
+          <PageHeader
+            title="Manage Employees"
+            actions={[
+              <Button key="add-employee" onClick={() => setIsAddOpen(true)}>
+                Add Employee
+              </Button>
+            ]}
+          />
 
-          <h1>Manage Employees</h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 18 }}>
+            <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search employees..." />
+            <Button variant="outline" onClick={fetchEmployees}>
+              Refresh
+            </Button>
+          </div>
 
-          {/* ADD EMPLOYEE */}
+          <Table columns={columns} data={filteredEmployees} />
 
-          <section className="employee-controls">
-
-            <input
-              type="text"
-              placeholder="First Name"
-              value={firstName}
-              onChange={(e) =>
-                setFirstName(e.target.value)
-              }
-            />
-
-            <input
-              type="text"
-              placeholder="Last Name"
-              value={lastName}
-              onChange={(e) =>
-                setLastName(e.target.value)
-              }
-            />
-
-            <input
-              type="text"
-              placeholder="Position"
-              value={position}
-              onChange={(e) =>
-                setPosition(e.target.value)
-              }
-            />
-
-            <input
-              type="text"
-              placeholder="Department"
-              value={department}
-              onChange={(e) =>
-                setDepartment(e.target.value)
-              }
-            />
-
-            <button
-              className="primary-btn"
-              onClick={handleAddEmployee}
-            >
-              Add Employee
-            </button>
-
-          </section>
-
-          {/* EMPLOYEE TABLE */}
-
-          <section className="employee-table">
-
-            <table>
-
-              <thead>
-
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Position</th>
-                  <th>Department</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-
-              </thead>
-
-              <tbody>
-
-                {employees.map((emp) => (
-
-                  <tr key={emp.employee_id}>
-
-                    <td>{emp.employee_id}</td>
-
-                    <td>
-                      {emp.first_name} {emp.last_name}
-                    </td>
-
-                    <td>{emp.position}</td>
-
-                    <td>{emp.department}</td>
-
-                    <td>Active</td>
-
-                    <td>
-
-                      <button
-                        className="edit-btn"
-                        onClick={() =>
-                          handleEditEmployee(emp.employee_id)
-                        }
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        className="delete-btn"
-                        onClick={() =>
-                          handleDeleteEmployee(emp.employee_id)
-                        }
-                      >
-                        Delete
-                      </button>
-
-                    </td>
-
-                  </tr>
-
-                ))}
-
-              </tbody>
-
-            </table>
-
-          </section>
-
-          {/* ACTIVE EMPLOYEES */}
-
-          <section className="active-employees">
-
+          <section style={{ marginTop: 28 }}>
             <h3>Employee List</h3>
-
             <ul>
-
-              {employees.map((emp) => (
-
-                <li key={emp.id}>
-
+              {filteredEmployees.map((emp) => (
+                <li key={emp.employee_id}>
                   {emp.first_name} {emp.last_name}
-
                 </li>
-
               ))}
-
             </ul>
-
           </section>
-
         </main>
-
       </div>
 
+      <Modal
+        visible={isAddOpen}
+        title="Add Employee"
+        onClose={() => setIsAddOpen(false)}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <Button variant="outline" onClick={() => setIsAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddEmployee}>Save</Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gap: 12 }}>
+          <input
+            type="text"
+            placeholder="First Name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Last Name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Position"
+            value={position}
+            onChange={(e) => setPosition(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Department"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+          />
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -1,123 +1,121 @@
-import React, { useState, useEffect } from 'react'
-import logo from "../assets/JEDDSpace Logo (Transparent).png";
+import { useEffect, useMemo, useState } from 'react'
+import Sidebar from '../components/sideBar'
+import DashboardLayout from '../layouts/dashboardLayout'
+import { Button, PageHeader, SearchBar, Table } from '../components'
+import { useAuth } from '../services/authContext'
+import { emailService } from '../services/emailService'
+import { alertService } from '../utils/alertService'
 
 const EmailsPage = () => {
-const [isHrOpen, setIsHrOpen] = useState(false)
+  const { user } = useAuth()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [messages, setMessages] = useState([])
+  const [recipient, setRecipient] = useState('')
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [isSending, setIsSending] = useState(false)
 
-useEffect(() => {
-const handleOutsideClick = (event) => {
-if (!event.target.matches('.drop-btn')) {
-setIsHrOpen(false)
-}
-}
-window.addEventListener('click', handleOutsideClick)
-return () => window.removeEventListener('click', handleOutsideClick)
-}, [])
+  const loadEmails = async () => {
+    const data = await emailService.getEmailLogs()
+    setMessages(data)
+  }
 
-const activeEmployees = [
-{ id: 1, name: 'Sender Name 1', avatar: 'avatar1.png' },
-{ id: 2, name: 'Sender Name 2', avatar: 'avatar2.png' },
-{ id: 3, name: 'Sender Name 3', avatar: 'avatar3.png' },
-{ id: 4, name: 'Sender Name 4', avatar: 'avatar4.png' },
-{ id: 5, name: 'Sender Name 5', avatar: 'avatar5.png' }
-]
+  useEffect(() => {
+    loadEmails()
+  }, [])
 
-const inboxMessages = [
-{ id: 1, sender: 'Sender Name 1', subject: 'Subject line of the email goes here', time: '2:30 PM' },
-{ id: 2, sender: 'Sender Name 2', subject: 'Another subject line for your email', time: '1:15 PM' },
-{ id: 3, sender: 'Sender Name 3', subject: 'Email subject line example', time: '12:45 PM' },
-{ id: 4, sender: 'Sender Name 4', subject: 'Yet another subject line', time: '11:30 AM' },
-{ id: 5, sender: 'Sender Name 5', subject: 'Follow-up on previous email', time: '10:00 AM' }
-]
+  const handleSend = async () => {
+    if (!recipient.trim() || !subject.trim() || !body.trim()) {
+      await alertService.warning('Please complete the recipient, subject, and message.', 'Missing Details')
+      return
+    }
 
-return (
-<div>
-  <header>
-  <a href="/dashboard">
-    <img
-      className="max-w-3xs"
-      src={logo}
-      alt="JEDDSpace Logo"
-      style={{ width: '220px' }}
-    />
-  </a>
-</header>
-  <div className="layout">
-    <nav className="sidebar">
-      <ul>
-        <li><a href="/dashboard">Dashboard</a></li>
-        <li><a href="/documents">Documents</a></li>
-        <li><a href="/emails">Email</a></li>
-        <li><a href="/contracts">Contracts</a></li>
-        <li><a href="/announcements">Announcements</a></li>
+    setIsSending(true)
 
-        <li>
-          <button 
-            className="drop-btn" 
-            onClick={(e) => {
-              e.stopPropagation()
-              setIsHrOpen(!isHrOpen)
-            }}
-          >
-            HR Forms {isHrOpen ? '▲' : '▼'}
-          </button>
-          <ul className={`dropdown ${isHrOpen ? '' : 'hidden'}`}>
-            <li><a href="/official-business">Official Business Form</a></li>
-            <li><a href="/leave-form">Leave Form</a></li>
-          </ul>
-        </li>
+    try {
+      await emailService.createEmailLog({
+        recipient,
+        subject,
+        body,
+        type: 'manual',
+        userId: user?.id
+      })
 
-        <li><a href="/admin-dashboard">Admin Dashboard</a></li>
-      </ul>
-    </nav>
+      await alertService.success('Email has been logged successfully.', 'Email Logged')
+      setRecipient('')
+      setSubject('')
+      setBody('')
+      loadEmails()
+    } catch (error) {
+      await alertService.error(error.message || 'Unable to log email.', 'Send Failed')
+    } finally {
+      setIsSending(false)
+    }
+  }
 
-    <main className="content">
-      <h1>Emails</h1>
-      <div className="email-layout">
-        <aside className="active-bar">
-          <h3>Active Employees</h3>
-          <ul>
-            {activeEmployees.map((emp) => (
-              <li key={emp.id}>
-                <img src={emp.avatar} alt="" /> {emp.name}
-              </li>
-            ))}
-          </ul>
-        </aside>
+  const filteredMessages = useMemo(
+    () =>
+      messages.filter((msg) =>
+        [
+          msg.sender,
+          msg.recipient,
+          msg.subject,
+          msg.body,
+          msg.created_at
+        ].map((value) => value || '').join(' ').toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [messages, searchTerm]
+  )
 
-        <section className="inbox">
-          <h2>Inbox</h2>
-          <table>
-            <tbody>
-              {inboxMessages.map((msg) => (
-                <tr key={msg.id}>
-                  <td><strong>{msg.sender}</strong></td>
-                  <td>{msg.subject}</td>
-                  <td>{msg.time}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+  const columns = [
+    { key: 'recipient', title: 'Recipient', render: (value) => value || 'All employees' },
+    { key: 'subject', title: 'Subject', render: (value) => value || 'No subject' },
+    {
+      key: 'created_at',
+      title: 'Time',
+      render: (value) => (value ? new Date(value).toLocaleString() : 'Logged')
+    }
+  ]
 
-        <section className="compose">
-          <h3>Compose Email</h3>
-          <label>To:</label>
-          <input type="text" placeholder="Enter recipient email" />
+  return (
+    <div>
+      <DashboardLayout />
+      <div className="layout">
+        <Sidebar />
 
-          <label>Subject:</label>
-          <input type="text" placeholder="Enter subject" />
+        <main className="content">
+          <PageHeader
+            title="Emails"
+            actions={[
+              <SearchBar key="search" value={searchTerm} onChange={setSearchTerm} placeholder="Search inbox..." />
+            ]}
+          />
 
-          <label>Message:</label>
-          <textarea rows="6" placeholder="Write your message here..."></textarea>
+          <div className="email-layout">
+            <section className="inbox">
+              <Table columns={columns} data={filteredMessages} />
+            </section>
 
-          <button className="primary-btn">Send</button>
-        </section>
+            <section className="compose">
+              <h3>Compose Email</h3>
+              <label>To:</label>
+              <input type="text" placeholder="Enter recipient email" value={recipient} onChange={(event) => setRecipient(event.target.value)} />
+
+              <label>Subject:</label>
+              <input type="text" placeholder="Enter subject" value={subject} onChange={(event) => setSubject(event.target.value)} />
+
+              <label>Message:</label>
+              <textarea rows="6" placeholder="Write your message here..." value={body} onChange={(event) => setBody(event.target.value)} />
+
+              <Button variant="primary" style={{ marginTop: 12 }} onClick={handleSend} disabled={isSending}>
+                {isSending ? 'Sending...' : 'Send'}
+              </Button>
+            </section>
+          </div>
+        </main>
       </div>
-    </main>
-  </div>
-</div>
-)
+    </div>
+  )
 }
 
-export default EmailsPage;
+export default EmailsPage

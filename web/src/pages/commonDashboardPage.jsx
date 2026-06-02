@@ -1,140 +1,105 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-
-import '../styles/style.css'
-import logo from '../assets/JEDDSpace Logo (Transparent).png'
+import Sidebar from '../components/sideBar'
+import DashboardLayout from '../layouts/dashboardLayout'
+import { Button } from '../components'
+import { useAuth } from '../services/authContext'
+import { documentService } from '../services/documentService'
+import { emailService } from '../services/emailService'
+import { alertService } from '../utils/alertService'
 
 const CommonDashboardPage = () => {
-  const [showHRDropdown, setShowHRDropdown] = useState(false)
+  const { user } = useAuth()
+  const fileInputRef = useRef(null)
+  const [emailCount, setEmailCount] = useState(0)
+  const [fileCount, setFileCount] = useState(0)
+  const [latestEmail, setLatestEmail] = useState('')
+  const [latestFile, setLatestFile] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
 
-  const toggleDropdown = () => {
-    setShowHRDropdown(!showHRDropdown)
+  const loadDashboardSummary = async () => {
+    const [emails, documents] = await Promise.all([
+      emailService.getEmailLogs(),
+      documentService.getAllDocuments()
+    ])
+
+    setEmailCount(emails.length)
+    setFileCount(documents.length)
+    setLatestEmail(emails[0]?.subject || emails[0]?.title || '')
+    setLatestFile(documents[0]?.title || documents[0]?.file_name || documents[0]?.name || '')
+  }
+
+  useEffect(() => {
+    loadDashboardSummary()
+  }, [])
+
+  const handleFileSelected = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+
+    try {
+      await documentService.recordUpload(file, user?.id)
+      await alertService.success(`${file.name} has been added to your document uploads.`, 'File Uploaded')
+      await loadDashboardSummary()
+    } catch (error) {
+      await alertService.error(error.message || 'Unable to upload file.', 'Upload Failed')
+    } finally {
+      setIsUploading(false)
+      event.target.value = ''
+    }
   }
 
   return (
     <div className="dashboard-page">
-
-      {/* Top Bar */}
-      <header>
-        <Link to="/dashboard">
-          <img
-            className="max-w-3xs"
-            src={logo}
-            alt="JEDDSpace - by JEDDTech Corp."
-            style={{ width: '220px' }}
-          />
-        </Link>
-      </header>
+      <DashboardLayout />
 
       <div className="layout">
+        <Sidebar />
 
-        {/* Sidebar */}
-        <nav className="sidebar">
-          <ul>
-
-            <li>
-              <Link to="/dashboard">Dashboard</Link>
-            </li>
-
-            <li>
-              <Link to="/documents">Documents</Link>
-            </li>
-
-            <li>
-              <Link to="/emails">Email</Link>
-            </li>
-
-            <li>
-              <Link to="/contracts">Contracts</Link>
-            </li>
-
-            <li>
-              <Link to="/announcements">Announcements</Link>
-            </li>
-
-            {/* HR Forms Dropdown */}
-            <li>
-              <button
-                className="drop-btn"
-                onClick={toggleDropdown}
-              >
-                HR Forms ▼
-              </button>
-
-              {showHRDropdown && (
-                <ul className="dropdown">
-
-                  <li>
-                    <Link to="/official-business">
-                      Official Business Form
-                    </Link>
-                  </li>
-
-                  <li>
-                    <Link to="/leave-form">
-                      Leave Form
-                    </Link>
-                  </li>
-
-                </ul>
-              )}
-            </li>
-
-            <li>
-              <Link to="/admin-dashboard">
-                Admin Dashboard
-              </Link>
-            </li>
-
-          </ul>
-        </nav>
-
-        {/* Dashboard Content */}
         <main className="content">
-
           <h1>Dashboard</h1>
 
-          {/* Email Summary */}
           <section className="dashboard-widget">
-
             <h3>Email Summary</h3>
-
-            <p>You currently have _ Emails</p>
-
-            <button className="primary-btn">
+            <p>You currently have {emailCount} logged {emailCount === 1 ? 'email' : 'emails'}.</p>
+            {latestEmail && <p className="date">Latest: {latestEmail}</p>}
+            <Link to="/emails" className="primary-btn">
               View Emails
-            </button>
-
+            </Link>
           </section>
 
-          {/* File Uploads */}
           <section className="dashboard-widget">
-
             <h3>File Uploads</h3>
+            <p>There are {fileCount} {fileCount === 1 ? 'file' : 'files'} uploaded.</p>
+            {latestFile && <p className="date">Latest: {latestFile}</p>}
 
-            <p>There are _ Files uploaded</p>
-
-            <button className="primary-btn">
-              Check Documents
-            </button>
-
-          </section>
-
-          {/* Calendar */}
-          <section className="dashboard-widget">
-
-            <h3>Calendar</h3>
-
-            <div className="calendar-box">
-              <p>[Calendar layout here]</p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                {isUploading ? 'Uploading...' : 'Upload File'}
+              </Button>
+              <Link to="/documents" className="primary-btn">
+                Check Documents
+              </Link>
             </div>
 
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelected}
+              style={{ display: 'none' }}
+            />
           </section>
 
+          <section className="dashboard-widget">
+            <h3>Calendar</h3>
+            <div className="calendar-box">
+              <p>{new Date().toLocaleDateString()}</p>
+            </div>
+          </section>
         </main>
-
       </div>
-
     </div>
   )
 }

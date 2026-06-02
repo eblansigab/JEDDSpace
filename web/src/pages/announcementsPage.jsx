@@ -1,107 +1,176 @@
-import React, { useState, useEffect } from 'react'
-import logo from '../assets/JEDDSpace Logo (Transparent).png'
+import Sidebar from '../components/sideBar'
+import DashboardLayout from '../layouts/dashboardLayout'
+import { Button, Modal, PageHeader, SearchBar, StatusBadge } from '../components'
+import { useEffect, useMemo, useState } from 'react'
+import { ANNOUNCEMENT_STATUSES, announcementService } from '../services/announcementService'
+import { alertService } from '../utils/alertService'
 
 const AnnouncementsPage = () => {
-const [isHrOpen, setIsHrOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [announcements, setAnnouncements] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editBody, setEditBody] = useState('')
+  const [editStatus, setEditStatus] = useState('Published')
+  const [isSaving, setIsSaving] = useState(false)
 
-useEffect(() => {
-const handleOutsideClick = (event) => {
-if (!event.target.matches('.drop-btn')) {
-setIsHrOpen(false)
-}
-}
-window.addEventListener('click', handleOutsideClick)
-return () => window.removeEventListener('click', handleOutsideClick)
-}, [])
+  const loadAnnouncements = async () => {
+    setLoading(true)
 
-const announcementData = [
-{
-title: 'Office Closure on Thanksgiving',
-date: '2023-11-01',
-content: 'Please note that the office will be closed on Thanksgiving Day, November 23rd. Enjoy your holiday!'
-},
-{
-title: 'Holiday Party Details',
-date: '2023-11-15',
-content: 'Join us for the annual holiday party on December 15th at 6 PM in the main conference room. Food and drinks will be provided!'
-},
-{
-title: 'New Office Policies',
-date: '2023-11-20',
-content: 'Please review the updated office policies that will take effect starting January 1st, 2024. All employees are required to adhere to these policies.'
-},
-{
-title: 'Team Building Event',
-date: '2023-12-01',
-content: 'A team building event will be held on December 10th. Please RSVP by December 5th to ensure your spot!'
-},
-{
-title: 'New Health Benefits',
-date: '2023-12-10',
-content: 'We are excited to announce new health benefits that will be available to all employees starting January 2024. More details to follow.'
-}
-]
+    try {
+      const data = await announcementService.getAnnouncements()
+      setAnnouncements(data)
+    } catch (error) {
+      console.error(error)
+      alertService.error(error.message || 'Unable to load announcements.', 'Load Failed')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-return (
+  useEffect(() => {
+    loadAnnouncements()
+  }, [])
+
+  const openEditModal = (announcement) => {
+    setEditingAnnouncement(announcement)
+    setEditTitle(announcement.title || '')
+    setEditBody(announcement.body || '')
+    setEditStatus(announcement.status || 'Published')
+  }
+
+  const closeEditModal = () => {
+    setEditingAnnouncement(null)
+    setEditTitle('')
+    setEditBody('')
+    setEditStatus('Published')
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingAnnouncement) return
+
+    if (!editTitle.trim() || !editBody.trim()) {
+      await alertService.warning('Please complete the title and body.', 'Missing Details')
+      return
+    }
+
+    setIsSaving(true)
+
+    try {
+      await announcementService.updateAnnouncement(
+        editingAnnouncement.announcement_id || editingAnnouncement.id,
+        {
+          title: editTitle,
+          body: editBody,
+          status: editStatus
+        }
+      )
+
+      await alertService.success('Announcement updated successfully.', 'Announcement Updated')
+      closeEditModal()
+      loadAnnouncements()
+    } catch (error) {
+      alertService.error(error.message || 'Unable to update announcement.', 'Update Failed')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const filteredAnnouncements = useMemo(
+    () => {
+      const query = searchTerm.trim().toLowerCase()
+
+      return announcements.filter((item) =>
+        [item.title, item.body, item.status].some((text) =>
+          text?.toLowerCase().includes(query)
+        )
+      )
+    },
+    [announcements, searchTerm]
+  )
+
+  return (
     <div>
-      <header>
-        <a href="/dashboard">
-          <img
-            className="max-w-3xs"
-            src={logo}
-            alt="JEDDSpace Logo"
-            style={{ width: '220px' }}
+      <DashboardLayout />
+      <div className="layout">
+        <Sidebar />
+
+        <main className="content">
+          <PageHeader
+            title="Announcements"
+            subtitle="Company announcement history and active post management."
+            actions={[
+              <SearchBar key="search" value={searchTerm} onChange={setSearchTerm} placeholder="Search announcements..." />,
+              <Button key="clear" variant="outline" onClick={() => setSearchTerm('')}>
+                Clear
+              </Button>
+            ]}
           />
-        </a>
-      </header>
-  <div className="layout">
-    <nav className="sidebar">
-      <ul>
-        <li><a href="/dashboard">Dashboard</a></li>
-        <li><a href="/documents">Documents</a></li>
-        <li><a href="/emails">Email</a></li>
-        <li><a href="/contracts">Contracts</a></li>
-        <li><a href="/announcements">Announcements</a></li>
 
-        <li>
-          <button 
-            className="drop-btn" 
-            onClick={(e) => {
-              e.stopPropagation()
-              setIsHrOpen(!isHrOpen)
-            }}
-          >
-            HR Forms {isHrOpen ? '▲' : '▼'}
-          </button>
-          <ul className={`dropdown ${isHrOpen ? '' : 'hidden'}`}>
-            <li><a href="/official-business">Official Business Form</a></li>
-            <li><a href="/leave-form">Leave Form</a></li>
-          </ul>
-        </li>
+          {loading && <p>Loading announcements...</p>}
 
-        <li><a href="/admin-dashboard">Admin Dashboard</a></li>
-      </ul>
-    </nav>
+          {!loading && filteredAnnouncements.length === 0 && (
+            <p>No announcements found.</p>
+          )}
 
-    <main className="content">
-      <h1>Announcements</h1>
-
-      <div className="search-bar">
-        <input type="text" placeholder="Search announcements..." />
-        <button className="primary-btn">Search</button>
+          {!loading && filteredAnnouncements.map((item) => (
+            <div key={item.announcement_id || item.id || item.created_at} className="announcement-box">
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p className="date">
+                    Published on: {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'No date'}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <StatusBadge status={item.status || 'Published'} />
+                  <Button variant="outline" onClick={() => openEditModal(item)}>Edit</Button>
+                </div>
+              </div>
+              <p>{item.body}</p>
+            </div>
+          ))}
+        </main>
       </div>
 
-      {announcementData.map((item, index) => (
-        <div key={index} className="announcement-box">
-          <h3>{item.title}</h3>
-          <p className="date">Published on: {item.date}</p>
-          <p>{item.content}</p>
-        </div>
-      ))}
-    </main>
-  </div>
-</div>
-)
+      <Modal
+        visible={Boolean(editingAnnouncement)}
+        title="Edit Announcement"
+        onClose={closeEditModal}
+        loading={isSaving}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <Button variant="outline" onClick={closeEditModal}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={isSaving}>Save Changes</Button>
+          </div>
+        }
+      >
+        <label>Title</label>
+        <input
+          type="text"
+          value={editTitle}
+          onChange={(event) => setEditTitle(event.target.value)}
+          className="border p-2 rounded w-full mb-4"
+        />
+
+        <label>Body</label>
+        <textarea
+          rows="6"
+          value={editBody}
+          onChange={(event) => setEditBody(event.target.value)}
+          className="border p-2 rounded w-full mb-4"
+        />
+
+        <label>Status</label>
+        <select value={editStatus} onChange={(event) => setEditStatus(event.target.value)} className="border p-2 rounded w-full mb-4">
+          {ANNOUNCEMENT_STATUSES.map((status) => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
+      </Modal>
+    </div>
+  )
 }
 
-export default AnnouncementsPage;
+export default AnnouncementsPage

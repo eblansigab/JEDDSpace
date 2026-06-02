@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import logo from '../assets/JEDDSpace Logo (Transparent).png'
+import Sidebar from '../components/sideBar'
+import DashboardLayout from '../layouts/dashboardLayout'
 
 const ContractsPage = () => {
 const [isHrOpen, setIsHrOpen] = useState(false)
@@ -57,44 +59,9 @@ employees: [
 return (
   
 <div>
-  <header>
-    <a href="/dashboard">
-      <img
-        className="max-w-3xs"
-        src={logo}
-        alt="JEDDSpace Logo"
-        style={{ width: '220px' }}
-      />
-    </a>
-  </header>
+  <DashboardLayout/>
   <div className="layout">
-    <nav className="sidebar">
-      <ul>
-        <li><a href="/dashboard">Dashboard</a></li>
-        <li><a href="/documents">Documents</a></li>
-        <li><a href="/emails">Email</a></li>
-        <li><a href="/contracts">Contracts</a></li>
-        <li><a href="/announcements">Announcements</a></li>
-
-        <li>
-          <button 
-            className="drop-btn" 
-            onClick={(e) => {
-              e.stopPropagation()
-              setIsHrOpen(!isHrOpen)
-            }}
-          >
-            HR Forms {isHrOpen ? '▲' : '▼'}
-          </button>
-          <ul className={`dropdown ${isHrOpen ? '' : 'hidden'}`}>
-            <li><a href="/official-business">Official Business Form</a></li>
-            <li><a href="/leave-form">Leave Form</a></li>
-          </ul>
-        </li>
-
-        <li><a href="/admin-dashboard">Admin Dashboard</a></li>
-      </ul>
-    </nav>
+    <Sidebar/>
 
     <main className="content">
       <h1>Commission Contracts</h1>

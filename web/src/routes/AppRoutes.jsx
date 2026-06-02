@@ -1,75 +1,74 @@
-import { BrowserRouter, Routes, Route} from "react-router-dom";
-import LoginPage from "../pages/loginPage";
-import SignupPage from "../pages/signupPage";
-import CommonDashboardPage from "../pages/commonDashboardPage";
-import EmployeesPage from "../pages/employeesPage";
-import AnnouncementsPage from "../pages/announcementsPage";
-import EmailsPage from "../pages/emailsPage";
-import DocumentsPage from "../pages/documentsPage";
-import ProfilePage from "../pages/profilePage";
-import AdminDashboardPage from "../pages/adminDashboardPage";
-import ContractsPage from "../pages/contractsPage";
-import OfficialBusinessFormPage from "../pages/officialBusinessFormPage";
-import PostAnnouncement from "../pages/postAnnouncementsPage";
-import ManageEmployeesPage from "../pages/manageEmployeesPage";
-import AssignJobsPage from "../pages/assignJobsPage";
-import AuditBlockchainPage from "../pages/auditBlockchainPage";
-import LeaveFormPage from "../pages/leaveFormPage"; 
+import React, { lazy, Suspense, useState, useEffect, useRef } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import LoadingOverlay from "../components/LoadingOverlay";
 
+const LoginPage = lazy(() => import("../pages/loginPage"));
+const SignupPage = lazy(() => import("../pages/signupPage"));
+const Verify2FAPage = lazy(() => import("../pages/verify2faPage"));
+const CommonDashboardPage = lazy(() => import("../pages/commonDashboardPage"));
+const AnnouncementsPage = lazy(() => import("../pages/announcementsPage"));
+const EmailsPage = lazy(() => import("../pages/emailsPage"));
+const DocumentsPage = lazy(() => import("../pages/documentsPage"));
+const ProfilePage = lazy(() => import("../pages/profilePage"));
+const AdminDashboardPage = lazy(() => import("../pages/adminDashboardPage"));
+const ContractsPage = lazy(() => import("../pages/contractsPage"));
+const OfficialBusinessFormPage = lazy(() => import("../pages/officialBusinessFormPage"));
+const PostAnnouncement = lazy(() => import("../pages/postAnnouncementsPage"));
+const ManageEmployeesPage = lazy(() => import("../pages/manageEmployeesPage"));
+const EmployeesPage = lazy(() => import("../pages/employeesPage"));
+const AssignJobsPage = lazy(() => import("../pages/assignJobsPage"));
+const AuditBlockchainPage = lazy(() => import("../pages/auditBlockchainPage"));
+const LeaveFormPage = lazy(() => import("../pages/leaveFormPage"));
+const AdminRoute = lazy(() => import("../components/AdminRoute"));
+
+const InnerRoutes = () => {
+  const location = useLocation();
+  const [isLoading, setIsLoading] = useState(false);
+  const prevPath = useRef(location.pathname);
+
+  useEffect(() => {
+    // Show a brief overlay when the pathname changes to smooth transitions
+    if (prevPath.current && prevPath.current !== location.pathname) {
+      setIsLoading(true);
+      const t = setTimeout(() => setIsLoading(false), 400);
+      prevPath.current = location.pathname;
+      return () => clearTimeout(t);
+    }
+    prevPath.current = location.pathname;
+  }, [location]);
+
+  return (
+    <>
+      <LoadingOverlay visible={isLoading} />
+      <Suspense fallback={<LoadingOverlay visible={true} message={'Loading...'} />}>
+        <Routes>
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/verify-2fa" element={<Verify2FAPage />} />
+          <Route path="/dashboard" element={<CommonDashboardPage />} />
+          <Route path="/admin-dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>}/>
+          <Route path="/employees" element={<EmployeesPage />} />
+          <Route path="/announcements" element={<AnnouncementsPage />} />
+          <Route path="/emails" element={<EmailsPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/contracts" element={<ContractsPage />} />
+          <Route path="/official-business" element={<OfficialBusinessFormPage />} />
+          <Route path="/post-announcements" element={<PostAnnouncement />} />
+          <Route path="/manage-employees" element={<ManageEmployeesPage />} />
+          <Route path="/assign-jobs" element={<AssignJobsPage />} />
+          <Route path="/audit-blockchain" element={<AuditBlockchainPage />} />
+          <Route path="/leave-form" element={<LeaveFormPage />} />
+        </Routes>
+      </Suspense>
+    </>
+  );
+};
 
 const AppRoutes = () => {
   return (
     <BrowserRouter>
-      <Routes>
-
-        {/* Auth */}
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-
-        {/* Common Dashboard */}
-        <Route path="/dashboard" element={<CommonDashboardPage />} />
-
-        {/* Admin Dashboard */}
-        <Route path="/admin-dashboard" element={<AdminDashboardPage/>}/>
-
-        {/* Employees */}
-        <Route path="/employees" element={<employeesPage />} />
-
-       
-
-        {/* Announcements */}
-        <Route path="/announcements" element={<AnnouncementsPage />} />
-
-        {/* Emails */}
-        <Route path="/emails" element={<EmailsPage />} />
-
-        {/* Documents */}
-        <Route path="/documents" element={<DocumentsPage />} />
-
-        {/* Profile */}
-        <Route path="/profile" element={<ProfilePage />} />
-
-        {/*Contracts*/}
-        <Route path="/contracts" element={<ContractsPage />}/>
-
-        {/*Official Business Page*/}
-        <Route path="/official-business" element={<OfficialBusinessFormPage />} />
-
-        {/*post announcements page*/}
-        <Route path="/post-announcements" element={<PostAnnouncement/>} />
-
-        {/*Manage employees page*/}
-        <Route path="/manage-employees" element={<ManageEmployeesPage/>} />
-
-        {/*Assign travelling jobs*/ }
-        <Route path="/assign-jobs" element={<AssignJobsPage/>} />
-
-        {/*Audit blockchain page */}
-        <Route path="/audit-blockchain" element={<AuditBlockchainPage/>} />
-
-        {/*Leave form page*/ }
-        <Route path="/leave-form" element={<LeaveFormPage/>}/>
-      </Routes>
+      <InnerRoutes />
     </BrowserRouter>
   );
 };
