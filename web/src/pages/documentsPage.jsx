@@ -5,6 +5,7 @@ import { Button, PageHeader, Table } from '../components'
 import { useAuth } from '../services/authContext'
 import { documentService } from '../services/documentService'
 import { alertService } from '../utils/alertService'
+import { supabaseClient } from '../supabase/supabaseClient'
 
 const DocumentsPage = () => {
   const { user } = useAuth()
@@ -58,14 +59,29 @@ const DocumentsPage = () => {
         return date ? new Date(date).toLocaleDateString() : 'No date'
       }
     }
+    ,
+    {
+      key: 'actions',
+      title: 'Actions',
+      render: (_, row) => {
+        const url = row.file_path || row.file_url || ''
+        return (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {url ? (
+              <a href={url} target="_blank" rel="noreferrer" className="primary-btn" style={{ padding: '6px 10px', textDecoration: 'none' }}>View</a>
+            ) : null}
+
+            {url ? (
+              <a href={url} download={row.file_name || ''} className="primary-btn" style={{ padding: '6px 10px', textDecoration: 'none' }}>Download</a>
+            ) : null}
+          </div>
+        )
+      }
+    }
   ]
 
   return (
-    <div>
-      <DashboardLayout />
-      <div className="layout">
-        <Sidebar />
-
+    <DashboardLayout>
         <main className="content">
           <PageHeader
             title="Documents"
@@ -84,9 +100,8 @@ const DocumentsPage = () => {
             onChange={handleFileSelected}
             style={{ display: 'none' }}
           />
-        </main>
-      </div>
-    </div>
+                </main>
+    </DashboardLayout>
   )
 }
 

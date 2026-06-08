@@ -54,7 +54,7 @@ const InnerRoutes = () => {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/contracts" element={<ContractsPage />} />
           <Route path="/official-business" element={<OfficialBusinessFormPage />} />
-          <Route path="/post-announcements" element={<PostAnnouncement />} />
+          <Route path="/post-announcements" element={<AdminRoute><PostAnnouncement /></AdminRoute>} />
           <Route path="/manage-employees" element={<ManageEmployeesPage />} />
           <Route path="/assign-jobs" element={<AssignJobsPage />} />
           <Route path="/audit-blockchain" element={<AuditBlockchainPage />} />

@@ -25,6 +25,7 @@ export function Verify2FAPage() {
 
     setEmail(pending.email);
     setExpiresAt(pending.expiresAt);
+    alertService.verificationCode(pending.code);
   }, [navigate]);
 
   useEffect(() => {
@@ -66,7 +67,7 @@ export function Verify2FAPage() {
     try {
       const updated = resendTwoFactorCode();
       setExpiresAt(updated.expiresAt);
-      await alertService.info(`Your new verification code is: ${updated.code}`, 'Verification Code');
+      alertService.verificationCode(updated.code, 'New Verification Code');
     } catch (err) {
       const message = err.message || 'Unable to resend code.';
       setError(message);
@@ -97,24 +98,22 @@ export function Verify2FAPage() {
               required
             />
 
-            <button type="submit" className="primary-btn">
+            <button type="submit" className="primary-btn verify-btn">
               Verify
             </button>
           </form>
 
-          <div className="options" style={{ marginTop: '1rem' }}>
+          <div className="verify-actions">
             <button
               type="button"
-              className="primary-btn"
-              style={{ backgroundColor: '#777', marginRight: '1rem' }}
+              className="primary-btn verify-secondary-btn"
               onClick={handleResend}
             >
               Resend Code
             </button>
             <button
               type="button"
-              className="primary-btn"
-              style={{ backgroundColor: '#555' }}
+              className="primary-btn verify-secondary-btn"
               onClick={() => navigate('/')}
             >
               Cancel

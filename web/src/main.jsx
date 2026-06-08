@@ -4,7 +4,7 @@ import './index.css'
 import './styles/style.css'
 import App from './App.jsx'
 
-const savedTheme = localStorage.getItem('jeddspace_theme') || 'light'
+const savedTheme = localStorage.getItem('theme') || localStorage.getItem('jeddspace_theme') || 'light'
 document.documentElement.dataset.theme = savedTheme
 
 createRoot(document.getElementById('root')).render(

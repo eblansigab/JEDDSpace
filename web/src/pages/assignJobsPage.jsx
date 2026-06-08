@@ -3,10 +3,12 @@ import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { jobService } from '../services/jobsService'
 import { employeeService } from '../services/employeeService'
+import { emailService } from '../services/emailService'
 import { notificationService } from '../services/notificationService'
 import { useAuth } from '../services/authContext'
 import { alertService } from '../utils/alertService'
 import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
+import { DEPARTMENT_OPTIONS, JOB_STATUS_OPTIONS, NCR_DESTINATION_OPTIONS } from '../constants/formOptions'
 
 const AssignJobsPage = () => {
   const { user } = useAuth()
@@ -73,6 +75,13 @@ const AssignJobsPage = () => {
           type: 'job_assignment',
           priority: 'High',
           userId: user?.id
+        }),
+        emailService.createEmailLog({
+          subject: `Job Assignment: ${destination}`,
+          body: `${firstName} ${lastName} was assigned to ${destination} from ${startDate} to ${endDate}.`,
+          recipient: `${firstName} ${lastName}`,
+          type: 'job_assignment',
+          userId: user?.id
         })
       ])
 
@@ -82,20 +91,6 @@ const AssignJobsPage = () => {
     } catch (error) {
       await alertService.error(error.message)
     }
-  }
-
-  const getStatusColor = (status) => {
-    const normalized = (status || '').toLowerCase()
-    if (normalized === 'closed' || normalized === 'completed' || normalized === 'done') {
-      return 'green'
-    }
-    if (normalized === 'open' || normalized === 'pending' || normalized === 'in progress') {
-      return 'orange'
-    }
-    if (normalized === 'cancelled' || normalized === 'delayed' || normalized === 'problem') {
-      return 'red'
-    }
-    return 'gray'
   }
 
   const handleEditJob = async (
@@ -108,11 +103,10 @@ const AssignJobsPage = () => {
   ) => {
     const destinationResult = await alertService.input({
       title: 'Edit Destination',
-      text: 'Leave blank to keep the current destination.',
-      input: 'text',
+      text: 'Choose the nearest NCR city for this job.',
+      input: 'select',
       inputValue: currentDestination,
-      inputPlaceholder: 'Destination',
-      allowEmpty: true,
+      inputOptions: NCR_DESTINATION_OPTIONS.reduce((options, item) => ({ ...options, [item]: item }), {}),
       confirmButtonText: 'Next'
     })
     if (!destinationResult.isConfirmed) return
@@ -154,11 +148,10 @@ const AssignJobsPage = () => {
 
     const statusResult = await alertService.input({
       title: 'Edit Status',
-      text: 'Leave blank to keep the current status.',
-      input: 'text',
-      inputValue: currentStatus,
-      inputPlaceholder: 'open / closed / pending',
-      allowEmpty: true,
+      text: 'Choose the current job status.',
+      input: 'select',
+      inputValue: currentStatus || 'pending',
+      inputOptions: JOB_STATUS_OPTIONS.reduce((options, item) => ({ ...options, [item]: item }), {}),
       confirmButtonText: 'Next'
     })
     if (!statusResult.isConfirmed) return
@@ -194,6 +187,12 @@ const AssignJobsPage = () => {
           message: `Job #${job_id} was updated.`,
           type: 'job_assignment',
           priority: 'Normal',
+          userId: user?.id
+        }),
+        emailService.createEmailLog({
+          subject: `Job Assignment Updated: ${updatedDestination}`,
+          body: `Job #${job_id} was updated. Status: ${updatedStatus}.`,
+          type: 'job_assignment',
           userId: user?.id
         })
       ])
@@ -274,7 +273,7 @@ const AssignJobsPage = () => {
           ? row.notes.length > 40
             ? `${row.notes.slice(0, 40)}...`
             : row.notes
-          : '—'
+          : 'No notes'
     },
     {
       key: 'status',
@@ -301,12 +300,8 @@ const AssignJobsPage = () => {
   ]
 
   return (
-    <div>
-      <DashboardLayout />
-
-      <div className="layout">
-        <Sidebar />
-
+    <>
+      <DashboardLayout>
         <main className="content">
           <PageHeader
             title="Travel Job Assignment"
@@ -320,8 +315,6 @@ const AssignJobsPage = () => {
 
           <Table columns={columns} data={filteredJobs} />
         </main>
-      </div>
-
       <Modal
         visible={isFormVisible}
         title="Assign New Job"
@@ -346,11 +339,21 @@ const AssignJobsPage = () => {
           </div>
           <div>
             <label>Department</label>
-            <input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} />
+            <select value={department} onChange={(e) => setDepartment(e.target.value)}>
+              <option value="" disabled>Select department</option>
+              {DEPARTMENT_OPTIONS.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label>Destination</label>
-            <input type="text" value={destination} onChange={(e) => setDestination(e.target.value)} />
+            <select value={destination} onChange={(e) => setDestination(e.target.value)}>
+              <option value="" disabled>Select NCR city</option>
+              {NCR_DESTINATION_OPTIONS.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label>Start Date</label>
@@ -366,7 +369,8 @@ const AssignJobsPage = () => {
           </div>
         </div>
       </Modal>
-    </div>
+      </DashboardLayout>
+    </>
   )
 }
 

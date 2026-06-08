@@ -57,13 +57,8 @@ employees: [
 ]
 
 return (
-  
-<div>
-  <DashboardLayout/>
-  <div className="layout">
-    <Sidebar/>
-
-    <main className="content">
+    <DashboardLayout>
+        <main className="content">
       <h1>Commission Contracts</h1>
 
       {contractsData.map((contract, index) => (
@@ -84,9 +79,8 @@ return (
           </ul>
         </div>
       ))}
-    </main>
-  </div>
-</div>
+            </main>
+    </DashboardLayout>
 )
 }
 

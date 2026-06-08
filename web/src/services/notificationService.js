@@ -2,18 +2,65 @@ import { supabaseClient } from '../supabase/supabaseClient'
 
 export const PRIORITY_LEVELS = ['Low', 'Normal', 'High', 'Critical']
 
+export const NOTIFICATION_TYPES = [
+  'general',
+  'announcement',
+  'job_assignment',
+  'employee_update',
+]
+
+export const getNotificationId = (item) =>
+  item?.notifications_id ?? item?.notification_id ?? item?.id ?? null
+
+const buildNotificationTitle = (title, message) => {
+  const headline = String(title || '').trim()
+  const detail = String(message || '').trim()
+
+  if (headline && detail && headline !== detail) {
+    return `${headline} — ${detail}`
+  }
+
+  return detail || headline || 'Alert'
+}
+
+export const getNotificationBody = (item) => {
+  const title = String(item?.title || '').trim()
+  const separator = ' — '
+
+  if (title.includes(separator)) {
+    return title.split(separator).slice(1).join(separator).trim()
+  }
+
+  return ''
+}
+
 export const notificationService = {
-  async createNotification({ title, message, type = 'general', priority = 'Normal', userId }) {
+  async createNotification({
+    title,
+    message,
+    type = 'general',
+    priority = 'Normal',
+    userId,
+    notifyTo,
+    linkId,
+  }) {
     const payload = {
-      title,
-      message,
+      title: buildNotificationTitle(title, message),
       type,
       priority,
-      is_read: false
+      is_read: false,
     }
 
     if (userId) {
-      payload.user_id = userId
+      payload.created_by = userId
+    }
+
+    if (notifyTo) {
+      payload.notify_to = notifyTo
+    }
+
+    if (linkId) {
+      payload.link_id = linkId
     }
 
     const { data, error } = await supabaseClient
@@ -22,31 +69,9 @@ export const notificationService = {
       .select()
       .single()
 
-    if (!error) {
-      return data
-    }
+    if (error) throw error
 
-    const fallbackPayload = {
-      title,
-      message,
-      type
-    }
-
-    if (userId) {
-      fallbackPayload.user_id = userId
-    }
-
-    const fallback = await supabaseClient
-      .from('notification')
-      .insert([fallbackPayload])
-      .select()
-      .single()
-
-    if (fallback.error) {
-      throw error
-    }
-
-    return fallback.data
+    return data
   },
 
   async getNotifications() {
@@ -64,24 +89,24 @@ export const notificationService = {
     const { data, error } = await supabaseClient
       .from('notification')
       .update({ priority })
-      .eq('notification_id', notificationId)
+      .eq('notifications_id', notificationId)
       .select()
       .single()
 
-    if (error) {
-      const fallback = await supabaseClient
-        .from('notification')
-        .update({ priority })
-        .eq('id', notificationId)
-        .select()
-        .single()
-
-      if (fallback.error) throw error
-
-      return fallback.data
-    }
+    if (error) throw error
 
     return data
+  },
+
+  async markAsRead(notificationId) {
+    const { error } = await supabaseClient
+      .from('notification')
+      .update({ is_read: true })
+      .eq('notifications_id', notificationId)
+
+    if (error) throw error
+
+    return true
   },
 
   async markAllRead() {
@@ -93,6 +118,21 @@ export const notificationService = {
     if (error) throw error
 
     return true
+  },
+
+  subscribeToInserts(onInsert) {
+    const channel = supabaseClient
+      .channel('jeddspace-push-alerts')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notification' },
+        (payload) => onInsert(payload.new)
+      )
+      .subscribe()
+
+    return () => {
+      supabaseClient.removeChannel(channel)
+    }
   },
 
   async deleteOlderThan(days = 30) {
@@ -107,5 +147,5 @@ export const notificationService = {
     if (error) throw error
 
     return true
-  }
+  },
 }

@@ -38,6 +38,43 @@ export const alertService = {
     })
   },
 
+  verificationCode(code, title = 'Verification Code') {
+    return Swal.fire({
+      icon: 'info',
+      title,
+      html: `
+        <p>Your verification code is:</p>
+        <div class="verification-code-box">${code}</div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Copy Code',
+      cancelButtonText: 'Close',
+      reverseButtons: true
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await navigator.clipboard.writeText(code)
+        } catch {
+          const fallbackInput = document.createElement('input')
+          fallbackInput.value = code
+          document.body.appendChild(fallbackInput)
+          fallbackInput.select()
+          document.execCommand('copy')
+          document.body.removeChild(fallbackInput)
+        }
+
+        return Swal.fire({
+          icon: 'success',
+          title: 'Copied',
+          text: 'Verification code copied to clipboard.',
+          confirmButtonText: 'OK'
+        })
+      }
+
+      return result
+    })
+  },
+
   confirm({ title = 'Confirm', text = '', confirmButtonText = 'Yes', cancelButtonText = 'Cancel' }) {
     return Swal.fire({
       icon: 'question',
@@ -56,6 +93,7 @@ export const alertService = {
     input = 'text',
     inputValue = '',
     inputPlaceholder = '',
+    inputOptions = undefined,
     inputAttributes = {},
     confirmButtonText = 'Submit',
     cancelButtonText = 'Cancel',
@@ -67,6 +105,7 @@ export const alertService = {
       input,
       inputValue,
       inputPlaceholder,
+      inputOptions,
       inputAttributes,
       showCancelButton: true,
       confirmButtonText,

@@ -6,6 +6,7 @@ import { notificationService } from '../services/notificationService'
 import { useAuth } from '../services/authContext'
 import { alertService } from '../utils/alertService'
 import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
+import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, ROLE_OPTIONS } from '../constants/formOptions'
 
 const ManageEmployeesPage = () => {
   const { user } = useAuth()
@@ -16,6 +17,7 @@ const ManageEmployeesPage = () => {
   const [lastName, setLastName] = useState('')
   const [position, setPosition] = useState('')
   const [department, setDepartment] = useState('')
+  const [role, setRole] = useState('')
 
   const fetchEmployees = async () => {
     try {
@@ -27,7 +29,7 @@ const ManageEmployeesPage = () => {
   }
 
   const handleAddEmployee = async () => {
-    if (!firstName || !lastName || !position || !department) {
+    if (!firstName || !lastName || !position || !department || !role) {
       await alertService.warning('Please fill all fields')
       return
     }
@@ -37,7 +39,8 @@ const ManageEmployeesPage = () => {
         first_name: firstName,
         last_name: lastName,
         position,
-        department
+        department,
+        role
       })
 
       await Promise.allSettled([
@@ -55,6 +58,7 @@ const ManageEmployeesPage = () => {
       setLastName('')
       setPosition('')
       setDepartment('')
+      setRole('')
       setIsAddOpen(false)
       fetchEmployees()
     } catch (error) {
@@ -81,14 +85,13 @@ const ManageEmployeesPage = () => {
     }
   }
 
-  const handleEditEmployee = async (employee_id) => {
+  const handleEditEmployee = async (employee_id, currentPosition) => {
     const promptResult = await alertService.input({
       title: 'Edit Position',
-      text: 'Leave blank to keep the current position.',
-      input: 'text',
-      inputValue: '',
-      inputPlaceholder: 'New position',
-      allowEmpty: true,
+      text: 'Choose the employee position.',
+      input: 'select',
+      inputValue: currentPosition || 'employee',
+      inputOptions: POSITION_OPTIONS.reduce((options, item) => ({ ...options, [item]: item }), {}),
       confirmButtonText: 'Save'
     })
 
@@ -129,7 +132,8 @@ const ManageEmployeesPage = () => {
     return (
       name.includes(query) ||
       String(emp.position || '').toLowerCase().includes(query) ||
-      String(emp.department || '').toLowerCase().includes(query)
+      String(emp.department || '').toLowerCase().includes(query) ||
+      String(emp.role || '').toLowerCase().includes(query)
     )
   })
 
@@ -142,6 +146,7 @@ const ManageEmployeesPage = () => {
     },
     { key: 'position', title: 'Position' },
     { key: 'department', title: 'Department' },
+    { key: 'role', title: 'Role' },
     {
       key: 'status',
       title: 'Status',
@@ -152,7 +157,7 @@ const ManageEmployeesPage = () => {
       title: 'Actions',
       render: (_, row) => (
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="outline" style={{ minWidth: 72 }} onClick={() => handleEditEmployee(row.employee_id)}>
+          <Button variant="outline" style={{ minWidth: 72 }} onClick={() => handleEditEmployee(row.employee_id, row.position)}>
             Edit
           </Button>
           <Button variant="danger" style={{ minWidth: 72 }} onClick={() => handleDeleteEmployee(row.employee_id)}>
@@ -164,12 +169,8 @@ const ManageEmployeesPage = () => {
   ]
 
   return (
-    <div>
-      <DashboardLayout />
-
-      <div className="layout">
-        <Sidebar />
-
+    <>
+      <DashboardLayout>
         <main className="content">
           <PageHeader
             title="Manage Employees"
@@ -200,8 +201,6 @@ const ManageEmployeesPage = () => {
             </ul>
           </section>
         </main>
-      </div>
-
       <Modal
         visible={isAddOpen}
         title="Add Employee"
@@ -228,21 +227,28 @@ const ManageEmployeesPage = () => {
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
           />
-          <input
-            type="text"
-            placeholder="Position"
-            value={position}
-            onChange={(e) => setPosition(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Department"
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-          />
+          <select value={position} onChange={(e) => setPosition(e.target.value)}>
+            <option value="" disabled>Select position</option>
+            {POSITION_OPTIONS.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+          <select value={department} onChange={(e) => setDepartment(e.target.value)}>
+            <option value="" disabled>Select department</option>
+            {DEPARTMENT_OPTIONS.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+          <select value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="" disabled>Select role</option>
+            {ROLE_OPTIONS.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
         </div>
       </Modal>
-    </div>
+      </DashboardLayout>
+    </>
   )
 }
 

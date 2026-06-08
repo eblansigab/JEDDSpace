@@ -10,11 +10,7 @@ const LeaveFormPage = () => {
   const [reason, setReason] = useState('')
 
   return (
-    <div>
-      <DashboardLayout />
-      <div className="layout">
-        <Sidebar />
-
+    <DashboardLayout>
         <main className="content">
           <PageHeader title="Leave Form" />
 
@@ -47,9 +43,8 @@ const LeaveFormPage = () => {
               Submit
             </Button>
           </form>
-        </main>
-      </div>
-    </div>
+                </main>
+    </DashboardLayout>
   )
 }
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import logo from '../assets/JEDDSpace Logo (Transparent).png'
+import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, ROLE_OPTIONS } from '../constants/formOptions'
 
 
 const SignUp = () => {
@@ -37,16 +38,30 @@ const SignUp = () => {
             <div style={{ width: '50%' }}>
               <label>Department</label>
               <select defaultValue="">
-                <option disabled value="">Enter Department</option>
-                <option value="engineering">Engineering Department</option>
-                <option value="administration">Administrative Department</option>
+                <option disabled value="">Select Department</option>
+                {DEPARTMENT_OPTIONS.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
               </select>
             </div>
             <div style={{ width: '50%' }}>
               <label>Role</label>
-              <input type="text" placeholder="Enter Role" />
+              <select defaultValue="">
+                <option disabled value="">Select Role</option>
+                {ROLE_OPTIONS.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
             </div>
           </div>
+
+          <label>Position</label>
+          <select defaultValue="">
+            <option disabled value="">Select Position</option>
+            {POSITION_OPTIONS.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
 
           <label>Email</label>
           <input type="email" placeholder="Enter Email Address" />

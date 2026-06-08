@@ -5,7 +5,7 @@ import { Button, Modal, PageHeader, StatusBadge, Table } from '../components'
 import { useAuth } from '../services/authContext'
 import { ANNOUNCEMENT_STATUSES, announcementService } from '../services/announcementService'
 import { emailService } from '../services/emailService'
-import { PRIORITY_LEVELS, notificationService } from '../services/notificationService'
+import { PRIORITY_LEVELS, getNotificationId, notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
 
 const PostAnnouncement = () => {
@@ -137,7 +137,7 @@ const PostAnnouncement = () => {
       render: (value, row) => (
         <select
           value={value || 'Normal'}
-          onChange={(event) => handlePriorityChange(row.notification_id || row.id, event.target.value)}
+          onChange={(event) => handlePriorityChange(getNotificationId(row), event.target.value)}
         >
           {PRIORITY_LEVELS.map((level) => (
             <option key={level} value={level}>{level}</option>
@@ -157,12 +157,26 @@ const PostAnnouncement = () => {
     }
   ]
 
-  return (
-    <div>
-      <DashboardLayout />
-      <div className="layout">
-        <Sidebar />
+  const previewDate = new Date().toLocaleDateString()
 
+  const renderAnnouncementPreview = () => (
+    <div className="announcement-box">
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div>
+          <h3>{title || '[Announcement Title]'}</h3>
+          <p className="date">
+            Published on: {previewDate}
+          </p>
+        </div>
+        <StatusBadge status={status} />
+      </div>
+      <p style={{ whiteSpace: 'pre-wrap' }}>{content || '[Announcement Content]'}</p>
+    </div>
+  )
+
+  return (
+    <>
+      <DashboardLayout>
         <main className="content">
           <PageHeader
             title="Post Announcement"
@@ -217,17 +231,11 @@ const PostAnnouncement = () => {
           </section>
 
           <section className="announcement-output mt-8">
-            <h3>Preview (Employee View)</h3>
-            <div className="announcement-box p-4 border rounded bg-white shadow-sm">
-              <h4 className="font-bold text-lg">{title || '[Announcement Title]'}</h4>
-              <p className="date text-sm text-gray-500 mb-2">
-                <StatusBadge status={status} />
-              </p>
-              <p className="date text-sm text-gray-500 mb-3">
-                Published on: {new Date().toLocaleDateString()}
-              </p>
-              <p className="whitespace-pre-wrap">{content || '[Announcement Content]'}</p>
+            <div className="preview-heading-row">
+              <h3>Preview (Employee View)</h3>
+              <span className="live-preview-tag">Live Preview</span>
             </div>
+            {renderAnnouncementPreview()}
           </section>
 
           <section className="profile-section">
@@ -242,7 +250,6 @@ const PostAnnouncement = () => {
             <Table columns={notificationColumns} data={notifications} />
           </section>
         </main>
-      </div>
 
       <Modal
         visible={isPreviewOpen}
@@ -255,13 +262,10 @@ const PostAnnouncement = () => {
           </div>
         }
       >
-        <div className="announcement-box">
-          <h3>{title || '[Announcement Title]'}</h3>
-          <p className="date">Status: {status}</p>
-          <p>{content || '[Announcement Content]'}</p>
-        </div>
+        {renderAnnouncementPreview()}
       </Modal>
-    </div>
+      </DashboardLayout>
+    </>
   )
 }
 

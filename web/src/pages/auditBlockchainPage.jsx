@@ -49,11 +49,7 @@ const AuditBlockchainPage = () => {
   ]
 
   return (
-    <div>
-      <DashboardLayout />
-      <div className="layout">
-        <Sidebar />
-
+    <DashboardLayout>
         <main className="content">
           <PageHeader
             title="Audit Blockchain Records"
@@ -66,9 +62,8 @@ const AuditBlockchainPage = () => {
           />
 
           <Table columns={columns} data={filteredRecords} />
-        </main>
-      </div>
-    </div>
+                </main>
+    </DashboardLayout>
   )
 }
 

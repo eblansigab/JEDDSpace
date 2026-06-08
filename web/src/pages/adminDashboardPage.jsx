@@ -7,18 +7,7 @@ import DashboardLayout from '../layouts/dashboardLayout'
 const AdminDashboardPage = () => {
 
   return (
-    <div className="dashboard-page">
-
-      {/* Top Bar */}
-      <DashboardLayout/>
-
-      <div className="layout">
-
-        {/* Sidebar */}
-          <Sidebar />
-
-
-        {/* Main Content */}
+    <DashboardLayout>
         <main className="content">
 
           <h2>Admin Dashboard</h2>
@@ -100,10 +89,7 @@ const AdminDashboardPage = () => {
           </div>
 
         </main>
-
-      </div>
-
-    </div>
+    </DashboardLayout>
   )
 }
 

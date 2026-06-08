@@ -7,7 +7,7 @@ import { emailService } from '../services/emailService'
 import { alertService } from '../utils/alertService'
 
 const EmailsPage = () => {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [messages, setMessages] = useState([])
   const [recipient, setRecipient] = useState('')
@@ -55,16 +55,31 @@ const EmailsPage = () => {
 
   const filteredMessages = useMemo(
     () =>
-      messages.filter((msg) =>
-        [
-          msg.sender,
-          msg.recipient,
-          msg.subject,
-          msg.body,
-          msg.created_at
-        ].map((value) => value || '').join(' ').toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [messages, searchTerm]
+      messages
+        .filter((msg) => msg.type !== 'announcement' && !msg.subject?.startsWith('Announcement:'))
+        .filter((msg) => {
+          if (!user) return false
+          const recipientClean = String(msg.recipient || '').trim().toLowerCase()
+          const myEmail = String(user.email || '').trim().toLowerCase()
+          const myName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim().toLowerCase() : ''
+          
+          const isSentByMe = msg.user_id === user.id
+          const isReceivedByMe =
+            recipientClean === myEmail ||
+            recipientClean === 'all employees' ||
+            (myName && recipientClean === myName)
+          return isSentByMe || isReceivedByMe
+        })
+        .filter((msg) =>
+          [
+            msg.sender,
+            msg.recipient,
+            msg.subject,
+            msg.body,
+            msg.created_at
+          ].map((value) => value || '').join(' ').toLowerCase().includes(searchTerm.toLowerCase())
+        ),
+    [messages, searchTerm, user, profile]
   )
 
   const columns = [
@@ -78,11 +93,7 @@ const EmailsPage = () => {
   ]
 
   return (
-    <div>
-      <DashboardLayout />
-      <div className="layout">
-        <Sidebar />
-
+    <DashboardLayout>
         <main className="content">
           <PageHeader
             title="Emails"
@@ -112,9 +123,8 @@ const EmailsPage = () => {
               </Button>
             </section>
           </div>
-        </main>
-      </div>
-    </div>
+                </main>
+    </DashboardLayout>
   )
 }
 

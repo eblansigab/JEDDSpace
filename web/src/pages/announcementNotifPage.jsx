@@ -7,21 +7,16 @@ import DashboardLayout from '../layouts/dashboardLayout'
 const GeneralAnnouncement = () => {
 
 return (
-<div>
-    <DashboardLayout/>
-  <div className="layout">
-    <Sidebar/>
-
-    <main className="content">
+    <DashboardLayout>
+        <main className="content">
       <section className="dashboard-widget p-6 bg-white border rounded-lg shadow-sm">
         <h3 className="text-xl font-bold mb-2">General Announcement</h3>
         <p className="text-gray-700">
           This is how a company-wide general announcement looks like.
         </p>
       </section>
-    </main>
-  </div>
-</div>
+            </main>
+    </DashboardLayout>
 )
 }
 

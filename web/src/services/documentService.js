@@ -1,6 +1,6 @@
 import { supabaseClient } from '../supabase/supabaseClient'
 
-const LOCAL_DOCUMENTS_KEY = 'jeddspace_uploaded_documents'
+const LOCAL_DOCUMENTS_KEY = 'jeddspace_uploaded_document'
 
 const getLocalDocuments = () => {
   try {
@@ -10,8 +10,8 @@ const getLocalDocuments = () => {
   }
 }
 
-const saveLocalDocuments = (documents) => {
-  localStorage.setItem(LOCAL_DOCUMENTS_KEY, JSON.stringify(documents))
+const saveLocalDocuments = (document) => {
+  localStorage.setItem(LOCAL_DOCUMENTS_KEY, JSON.stringify(document))
 }
 
 const getDocumentDate = (document) =>
@@ -53,20 +53,42 @@ export const documentService = {
     return sortDocuments([...localDocuments, ...remoteDocuments])
   },
 
-  async recordUpload(file, userId) {
-    const localRecord = {
-      id: `local-${Date.now()}`,
-      document_id: `LOCAL-${Date.now()}`,
-      title: file.name,
-      file_name: file.name,
-      file_size: file.size,
-      file_type: file.type || 'Unknown',
-      uploaded_by: userId || null,
-      created_at: new Date().toISOString()
-    }
+async recordUpload(file, userId) {
 
-    saveLocalDocuments([localRecord, ...getLocalDocuments()])
+  const fileName = `${Date.now()}-${file.name}`
 
-    return localRecord
-  }
+  // Upload file
+  const { error: uploadError } =
+    await supabaseClient.storage
+      .from('document')
+      .upload(fileName, file)
+
+  if (uploadError) throw uploadError
+
+  // Get URL
+  const { data: publicUrlData } =
+    supabaseClient.storage
+      .from('document')
+      .getPublicUrl(fileName)
+
+  // Save metadata
+  const { data, error } =
+    await supabaseClient
+      .from('document')
+      .insert({
+        uploaded_by: userId,
+
+        title: file.name,
+        file_name: file.name,
+        file_path: publicUrlData.publicUrl,
+        file_type: file.type,
+        file_size: file.size
+      })
+      .select()
+      .single()
+
+  if (error) throw error
+
+  return data
+}
 }

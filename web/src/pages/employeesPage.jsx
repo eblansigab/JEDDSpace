@@ -60,11 +60,7 @@ const EmployeesPage = () => {
   ]
 
   return (
-    <div>
-      <DashboardLayout />
-      <div className="layout">
-        <Sidebar />
-
+    <DashboardLayout>
         <main className="content">
           <PageHeader
             title="Manage Employees"
@@ -98,9 +94,8 @@ const EmployeesPage = () => {
               </ul>
             </section>
           </div>
-        </main>
-      </div>
-    </div>
+                </main>
+    </DashboardLayout>
   )
 }
 

@@ -16,42 +16,62 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
 
-    const loadUser = async () => {
+      const loadUser = async (session, isInitial = false) => {
+        if (isInitial && mounted) {
+          setLoading(true)
+          setProfile(null)
+        }
 
-      setLoading(true)
+        const currentUser = session?.user
+        if (mounted) {
+          setUser(currentUser)
+        }
 
+        if (currentUser) {
+          const { data, error } = await supabaseClient
+            .from('employee')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .maybeSingle()
+
+          if (error) {
+            console.error(error)
+            if (mounted) setProfile(null)
+          } else if (mounted) {
+            setProfile(data || null)
+          }
+        } else if (mounted) {
+          setProfile(null)
+        }
+
+        if (isInitial && mounted) {
+          setLoading(false)
+        }
+      }
+
+    const initialize = async () => {
       const {
         data: { session }
       } = await supabaseClient.auth.getSession()
 
-      const currentUser = session?.user
-
-      setUser(currentUser)
-
-      if (currentUser) {
-
-        const { data, error } = await supabaseClient
-          .from('employee')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .single()
-
-        if (error) {
-          console.error(error)
-        } else {
-          setProfile(data)
-        }
-
-      } else {
-        setProfile(null)
-      }
-
-      setLoading(false)
+      await loadUser(session, true)
     }
 
-    loadUser()
+    initialize()
 
+    const listener = supabaseClient.auth.onAuthStateChange(
+      async (_event, session) => {
+        await loadUser(session, false)
+      }
+    )
+
+    return () => {
+      mounted = false
+      const subscription = listener?.data?.subscription || listener?.subscription
+      subscription?.unsubscribe?.()
+    }
   }, [])
 
   return (

@@ -7,6 +7,8 @@ import {
   isTwoFactorEnabled,
 } from '../services/authService';
 import { alertService } from '../utils/alertService';
+import logo from '../assets/JEDDSpace Logo (Transparent).png';
+import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, ROLE_OPTIONS } from '../constants/formOptions';
 import '../styles/style.css'
 
 
@@ -16,6 +18,7 @@ export function LoginPage() {
   // Toggle state between Login and Register views
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form State Fields
   const [email, setEmail] = useState('');
@@ -23,6 +26,7 @@ export function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [position, setPosition] = useState('');
   const [role, setRole] = useState('');
   const [department, setDepartment] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +35,10 @@ export function LoginPage() {
   // Fixed: Added 'async' keyword here
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setError('');
+    setIsSubmitting(true);
 
     try {
       if (isRegistering) {
@@ -41,6 +48,7 @@ export function LoginPage() {
           confirmPassword,
           firstName,
           lastName,
+          position,
           role,
           department
         );
@@ -50,8 +58,8 @@ export function LoginPage() {
         if (isTwoFactorEnabled) {
           const result = await beginTwoFactorSignIn(email, password);
           if (result?.code) {
-            await alertService.info(`Your verification code is: ${result.code}`, 'Verification Code');
             navigate('/verify-2fa');
+            alertService.verificationCode(result.code);
             return;
           }
         } else {
@@ -62,16 +70,17 @@ export function LoginPage() {
     } catch (err) {
       const message = err?.message || 'An error happened, please try again...';
       setError(message);
-      await alertService.error(message, 'Authentication Failed');
+      alertService.error(message, 'Authentication Failed');
+    } finally {
+      setIsSubmitting(false);
     }
   };
-
-
 
   return (
     <div>
       <main className="container">
         <section className="form-box">
+          <img src={logo} alt="JEDDSpace" className="login-box-logo" />
           <h3>{isRegistering ? 'Register Account' : 'Log In'}</h3>
           
           <p>
@@ -204,23 +213,29 @@ export function LoginPage() {
                   required 
                 />
 
-                <label>Role</label>
-                <input 
-                  type="text" 
-                  placeholder="Job Role" 
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  required 
-                />
+                <label>Position</label>
+                <select value={position} onChange={(e) => setPosition(e.target.value)} required>
+                  <option value="" disabled>Select position</option>
+                  {POSITION_OPTIONS.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
 
                 <label>Department</label>
-                <input 
-                  type="text" 
-                  placeholder="Department" 
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  required 
-                />
+                <select value={department} onChange={(e) => setDepartment(e.target.value)} required>
+                  <option value="" disabled>Select department</option>
+                  {DEPARTMENT_OPTIONS.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+
+                <label>Role</label>
+                <select value={role} onChange={(e) => setRole(e.target.value)} required>
+                  <option value="" disabled>Select role</option>
+                  {ROLE_OPTIONS.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
               </>
             )}
 
@@ -233,8 +248,8 @@ export function LoginPage() {
               </div>
             )}
 
-            <button type="submit" className="primary-btn">
-              {isRegistering ? 'Register' : 'Login'}
+            <button type="submit" className="primary-btn" disabled={isSubmitting}>
+              {isRegistering ? (isSubmitting ? 'Registering...' : 'Register') : (isSubmitting ? 'Logging in...' : 'Login')}
             </button>
           </form>
         </section>

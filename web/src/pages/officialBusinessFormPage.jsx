@@ -7,11 +7,8 @@ import DashboardLayout from '../layouts/dashboardLayout'
 const OfficialBusinessFormPage = () => {
 
 return (
-<div>
-  <DashboardLayout/>
-  <div className="layout">
-    <Sidebar/>
-    <main className="content">
+    <DashboardLayout>
+        <main className="content">
       <h1>Official Business Form</h1>
 
       <form className="business-form" onSubmit={(e) => e.preventDefault()}>
@@ -61,9 +58,8 @@ return (
           Submit
         </button>
       </form>
-    </main>
-  </div>
-</div>
+            </main>
+    </DashboardLayout>
 )
 }
 

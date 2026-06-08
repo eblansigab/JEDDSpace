@@ -23,6 +23,7 @@ export const registerUser = async (
   firstName,
   lastName,
   position,
+  role,
   department
 ) => {
   if (password !== confirmPassword) {
@@ -42,9 +43,7 @@ export const registerUser = async (
       last_name: lastName,
       position,
       department,
-      role: String(position || '').toLowerCase() === 'admin'
-      ? 'admin'
-      : 'employee',
+      role: String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
       user_id: data.user.id,
     },
   ]);
@@ -64,6 +63,7 @@ export const loginUser = async (email, password) => {
 
   return data;
 };
+
 
 export const beginTwoFactorSignIn = async (email, password) => {
   if (!USE_TWO_FACTOR) {
@@ -129,6 +129,16 @@ export const resendTwoFactorCode = () => {
 
 export const logoutUser = async () => {
   const { error } = await supabaseClient.auth.signOut();
+  if (error) throw error;
+
+  clearPending2FA();
+  return true;
+};
+
+export const logoutAllDevices = async () => {
+  const { error } = await supabaseClient.auth.signOut({
+    scope: 'global',
+  });
   if (error) throw error;
 
   clearPending2FA();
