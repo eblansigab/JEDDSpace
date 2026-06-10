@@ -88,7 +88,7 @@ export function LoginPage() {
             <button 
               type="button"
               className="signup" 
-              style={{ background: 'none', border: 'none', color: 'blue', cursor: 'pointer', textDecoration: 'underline' }}
+              style={{ background: 'none', border: 'none', color: 'skyblue', cursor: 'pointer', textDecoration: 'underline', padding: 'none', }}
               onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
             >
               {isRegistering ? 'here' : 'here'}!

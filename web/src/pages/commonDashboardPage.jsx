@@ -66,12 +66,10 @@ const CommonDashboardPage = () => {
   return (
     <DashboardLayout>
         <main className="content">
-          <div className="dashboard-hero">
             <div>
-              <h1>Dashboard</h1>
+              <h3>Dashboard</h3>
               <p>Quick access to your email logs, uploaded files, and today&apos;s schedule.</p>
             </div>
-          </div>
 
           <div className="dashboard-grid">
             <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>

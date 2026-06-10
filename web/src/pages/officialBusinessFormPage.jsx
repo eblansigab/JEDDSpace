@@ -9,7 +9,7 @@ const OfficialBusinessFormPage = () => {
 return (
     <DashboardLayout>
         <main className="content">
-      <h1>Official Business Form</h1>
+      <h3>Official Business Form</h3>
 
       <form className="business-form" onSubmit={(e) => e.preventDefault()}>
         <label className="block mb-1">Project</label>

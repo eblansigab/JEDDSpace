@@ -10,7 +10,7 @@ const AdminDashboardPage = () => {
     <DashboardLayout>
         <main className="content">
 
-          <h2>Admin Dashboard</h2>
+          <h3>Admin Dashboard</h3>
 
           <div className="admin-grid">
 
