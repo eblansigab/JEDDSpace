@@ -20,6 +20,7 @@ const AssignJobsPage = lazy(() => import("../pages/assignJobsPage"));
 const AuditBlockchainPage = lazy(() => import("../pages/auditBlockchainPage"));
 const LeaveFormPage = lazy(() => import("../pages/leaveFormPage"));
 const AdminRoute = lazy(() => import("../components/AdminRoute"));
+const ProtectedRoute = lazy(() => import('../components/ProtectedRoute'))
 
 const InnerRoutes = () => {
   const location = useLocation();
@@ -43,22 +44,22 @@ const InnerRoutes = () => {
       <Suspense fallback={<LoadingOverlay visible={true} message={'Loading...'} />}>
         <Routes>
           <Route path="/" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/verify-2fa" element={<Verify2FAPage />} />
-          <Route path="/dashboard" element={<CommonDashboardPage />} />
-          <Route path="/admin-dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>}/>
-          <Route path="/employees" element={<EmployeesPage />} />
-          <Route path="/announcements" element={<AnnouncementsPage />} />
-          <Route path="/emails" element={<EmailsPage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/contracts" element={<ContractsPage />} />
-          <Route path="/official-business" element={<OfficialBusinessFormPage />} />
-          <Route path="/post-announcements" element={<AdminRoute><PostAnnouncement /></AdminRoute>} />
-          <Route path="/manage-employees" element={<ManageEmployeesPage />} />
-          <Route path="/assign-jobs" element={<AssignJobsPage />} />
-          <Route path="/audit-blockchain" element={<AuditBlockchainPage />} />
-          <Route path="/leave-form" element={<LeaveFormPage />} />
+          <Route path="/signup" element={<ProtectedRoute><SignupPage /></ProtectedRoute>} />
+          <Route path="/verify-2fa" element={<ProtectedRoute><Verify2FAPage /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><CommonDashboardPage /></ProtectedRoute>} />
+          <Route path="/admin-dashboard" element={<ProtectedRoute><AdminRoute><AdminDashboardPage /></AdminRoute></ProtectedRoute>}/>
+          <Route path="/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
+          <Route path="/announcements" element={<ProtectedRoute><AnnouncementsPage /></ProtectedRoute>} />
+          <Route path="/emails" element={<ProtectedRoute><EmailsPage /></ProtectedRoute>} />
+          <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/contracts" element={<ProtectedRoute><ContractsPage /></ProtectedRoute>} />
+          <Route path="/official-business" element={<ProtectedRoute><OfficialBusinessFormPage /></ProtectedRoute>} />
+          <Route path="/post-announcements" element={<ProtectedRoute><AdminRoute><PostAnnouncement /></AdminRoute></ProtectedRoute>} />
+          <Route path="/manage-employees" element={<ProtectedRoute><ManageEmployeesPage /></ProtectedRoute>} />
+          <Route path="/assign-jobs" element={<ProtectedRoute><AssignJobsPage /></ProtectedRoute>} />
+          <Route path="/audit-blockchain" element={<ProtectedRoute><AuditBlockchainPage /></ProtectedRoute>} />
+          <Route path="/leave-form" element={<ProtectedRoute><LeaveFormPage /></ProtectedRoute>} />
         </Routes>
       </Suspense>
     </>
@@ -66,6 +67,7 @@ const InnerRoutes = () => {
 };
 
 const AppRoutes = () => {
+    console.log("APP ROUTES LOADED")
   return (
     <BrowserRouter>
       <InnerRoutes />

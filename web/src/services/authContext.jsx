@@ -10,7 +10,7 @@ import { supabaseClient } from '../supabase/supabaseClient'
 const AuthContext = createContext()
 
 export const AuthProvider = ({ children }) => {
-
+  console.log("AUTH PROVIDER LOADED")
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)

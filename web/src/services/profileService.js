@@ -30,5 +30,35 @@ export const profileService = {
     if (error) throw error
 
     return session
+  },
+
+  async checkServerAccountStatus(userId) {
+    // Perform a direct backend/database query to get the fresh employee profile status
+    const { data: employeeData, error: employeeError } = await supabaseClient
+      .from('employee')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (employeeError) throw employeeError
+
+    // Also get auth status from the session
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    if (authError) throw authError
+
+    return {
+      employee: employeeData,
+      user,
+      verifiedAt: new Date().toISOString()
+    }
+  },
+
+  async updateAuthMetadata(metadataUpdates) {
+    const { data, error } = await supabaseClient.auth.updateUser({
+      data: metadataUpdates
+    })
+
+    if (error) throw error
+    return data.user
   }
 }

@@ -5,6 +5,7 @@ import {
   verifyTwoFactorCode,
   resendTwoFactorCode,
 } from '../services/authService';
+import { sessionService } from '../services/sessionService';
 import { alertService } from '../utils/alertService';
 import '../styles/style.css';
 
@@ -52,7 +53,12 @@ export function Verify2FAPage() {
     setError('');
 
     try {
-      await verifyTwoFactorCode(code.trim());
+      // Step 2: After successful 2FA verification, register a session
+      // row in the user_sessions table for the now-authenticated user.
+      const pending = await verifyTwoFactorCode(code.trim());
+      if (pending?.userId) {
+        await sessionService.createSession(pending.userId);
+      }
       navigate('/dashboard');
     } catch (err) {
       const message = err.message || 'Verification failed.';

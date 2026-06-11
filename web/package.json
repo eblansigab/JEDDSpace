@@ -10,11 +10,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
     "@supabase/supabase-js": "^2.105.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.0",
-    "sweetalert2": "^11.26.25"
+    "sweetalert2": "^11.26.25",
+    "ua-parser-js": "^2.0.10"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

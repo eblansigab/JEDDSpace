@@ -89,7 +89,7 @@ header {
   border-radius: 999px;
   background: #ff3d71;
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 1rem;
   font-weight: 700;
   text-align: center;
 }
@@ -130,7 +130,7 @@ header {
 .notification-subtitle {
   margin: 4px 0 0;
   color: #6b7280;
-  font-size: 0.82rem;
+  font-size: 1rem;
 }
 
 .notification-footer {
@@ -170,7 +170,7 @@ button.notification-item {
 .notification-item-title {
   margin: 0;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .notification-item-meta {
@@ -180,20 +180,20 @@ button.notification-item {
   gap: 8px;
   align-items: center;
   color: #6b7280;
-  font-size: 0.78rem;
+  font-size: 1rem;
 }
 
 .notification-item-body {
   margin-top: 10px;
   color: #334155;
-  font-size: 0.9rem;
+  font-size: 1rem;
   line-height: 1.45;
 }
 
 .priority-pill {
   border-radius: 999px;
   padding: 4px 10px;
-  font-size: 0.72rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #fff;
 }
@@ -221,7 +221,7 @@ button.notification-item {
   padding: 8px 12px;
   border-radius: 10px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 1rem;
 }
 
 .desktop-notification-button.enabled {
@@ -234,7 +234,7 @@ button.notification-item {
   padding: 40px 0;
   text-align: center;
   color: #6b7280;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 [data-theme="dark"] .notification-dropdown {
@@ -280,7 +280,7 @@ button.notification-item {
   background: rgba(56, 189, 248, 0.14);
   color: #0f172a;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -588,6 +588,14 @@ body.sidebar-collapsed .content {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 18px;
 }
+@media (max-width: 768px) {
+  .dashboard-grid {
+    flex-direction: column;
+  }
+}
+.calendar-widget {
+  grid-column: 1 / -1;
+}
 
 .dashboard-widget {
   background: #f9f9f9;
@@ -674,7 +682,7 @@ body.sidebar-collapsed .content {
 }
 
 .file-list span {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: #555;
 }
 
@@ -744,7 +752,7 @@ body.sidebar-collapsed .content {
 .active-bar h3 {
   margin-top: 0;
   color: #1E0977;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .active-bar ul {
@@ -757,7 +765,7 @@ body.sidebar-collapsed .content {
   display: flex;
   align-items: center;
   margin: 10px 0;
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: #333;
 }
 
@@ -875,7 +883,7 @@ body.sidebar-collapsed .content {
 }
 
 .announcement-box .date {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: #555;
   margin-bottom: 10px;
 }
@@ -1005,7 +1013,7 @@ body.sidebar-collapsed .content {
 }
 
 .admin-box p {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: #555;
   margin: 10px 0 20px;
 }
@@ -1069,7 +1077,7 @@ body.sidebar-collapsed .content {
 }
 
 .announcement-output .date {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: #555;
   margin-bottom: 10px;
 }
@@ -1759,7 +1767,7 @@ body.sidebar-collapsed .content {
   border-radius: 8px;
   background: #eef2ff;
   color: #1E0977;
-  font-size: 1.4rem;
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.14em;
 }
