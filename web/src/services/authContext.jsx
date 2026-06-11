@@ -14,42 +14,45 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  console.log("AUTH CONTEXT RENDER")
+  console.log("USER:", user)
+  console.log("LOADING:", loading)
 
   useEffect(() => {
     let mounted = true
 
-      const loadUser = async (session, isInitial = false) => {
-        if (isInitial && mounted) {
-          setLoading(true)
-          setProfile(null)
-        }
-
-        const currentUser = session?.user
-        if (mounted) {
-          setUser(currentUser)
-        }
-
-        if (currentUser) {
-          const { data, error } = await supabaseClient
-            .from('employee')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .maybeSingle()
-
-          if (error) {
-            console.error(error)
-            if (mounted) setProfile(null)
-          } else if (mounted) {
-            setProfile(data || null)
-          }
-        } else if (mounted) {
-          setProfile(null)
-        }
-
-        if (isInitial && mounted) {
-          setLoading(false)
-        }
+    const loadUser = async (session, isInitial = false) => {
+      if (isInitial && mounted) {
+        setLoading(true)
+        setProfile(null)
       }
+
+      const currentUser = session?.user
+      if (mounted) {
+        setUser(currentUser)
+      }
+
+      if (currentUser) {
+        const { data, error } = await supabaseClient
+          .from('employee')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .maybeSingle()
+
+        if (error) {
+          console.error(error)
+          if (mounted) setProfile(null)
+        } else if (mounted) {
+          setProfile(data || null)
+        }
+      } else if (mounted) {
+        setProfile(null)
+      }
+
+      if (isInitial && mounted) {
+        setLoading(false)
+      }
+    }
 
     const initialize = async () => {
       const {

@@ -31,73 +31,73 @@ const CommonDashboardPage = () => {
 
   const loadCalendarEvents = async () => {
     const { data: announcements } =
-    await supabaseClient
-      .from('announcement')
-      .select('*')
+      await supabaseClient
+        .from('announcement')
+        .select('*')
 
     const announcementEvents =
-  (announcements || []).map(item => ({
-    title: `📢 ${item.title}`,
-    start: item.created_at
-  }))
+      (announcements || []).map(item => ({
+        title: `📢 ${item.title}`,
+        start: item.created_at
+      }))
 
-  const { data: leaves } =
-  await supabaseClient
-    .from('leaveform')
-    .select('*')
+    const { data: leaves } =
+      await supabaseClient
+        .from('leaveform')
+        .select('*')
 
     const leaveEvents =
-  (leaves || []).map(item => ({
-    title: `🏖 Leave`,
-    start: item.start_date,
-    end: item.end_date
-  }))
+      (leaves || []).map(item => ({
+        title: `🏖 Leave`,
+        start: item.start_date,
+        end: item.end_date
+      }))
 
-  const { data: businessTrips } =
-  await supabaseClient
-    .from('businessform')
-    .select('*')
+    const { data: businessTrips } =
+      await supabaseClient
+        .from('businessform')
+        .select('*')
 
 
 
-  const businessEvents =
-  (businessTrips || []).map(item => ({
-    title: `🧳 ${item.location}`,
-    start: item.start_duration,
-    end: item.end_duration
-  }))
+    const businessEvents =
+      (businessTrips || []).map(item => ({
+        title: `🧳 ${item.location}`,
+        start: item.start_duration,
+        end: item.end_duration
+      }))
 
-const { data: jobs } =
-  await supabaseClient
-    .from('job')
-    .select('*')
+    const { data: jobs } =
+      await supabaseClient
+        .from('job')
+        .select('*')
 
-  const jobEvents =
-  (jobs || []).map(item => ({
-    title: `💼 ${item.destination}`,
-    start: item.start_date,
-    end: item.end_date
-  }))
+    const jobEvents =
+      (jobs || []).map(item => ({
+        title: `💼 ${item.destination}`,
+        start: item.start_date,
+        end: item.end_date
+      }))
 
-  const { data: contracts } =
-  await supabaseClient
-    .from('contracts')
-    .select('*')
+    const { data: contracts } =
+      await supabaseClient
+        .from('contracts')
+        .select('*')
 
     const contractEvents =
-  (contracts || []).map(item => ({
-    title: `📄 ${item.contract_title}`,
-    start: item.start_date,
-    end: item.end_date
-  }))
+      (contracts || []).map(item => ({
+        title: `📄 ${item.contract_title}`,
+        start: item.start_date,
+        end: item.end_date
+      }))
 
-   setCalendarEvents([
-    ...announcementEvents,
-    ...leaveEvents,
-    ...businessEvents,
-    ...jobEvents,
-    ...contractEvents
-  ])
+    setCalendarEvents([
+      ...announcementEvents,
+      ...leaveEvents,
+      ...businessEvents,
+      ...jobEvents,
+      ...contractEvents
+    ])
   }
   const toggleWidget = (widget) => {
     setCollapsedWidgets((current) => ({
@@ -119,17 +119,17 @@ const { data: jobs } =
   }
 
   useEffect(() => {
-  const init = async () => {
-    try {
-      await loadDashboardSummary()
-      await loadCalendarEvents()
-    } catch (err) {
-      console.error("Dashboard Init Error:", err)
+    const init = async () => {
+      try {
+        await loadDashboardSummary()
+        await loadCalendarEvents()
+      } catch (err) {
+        console.error("Dashboard Init Error:", err)
+      }
     }
-  }
 
-  init()
-}, [])
+    init()
+  }, [])
 
   // Step 3: Update session activity on page load AND every 5 minutes so that
   // the Session Management page can show "Just now" / "X minutes ago" live.
@@ -162,101 +162,96 @@ const { data: jobs } =
 
   return (
     <DashboardLayout>
-        <main className="content">
-            <div>
-<<<<<<< HEAD
-              <h1>Dashboard</h1>
-              <p>Quick access to your email logs, uploaded files, and today's schedule.</p>
-=======
-              <h3>Dashboard</h3>
-              <p>Quick access to your email logs, uploaded files, and today&apos;s schedule.</p>
->>>>>>> 5066b306d9802d5661df02e2b2801f3d9b258eca
-            </div>
+      <main className="content">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Quick access to your email logs, uploaded files, and today's schedule.</p>
+        </div>
 
-          <div className="dashboard-grid">
-            <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>
-              <div className="dashboard-widget-header">
-                <div>
-                  <h3>Email Summary</h3>
-                  <span>{emailCount} logged {emailCount === 1 ? 'email' : 'emails'}</span>
-                </div>
-                <button type="button" className="collapse-btn" onClick={() => toggleWidget('email')}>
-                  {collapsedWidgets.email ? 'Expand' : 'Collapse'}
-                </button>
+        <div className="dashboard-grid">
+          <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>
+            <div className="dashboard-widget-header">
+              <div>
+                <h3>Email Summary</h3>
+                <span>{emailCount} logged {emailCount === 1 ? 'email' : 'emails'}</span>
               </div>
-              {!collapsedWidgets.email && (
-                <div className="dashboard-widget-body">
-                  <p>You currently have {emailCount} logged {emailCount === 1 ? 'email' : 'emails'}.</p>
-                  {latestEmail && <p className="date">Latest: {latestEmail}</p>}
-                  <Link to="/emails" className="primary-btn">
-                    View Emails
+              <button type="button" className="collapse-btn" onClick={() => toggleWidget('email')}>
+                {collapsedWidgets.email ? 'Expand' : 'Collapse'}
+              </button>
+            </div>
+            {!collapsedWidgets.email && (
+              <div className="dashboard-widget-body">
+                <p>You currently have {emailCount} logged {emailCount === 1 ? 'email' : 'emails'}.</p>
+                {latestEmail && <p className="date">Latest: {latestEmail}</p>}
+                <Link to="/emails" className="primary-btn">
+                  View Emails
+                </Link>
+              </div>
+            )}
+          </section>
+
+          <section className={`dashboard-widget ${collapsedWidgets.files ? 'is-collapsed' : ''}`}>
+            <div className="dashboard-widget-header">
+              <div>
+                <h3>File Uploads</h3>
+                <span>{fileCount} uploaded {fileCount === 1 ? 'file' : 'files'}</span>
+              </div>
+              <button type="button" className="collapse-btn" onClick={() => toggleWidget('files')}>
+                {collapsedWidgets.files ? 'Expand' : 'Collapse'}
+              </button>
+            </div>
+            {!collapsedWidgets.files && (
+              <div className="dashboard-widget-body">
+                <p>There are {fileCount} {fileCount === 1 ? 'file' : 'files'} uploaded.</p>
+                {latestFile && <p className="date">Latest: {latestFile}</p>}
+
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                    {isUploading ? 'Uploading...' : 'Upload File'}
+                  </Button>
+                  <Link to="/documents" className="primary-btn">
+                    Check Documents
                   </Link>
                 </div>
-              )}
-            </section>
-
-            <section className={`dashboard-widget ${collapsedWidgets.files ? 'is-collapsed' : ''}`}>
-              <div className="dashboard-widget-header">
-                <div>
-                  <h3>File Uploads</h3>
-                  <span>{fileCount} uploaded {fileCount === 1 ? 'file' : 'files'}</span>
-                </div>
-                <button type="button" className="collapse-btn" onClick={() => toggleWidget('files')}>
-                  {collapsedWidgets.files ? 'Expand' : 'Collapse'}
-                </button>
               </div>
-              {!collapsedWidgets.files && (
-                <div className="dashboard-widget-body">
-                  <p>There are {fileCount} {fileCount === 1 ? 'file' : 'files'} uploaded.</p>
-                  {latestFile && <p className="date">Latest: {latestFile}</p>}
+            )}
 
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                      {isUploading ? 'Uploading...' : 'Upload File'}
-                    </Button>
-                    <Link to="/documents" className="primary-btn">
-                      Check Documents
-                    </Link>
-                  </div>
-                </div>
-              )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelected}
+              style={{ display: 'none' }}
+            />
+          </section>
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                onChange={handleFileSelected}
-                style={{ display: 'none' }}
-              />
-            </section>
-
-            <section className={`dashboard-widget ${collapsedWidgets.calendar ? 'is-collapsed' : ''} calendar-widget`}>
-              <div className="dashboard-widget-header">
-                <div>
-                  <h3>Calendar</h3>
-                  <span>{new Date().toLocaleDateString()}</span>
-                </div>
-                <button type="button" className="collapse-btn" onClick={() => toggleWidget('calendar')}>
-                  {collapsedWidgets.calendar ? 'Expand' : 'Collapse'}
-                </button>
+          <section className={`dashboard-widget ${collapsedWidgets.calendar ? 'is-collapsed' : ''} calendar-widget`}>
+            <div className="dashboard-widget-header">
+              <div>
+                <h3>Calendar</h3>
+                <span>{new Date().toLocaleDateString()}</span>
               </div>
-              {!collapsedWidgets.calendar && (
-                <div className="dashboard-widget-body">
-                  <div className="calendar-box">
-                    <FullCalendar
-                      plugins={[
-                        dayGridPlugin,
-                        interactionPlugin
-                      ]}
-                      initialView="dayGridMonth"
-                      events={calendarEvents}
-                      height="500px"
-                    />
-                  </div>
+              <button type="button" className="collapse-btn" onClick={() => toggleWidget('calendar')}>
+                {collapsedWidgets.calendar ? 'Expand' : 'Collapse'}
+              </button>
+            </div>
+            {!collapsedWidgets.calendar && (
+              <div className="dashboard-widget-body">
+                <div className="calendar-box">
+                  <FullCalendar
+                    plugins={[
+                      dayGridPlugin,
+                      interactionPlugin
+                    ]}
+                    initialView="dayGridMonth"
+                    events={calendarEvents}
+                    height="500px"
+                  />
                 </div>
-              )}
-            </section>
-          </div>
-                </main>
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
     </DashboardLayout>
   )
 }
