@@ -86,12 +86,33 @@
       }
     };
 
+<<<<<<< HEAD
     return (
       <div>
         <main className="container">
           <section className="form-box">
             <img src={logo} alt="JEDDSpace" className="login-box-logo" />
             <h3>{isRegistering ? 'Register Account' : 'Log In'}</h3>
+=======
+  return (
+    <div>
+      <main className="container">
+        <section className="form-box">
+          <img src={logo} alt="JEDDSpace" className="login-box-logo" />
+          <h3>{isRegistering ? 'Register Account' : 'Log In'}</h3>
+          
+          <p>
+            {isRegistering ? 'Already have an account? ' : "If you don't have an account registered you can register "}
+            <button 
+              type="button"
+              className="signup" 
+              style={{ background: 'none', border: 'none', color: 'skyblue', cursor: 'pointer', textDecoration: 'underline', padding: 'none', }}
+              onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
+            >
+              {isRegistering ? 'here' : 'here'}!
+            </button>
+          </p>
+>>>>>>> 5066b306d9802d5661df02e2b2801f3d9b258eca
 
             <p>
               {isRegistering ? 'Already have an account? ' : "If you don't have an account registered you can register "}

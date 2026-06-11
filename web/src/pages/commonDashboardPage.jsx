@@ -163,12 +163,15 @@ const { data: jobs } =
   return (
     <DashboardLayout>
         <main className="content">
-          <div className="dashboard-hero">
             <div>
+<<<<<<< HEAD
               <h1>Dashboard</h1>
               <p>Quick access to your email logs, uploaded files, and today's schedule.</p>
+=======
+              <h3>Dashboard</h3>
+              <p>Quick access to your email logs, uploaded files, and today&apos;s schedule.</p>
+>>>>>>> 5066b306d9802d5661df02e2b2801f3d9b258eca
             </div>
-          </div>
 
           <div className="dashboard-grid">
             <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>
