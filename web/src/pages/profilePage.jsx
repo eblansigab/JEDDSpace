@@ -468,7 +468,7 @@ const ProfileSettings = () => {
               ))}
             </select>
 
-            <Button onClick={handleSaveDetails}>Update Account Details</Button>
+            <Button onClick={handleSaveDetails} style={{marginTop:16}}>Update Account Details</Button>
           </section>
 
           <section className="profile-section">
@@ -503,7 +503,7 @@ const ProfileSettings = () => {
               </button>
             </div>
 
-            <Button onClick={handleUpdatePassword}>Update Password</Button>
+            <Button onClick={handleUpdatePassword} style={{marginTop:16}}>Update Password</Button>
           </section>
 
           <section className="profile-section">
@@ -572,7 +572,7 @@ const ProfileSettings = () => {
               value={authCode}
               onChange={(event) => setAuthCode(event.target.value)}
             />
-            <Button>Add Authenticator</Button>
+            <Button style={{marginTop:16}}>Add Authenticator</Button>
           </section>
 
           <section className="profile-section">

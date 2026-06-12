@@ -225,7 +225,7 @@ const PostAnnouncement = () => {
               ))}
             </select>
 
-            <Button onClick={handlePublish} disabled={isPublishing}>
+            <Button onClick={handlePublish} disabled={isPublishing} style={{marginTop:16}}>
               {isPublishing ? 'Saving...' : 'Save Announcement'}
             </Button>
           </section>
