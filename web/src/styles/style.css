@@ -310,19 +310,36 @@ header h2 {
   height: auto;
 }
 
-.mobile-menu-toggle {
-  display: none;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  color: white;
-  padding: 8px 12px;
+.collapse-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   border-radius: 6px;
-  font-size: 1.25rem;
   cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: transparent;
+  color: white;
+  flex-shrink: 0;
 }
 
-.mobile-menu-toggle:hover {
-  background: rgba(255, 255, 255, 0.08);
+.collapse-icon:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+@media (max-width: 480px) {
+  .collapse-icon {
+    display: inline-flex;
+  }
+}
+
+@media (min-width: 481px) {
+  .mobile-menu-toggle,
+  .mobile-sidebar-header,
+  .mobile-close-btn {
+    display: none !important;
+  }
 }
 
 .container {
@@ -690,6 +707,25 @@ body.sidebar-collapsed .content {
   border: none;
   color: #004C99;
   font-size: 1.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 1.25rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .picture-box {
@@ -1705,7 +1741,7 @@ body.sidebar-collapsed .content {
     top: 0;
     z-index: 100;
     padding: 10px 14px;
-    justify-content: center;
+    justify-content: space-between;
   }
 
   header img,
@@ -1716,10 +1752,15 @@ body.sidebar-collapsed .content {
 
   .mobile-menu-toggle {
     display: inline-flex;
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 1.25rem;
+    cursor: pointer;
+    flex-shrink: 0;
   }
 
   .layout {
@@ -1757,6 +1798,24 @@ body.sidebar-collapsed .content {
 
   .mobile-close-btn {
     display: inline-flex;
+  }
+
+  .mobile-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 90;
+  }
+}
+
+@media (max-width: 480px) {
+  body.mobile-sidebar-open .mobile-overlay {
+    display: block;
+  }
+
+  body.mobile-sidebar-open .collapse-icon.mobile-menu-toggle {
+    z-index: 91;
   }
 }
 

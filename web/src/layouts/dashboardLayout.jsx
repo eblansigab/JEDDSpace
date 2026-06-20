@@ -7,6 +7,14 @@ import Sidebar from '../components/sideBar'
 
 const DashboardLayout = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 480)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     const collapsed = document.body.classList.contains('sidebar-collapsed')
@@ -14,11 +22,20 @@ const DashboardLayout = ({ children }) => {
   }, [])
 
   const toggleSidebar = () => {
-    document.body.classList.toggle('sidebar-collapsed')
-    document.body.classList.toggle('mobile-sidebar-open')
-    const collapsed = document.body.classList.contains('sidebar-collapsed')
-    setSidebarCollapsed(collapsed)
+    if (isMobile) {
+      document.body.classList.toggle('mobile-sidebar-open')
+    } else {
+      document.body.classList.toggle('sidebar-collapsed')
+      const collapsed = document.body.classList.contains('sidebar-collapsed')
+      setSidebarCollapsed(collapsed)
+    }
   }
+
+  useEffect(() => {
+    if (!isMobile) {
+      document.body.classList.remove('mobile-sidebar-open')
+    }
+  }, [isMobile])
 
   return (
     <div className="dashboard-page">
@@ -26,8 +43,8 @@ const DashboardLayout = ({ children }) => {
         <div className="left-header">
           <button
             type="button"
-            className="collapse-icon"
-            onClick={toggleSidebar}
+          className="collapse-icon"
+          onClick={toggleSidebar}
             aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
@@ -60,6 +77,13 @@ const DashboardLayout = ({ children }) => {
         <Sidebar />
         {children}
       </div>
+
+      {sidebarCollapsed && (
+        <div
+          className="mobile-overlay"
+          onClick={toggleSidebar}
+        />
+      )}
     </div>
   )
 }

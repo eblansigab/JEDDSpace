@@ -71,6 +71,38 @@ const Sidebar = () => {
     document.body.classList.remove('mobile-sidebar-open')
   }
 
+  const isMobileOpen = () => document.body.classList.contains('mobile-sidebar-open')
+
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === 'Escape' && isMobileOpen()) {
+        closeMobileSidebar()
+      }
+    }
+
+    const handleClickOutside = (event) => {
+      if (!isMobileOpen()) return
+      const sidebar = document.querySelector('.sidebar')
+      const toggleButton = document.querySelector('.mobile-menu-toggle')
+      if (
+        sidebar &&
+        !sidebar.contains(event.target) &&
+        toggleButton &&
+        !toggleButton.contains(event.target)
+      ) {
+        closeMobileSidebar()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    document.addEventListener('click', handleClickOutside)
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [])
+
   if (loading) {
     return null
   }
