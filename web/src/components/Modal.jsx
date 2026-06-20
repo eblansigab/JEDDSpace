@@ -40,6 +40,7 @@ export default function Modal({ visible, title, children, onClose, footer, loadi
           <button
             onClick={onClose}
             aria-label="Close"
+            title="Close"
             style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 20 }}
           >
             x

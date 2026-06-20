@@ -9,14 +9,69 @@ import { supabaseClient } from '../supabase/supabaseClient'
 
 const AuthContext = createContext()
 
+/**
+ * Ensures an employee record exists for the given user. If the user was
+ * confirmed manually in the dashboard (bypassing the email flow) or if the
+ * deferred-creation in AuthCallbackPage never ran, there may be no row in
+ * `employee` for this user. This function creates a minimal one so the rest
+ * of the app has a profile to display.
+ */
+const ensureEmployeeRecord = async (user) => {
+  if (!user?.id) return null
+
+  try {
+    const { data: existing, error: selectError } = await supabaseClient
+      .from('employee')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (selectError) {
+      console.error('[AuthContext] Error checking for existing employee record:', selectError)
+      return null
+    }
+
+    if (existing) {
+      return existing
+    }
+
+    const meta = user.user_metadata || {}
+    const emailName = (user.email || '').split('@')[0] || ''
+
+    const { data: inserted, error: insertError } = await supabaseClient
+      .from('employee')
+      .insert([
+        {
+          user_id: user.id,
+          auth_user_id: user.id,
+          first_name: meta.first_name || emailName || null,
+          last_name: meta.last_name || null,
+          position: meta.position || null,
+          department: meta.department || null,
+          role: String(meta.role || 'employee').toLowerCase() === 'admin' ? 'admin' : 'employee',
+        },
+      ])
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error('[AuthContext] Error auto-creating employee record:', insertError)
+      return null
+    }
+
+    console.log('[AuthContext] Auto-created employee record for user:', user.id)
+    return inserted
+  } catch (e) {
+    console.error('[AuthContext] Unexpected error in ensureEmployeeRecord:', e)
+    return null
+  }
+}
+
 export const AuthProvider = ({ children }) => {
-  console.log("AUTH PROVIDER LOADED")
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  console.log("AUTH CONTEXT RENDER")
-  console.log("USER:", user)
-  console.log("LOADING:", loading)
+  const [isEmailVerified, setIsEmailVerified] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -30,6 +85,7 @@ export const AuthProvider = ({ children }) => {
       const currentUser = session?.user
       if (mounted) {
         setUser(currentUser)
+        setIsEmailVerified(!!currentUser?.email_confirmed_at)
       }
 
       if (currentUser) {
@@ -40,10 +96,14 @@ export const AuthProvider = ({ children }) => {
           .maybeSingle()
 
         if (error) {
-          console.error(error)
+          console.error('[AuthContext] Error loading employee profile:', error)
           if (mounted) setProfile(null)
-        } else if (mounted) {
-          setProfile(data || null)
+        } else if (data) {
+          if (mounted) setProfile(data)
+        } else {
+          // No employee row yet — try to auto-create one so the UI is not empty.
+          const created = await ensureEmployeeRecord(currentUser)
+          if (mounted) setProfile(created)
         }
       } else if (mounted) {
         setProfile(null)
@@ -55,16 +115,25 @@ export const AuthProvider = ({ children }) => {
     }
 
     const initialize = async () => {
-      const {
-        data: { session }
-      } = await supabaseClient.auth.getSession()
+      try {
+        const {
+          data: { session }
+        } = await supabaseClient.auth.getSession()
 
-      await loadUser(session, true)
+        await loadUser(session, true)
+      } catch (err) {
+        console.error('[AuthContext] Initialization error:', err)
+        if (mounted) {
+          setUser(null)
+          setProfile(null)
+          setLoading(false)
+        }
+      }
     }
 
     initialize()
 
-    const listener = supabaseClient.auth.onAuthStateChange(
+    const { data: listener } = supabaseClient.auth.onAuthStateChange(
       async (_event, session) => {
         await loadUser(session, false)
       }
@@ -72,7 +141,7 @@ export const AuthProvider = ({ children }) => {
 
     return () => {
       mounted = false
-      const subscription = listener?.data?.subscription || listener?.subscription
+      const subscription = listener?.subscription
       subscription?.unsubscribe?.()
     }
   }, [])
@@ -82,7 +151,8 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         profile,
-        loading
+        loading,
+        isEmailVerified
       }}
     >
       {children}

@@ -26,7 +26,6 @@ export function Verify2FAPage() {
 
     setEmail(pending.email);
     setExpiresAt(pending.expiresAt);
-    alertService.verificationCode(pending.code);
   }, [navigate]);
 
   useEffect(() => {
@@ -73,7 +72,6 @@ export function Verify2FAPage() {
     try {
       const updated = resendTwoFactorCode();
       setExpiresAt(updated.expiresAt);
-      alertService.verificationCode(updated.code, 'New Verification Code');
     } catch (err) {
       const message = err.message || 'Unable to resend code.';
       setError(message);
@@ -87,7 +85,7 @@ export function Verify2FAPage() {
         <section className="form-box">
           <h3>Two-Factor Verification</h3>
           <p>
-            Enter the 6-digit verification code for <strong>{email}</strong>.
+            Enter the 6-digit OTP that is sent to <strong>{email}</strong>.
             {timeLeft && <span> Expires in {timeLeft}.</span>}
           </p>
 
@@ -104,7 +102,7 @@ export function Verify2FAPage() {
               required
             />
 
-            <button type="submit" className="primary-btn verify-btn">
+            <button type="submit" className="primary-btn verify-btn" title="Verify your two-factor code">
               Verify
             </button>
           </form>
@@ -114,6 +112,7 @@ export function Verify2FAPage() {
               type="button"
               className="primary-btn verify-secondary-btn"
               onClick={handleResend}
+              title="Resend verification code to your email"
             >
               Resend Code
             </button>
@@ -121,6 +120,7 @@ export function Verify2FAPage() {
               type="button"
               className="primary-btn verify-secondary-btn"
               onClick={() => navigate('/')}
+              title="Cancel and go back to login"
             >
               Cancel
             </button>

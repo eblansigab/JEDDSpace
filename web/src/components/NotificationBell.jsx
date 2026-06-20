@@ -216,6 +216,7 @@ export default function NotificationBell() {
         aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}
         aria-expanded={isOpen}
         onClick={() => setIsOpen((open) => !open)}
+        title="Notifications"
       >
         <BellIcon />
         {unreadCount > 0 && (
@@ -241,10 +242,11 @@ export default function NotificationBell() {
             }`}
             onClick={handleToggleDesktopAlerts}
             disabled={permission === 'denied'}
+            title={desktopButtonLabel}
           >
             {desktopButtonLabel}
           </button>
-          <button type="button" className="desktop-notification-button" onClick={handleMarkAllRead}>
+          <button type="button" className="desktop-notification-button" onClick={handleMarkAllRead} title="Mark all alerts as read">
             Mark all read
           </button>
         </div>

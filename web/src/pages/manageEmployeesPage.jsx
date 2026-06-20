@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { employeeService } from '../services/employeeService'
+import { registerUser } from '../services/authService'
 import { notificationService } from '../services/notificationService'
 import { useAuth } from '../services/authContext'
 import { alertService } from '../utils/alertService'
@@ -18,6 +19,9 @@ const ManageEmployeesPage = () => {
   const [position, setPosition] = useState('')
   const [department, setDepartment] = useState('')
   const [role, setRole] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   const fetchEmployees = async () => {
     try {
@@ -29,19 +33,27 @@ const ManageEmployeesPage = () => {
   }
 
   const handleAddEmployee = async () => {
-    if (!firstName || !lastName || !position || !department || !role) {
+    if (!firstName || !lastName || !position || !department || !role || !email || !password || !confirmPassword) {
       await alertService.warning('Please fill all fields')
       return
     }
 
+    if (password !== confirmPassword) {
+      await alertService.warning('Passwords do not match')
+      return
+    }
+
     try {
-      await employeeService.create({
-        first_name: firstName,
-        last_name: lastName,
+      await registerUser(
+        email,
+        password,
+        confirmPassword,
+        firstName,
+        lastName,
         position,
-        department,
-        role
-      })
+        role,
+        department
+      )
 
       await Promise.allSettled([
         notificationService.createNotification({
@@ -53,12 +65,15 @@ const ManageEmployeesPage = () => {
         })
       ])
 
-      await alertService.success('Employee added successfully')
+      await alertService.success('Employee added and registered successfully')
       setFirstName('')
       setLastName('')
       setPosition('')
       setDepartment('')
       setRole('')
+      setEmail('')
+      setPassword('')
+      setConfirmPassword('')
       setIsAddOpen(false)
       fetchEmployees()
     } catch (error) {
@@ -245,6 +260,24 @@ const ManageEmployeesPage = () => {
               <option key={item} value={item}>{item}</option>
             ))}
           </select>
+          <input
+            type="email"
+            placeholder="Email Address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
         </div>
       </Modal>
       </DashboardLayout>

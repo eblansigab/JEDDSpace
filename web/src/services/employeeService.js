@@ -67,5 +67,16 @@ export const employeeService = {
     if (error) throw error
 
     return data
+  },
+
+  async getDirectory(){
+    const { data, error } = await supabaseClient
+      .from('employee_directory')
+      .select('*')
+      .order('first_name')
+
+      if (error) throw error 
+
+      return data
   }
 }

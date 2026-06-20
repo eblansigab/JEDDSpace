@@ -1,19 +1,5 @@
 import { supabaseClient } from '../supabase/supabaseClient'
 
-const LOCAL_EMAILS_KEY = 'jeddspace_email_logs'
-
-const getLocalEmails = () => {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_EMAILS_KEY) || '[]')
-  } catch {
-    return []
-  }
-}
-
-const saveLocalEmails = (emails) => {
-  localStorage.setItem(LOCAL_EMAILS_KEY, JSON.stringify(emails))
-}
-
 export const emailService = {
   async getEmailLogs() {
     const { data, error } = await supabaseClient
@@ -21,50 +7,63 @@ export const emailService = {
       .select('*')
       .order('created_at', { ascending: false })
 
-    const localEmails = getLocalEmails()
-
     if (error) {
-      console.error(error)
-      return localEmails
+      console.error('[emailService] Error fetching database email logs:', error)
+      throw error
     }
 
-    return [...localEmails, ...(data || [])]
+    return (data || []).map((msg) => ({
+      ...msg,
+      id: msg.email_id,
+      recipient: msg.recipient_email,
+      body: msg.message_body,
+      type: msg.folder || 'inbox'
+    }))
   },
 
-  async createEmailLog({ subject, body, recipient = 'All employees', type = 'announcement', userId }) {
-    const localRecord = {
-      id: `local-email-${Date.now()}`,
-      subject,
-      body,
-      recipient,
-      type,
-      status: 'Logged',
-      user_id: userId || null,
-      created_at: new Date().toISOString()
-    }
-
-    saveLocalEmails([localRecord, ...getLocalEmails()])
-
+  async createEmailLog({ subject, body, recipient, type = 'inbox', senderId }) {
     const payload = {
       subject,
-      body,
-      recipient,
-      type,
-      status: 'Logged'
+      message_body: body,
+      recipient_email: recipient,
+      folder: type || 'inbox',
+      sender_id: senderId || null
     }
 
-    if (userId) {
-      payload.user_id = userId
-    }
-
-    const { error } = await supabaseClient
+    const { data, error } = await supabaseClient
       .from('email')
       .insert([payload])
+      .select()
 
     if (error) {
-      console.error(error)
+      console.error('[emailService] Error saving email to database:', error)
+      throw error
     }
 
-    return localRecord
+    return data?.[0] || null
+  },
+
+  async markAsRead(emailId) {
+    const { error } = await supabaseClient
+      .from('email')
+      .update({
+        is_read: true
+      })
+      .eq('email_id', emailId)
+
+    if (error) throw error
+
+    return true
+  },
+
+  async deleteMessage(emailId) {
+    const { error } = await supabaseClient
+      .from('email')
+      .delete()
+      .eq('email_id', emailId)
+
+    if (error) throw error
+
+    return true
   }
 }

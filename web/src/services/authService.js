@@ -1,8 +1,9 @@
-import { supabaseClient } from '../supabase/supabaseClient';
+import { supabaseClient, signupClient } from '../supabase/supabaseClient';
 
 const USE_TWO_FACTOR = true;
 export const isTwoFactorEnabled = USE_TWO_FACTOR;
 const TWO_FA_STORAGE_KEY = 'jeddspace_2fa_pending';
+const PENDING_EMPLOYEE_KEY = 'jeddspace_pending_employee';
 
 const generate2FACode = () => Math.floor(100000 + Math.random() * 900000).toString();
 const savePending2FA = (payload) => localStorage.setItem(TWO_FA_STORAGE_KEY, JSON.stringify(payload));
@@ -16,6 +17,76 @@ const loadPending2FA = () => {
 };
 const clearPending2FA = () => localStorage.removeItem(TWO_FA_STORAGE_KEY);
 
+const savePendingEmployee = (payload) => {
+  try {
+    localStorage.setItem(PENDING_EMPLOYEE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.error('Failed to save pending employee data:', e);
+  }
+};
+
+const loadPendingEmployee = () => {
+  try {
+    const raw = localStorage.getItem(PENDING_EMPLOYEE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearPendingEmployee = () => localStorage.removeItem(PENDING_EMPLOYEE_KEY);
+
+export const getPendingEmployee = () => loadPendingEmployee();
+
+export const clearPendingEmployeeData = () => clearPendingEmployee();
+
+/**
+ * Creates the employee record after the user has verified their email.
+ * Called from AuthCallbackPage when verification succeeds.
+ */
+export const createEmployeeRecord = async (authUserId, employeeData) => {
+  if (!authUserId) {
+    throw new Error('Auth user ID is required to create employee record.');
+  }
+
+  if (!employeeData) {
+    throw new Error('Employee data is required.');
+  }
+
+  const { data: existing, error: checkError } = await supabaseClient
+    .from('employee')
+    .select('employee_id')
+    .eq('user_id', authUserId)
+    .maybeSingle();
+
+  if (checkError) {
+    console.error('Error checking existing employee:', checkError);
+  }
+
+  if (existing) {
+    return existing;
+  }
+
+  const { data, error: insertError } = await supabaseClient
+    .from('employee')
+    .insert([
+      {
+        first_name: employeeData.firstName,
+        last_name: employeeData.lastName,
+        position: employeeData.position,
+        department: employeeData.department,
+        role: String(employeeData.role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
+        user_id: authUserId,
+        auth_user_id: authUserId,
+      },
+    ])
+    .select()
+    .single();
+
+  if (insertError) throw insertError;
+  return data;
+};
+
 export const registerUser = async (
   email,
   password,
@@ -26,31 +97,74 @@ export const registerUser = async (
   role,
   department
 ) => {
+
   if (password !== confirmPassword) {
     throw new Error('Passwords do not match.');
   }
 
-  const { data, error } = await supabaseClient.auth.signUp({
+  const { data, error } = await signupClient.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
+    },
   });
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
 
-  const { error: insertError } = await supabaseClient.from('employee').insert([
-    {
-      first_name: firstName,
-      last_name: lastName,
-      position,
-      department,
-      role: String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
-      user_id: data.user.id,
-    },
-  ]);
+ 
 
-  if (insertError) throw insertError;
+  const authUserId = data?.user?.id;
 
-  return data;
+  if (authUserId) {
+    try {
+      const { data: createdEmployee, error: insertError } = await supabaseClient
+        .from('employee')
+        .insert([
+          {
+            first_name: firstName,
+            last_name: lastName,
+            position,
+            department,
+            role: String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
+            user_id: authUserId,
+            auth_user_id: authUserId,
+          },
+        ])
+        .select()
+        .single();
+
+      if (!insertError && createdEmployee) {
+        clearPendingEmployee();
+        return { ...data, employeeCreated: true };
+      }
+
+      if (insertError) {
+        console.warn(
+          '[registerUser] Immediate employee insert failed (likely FK timing with email confirmation). Will retry after verification.',
+          insertError
+        );
+      }
+    } catch (e) {
+      console.warn('[registerUser] Immediate employee insert threw error, falling back to post-verification creation:', e);
+    }
+  } else {
+    console.warn('[registerUser] No authUserId returned from signUp. This usually means Confirm Email is enabled and the user is pending verification.');
+  }
+
+  savePendingEmployee({
+    email,
+    firstName,
+    lastName,
+    position,
+    department,
+    role: String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
+    createdAt: Date.now(),
+  });
+
+  return { ...data, employeeCreated: false, pendingEmployee: true };
 };
 
 export const loginUser = async (email, password) => {
@@ -63,7 +177,6 @@ export const loginUser = async (email, password) => {
 
   return data;
 };
-
 
 export const beginTwoFactorSignIn = async (email, password) => {
   if (!USE_TWO_FACTOR) {
@@ -153,4 +266,9 @@ export const updateUserPassword = async (newPassword) => {
   return data;
 };
 
+export const resendVerficationEmail = async (email) => {
+  const { data, error } = await supabaseClient.auth.resend({type: 'signup', email, options:{emailRedirectTo: `${window.location.origin}/auth/callback`,},});
 
+  if (error) throw error;
+  return data;
+};

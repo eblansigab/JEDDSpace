@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { Button, PageHeader, StatusBadge, Table, Modal } from '../components'
-import { logoutAllDevices, logoutUser, updateUserPassword } from '../services/authService'
+import { logoutAllDevices, logoutUser, updateUserPassword, resendVerficationEmail } from '../services/authService'
 import { useAuth } from '../services/authContext'
 import { documentService } from '../services/documentService'
 import { profileService } from '../services/profileService'
@@ -48,7 +48,7 @@ const resolveAccountStatus = (profile) => {
 
 const ProfileSettings = () => {
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user, profile, isEmailVerified} = useAuth()
   const isAdmin = String(profile?.role || '').trim().toLowerCase() === 'admin'
 
   const [firstName, setFirstName] = useState('')
@@ -67,6 +67,7 @@ const ProfileSettings = () => {
   const [apiKey, setApiKey] = useState('')
   const [auditLogs, setAuditLogs] = useState([])
   const [currentSession, setCurrentSession] = useState(null)
+const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState(false)
 
   // Step 4: Active sessions are now real data from the user_sessions table.
   const [activeSessions, setActiveSessions] = useState([])
@@ -76,6 +77,15 @@ const ProfileSettings = () => {
   const [verificationReport, setVerificationReport] = useState(null)
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [presenceStatus, setPresenceStatus] = useState(user?.user_metadata?.presence_status || 'Available')
+  const [customStatus, setCustomStatus] = useState(user?.user_metadata?.custom_status || '')
+
+  useEffect(() => {
+    if (user?.user_metadata) {
+      setPresenceStatus(user.user_metadata.presence_status || 'Available')
+      setCustomStatus(user.user_metadata.custom_status || '')
+    }
+  }, [user])
 
   useEffect(() => {
     applyTheme(theme)
@@ -208,6 +218,18 @@ const ProfileSettings = () => {
       await alertService.success('Account details updated successfully.')
     } catch (error) {
       await alertService.error(error.message || 'Failed to update account details.')
+    }
+  }
+
+  const handleUpdateStatus = async () => {
+    try {
+      await profileService.updateAuthMetadata({
+        presence_status: presenceStatus,
+        custom_status: customStatus
+      })
+      await alertService.success('Presence status updated successfully.')
+    } catch (error) {
+      await alertService.error(error.message || 'Failed to update presence status.')
     }
   }
 
@@ -419,6 +441,23 @@ const ProfileSettings = () => {
       )
     }
   ]
+  const handleResendVerificationEmail = async () => {
+  if (!user?.email) {
+    await alertService.warning('No email address is associated with this account.')
+    return
+  }
+
+  setIsResendingVerificationEmail(true)
+
+  try {
+    await resendVerificationEmail(user.email)
+    await alertService.success('Verification email sent. Please check your inbox.')
+  } catch (error) {
+    await alertService.error(error.message || 'Failed to resend verification email.')
+  } finally {
+    setIsResendingVerificationEmail(false)
+  }
+}
 
   return (
     <DashboardLayout>
@@ -442,6 +481,74 @@ const ProfileSettings = () => {
                 Verify Status with Server
               </Button>
             </div>
+          </section>
+               
+          <section className="profile-section">
+        <h3>Email Verification</h3>
+
+        <p><strong>Email Address:</strong> {user?.email || 'No email address associated with this account.'}</p>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+          <strong>Verification Status:</strong>
+          <StatusBadge status={isEmailVerified ? 'Verified' : 'Unverified'} />
+        </div>
+
+        {isEmailVerified && (
+          <p style={{ marginTop: '12px', color: '#15803d', fontSize: '14px' }}>
+            Your email is verified.
+          </p>
+        )}
+
+        {!isEmailVerified && user?.email && (
+          <div style={{
+            marginTop: '16px',
+            padding: '12px',
+            borderRadius: '8px',
+            background: '#fff7ed',
+            border: '1px solid #fed7aa'
+          }}>
+            <p style={{
+              margin: '0 0 10px',
+              color: '#9a3412',
+              fontSize: '14px'
+            }}>
+              Your email is not verified yet. Please check your inbox or request a new verification email.
+            </p>
+
+            <Button
+              variant="outline"
+              onClick={handleResendVerificationEmail}
+              disabled={isResendingVerificationEmail}
+            >
+              {isResendingVerificationEmail ? 'Sending...' : 'Resend Verification Email'}
+            </Button>
+          </div>
+        )}
+        </section>
+          <section className="profile-section">
+            <h3>Presence & Custom Status</h3>
+            <label>Presence Status</label>
+            <select
+              className="border p-2 rounded w-full mb-4"
+              value={presenceStatus}
+              onChange={(e) => setPresenceStatus(e.target.value)}
+            >
+              <option value="Available">🟢 Available</option>
+              <option value="Busy">🟠 Busy</option>
+              <option value="Do Not Disturb">🔴 Do Not Disturb</option>
+              <option value="Away">⚫ Away</option>
+            </select>
+
+            <label>Custom Status Message</label>
+            <input
+              type="text"
+              className="border p-2 rounded w-full mb-4"
+              placeholder="What's on your mind?"
+              value={customStatus}
+              onChange={(e) => setCustomStatus(e.target.value)}
+            />
+
+            <Button onClick={handleUpdateStatus}>Update Status</Button>
           </section>
 
           <section className="profile-section">

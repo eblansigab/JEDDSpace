@@ -4,6 +4,7 @@ import LoadingOverlay from "../components/LoadingOverlay";
 
 const LoginPage = lazy(() => import("../pages/loginPage"));
 const SignupPage = lazy(() => import("../pages/signupPage"));
+const AuthCallbackPage = lazy(() => import("../pages/authCallbackPage"));
 const Verify2FAPage = lazy(() => import("../pages/verify2faPage"));
 const CommonDashboardPage = lazy(() => import("../pages/commonDashboardPage"));
 const AnnouncementsPage = lazy(() => import("../pages/announcementsPage"));
@@ -44,7 +45,7 @@ const InnerRoutes = () => {
       <Suspense fallback={<LoadingOverlay visible={true} message={'Loading...'} />}>
         <Routes>
           <Route path="/" element={<LoginPage />} />
-          <Route path="/signup" element={<ProtectedRoute><SignupPage /></ProtectedRoute>} />
+          <Route path="/signup" element={<ProtectedRoute><AdminRoute><SignupPage /></AdminRoute></ProtectedRoute>} />
           <Route path="/verify-2fa" element={<ProtectedRoute><Verify2FAPage /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><CommonDashboardPage /></ProtectedRoute>} />
           <Route path="/admin-dashboard" element={<ProtectedRoute><AdminRoute><AdminDashboardPage /></AdminRoute></ProtectedRoute>}/>
@@ -67,7 +68,6 @@ const InnerRoutes = () => {
 };
 
 const AppRoutes = () => {
-    console.log("APP ROUTES LOADED")
   return (
     <BrowserRouter>
       <InnerRoutes />

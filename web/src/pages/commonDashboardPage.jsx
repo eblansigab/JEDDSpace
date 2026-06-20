@@ -1,4 +1,3 @@
-console.log("COMMON DASHBOARD LOADED")
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Sidebar from '../components/sideBar'
@@ -175,7 +174,7 @@ const CommonDashboardPage = () => {
                 <h3>Email Summary</h3>
                 <span>{emailCount} logged {emailCount === 1 ? 'email' : 'emails'}</span>
               </div>
-              <button type="button" className="collapse-btn" onClick={() => toggleWidget('email')}>
+              <button type="button" className="collapse-btn" onClick={() => toggleWidget('email')} title={collapsedWidgets.email ? 'Expand Email Summary' : 'Collapse Email Summary'}>
                 {collapsedWidgets.email ? 'Expand' : 'Collapse'}
               </button>
             </div>
@@ -196,7 +195,7 @@ const CommonDashboardPage = () => {
                 <h3>File Uploads</h3>
                 <span>{fileCount} uploaded {fileCount === 1 ? 'file' : 'files'}</span>
               </div>
-              <button type="button" className="collapse-btn" onClick={() => toggleWidget('files')}>
+              <button type="button" className="collapse-btn" onClick={() => toggleWidget('files')} title={collapsedWidgets.files ? 'Expand File Uploads' : 'Collapse File Uploads'}>
                 {collapsedWidgets.files ? 'Expand' : 'Collapse'}
               </button>
             </div>
@@ -230,7 +229,7 @@ const CommonDashboardPage = () => {
                 <h3>Calendar</h3>
                 <span>{new Date().toLocaleDateString()}</span>
               </div>
-              <button type="button" className="collapse-btn" onClick={() => toggleWidget('calendar')}>
+              <button type="button" className="collapse-btn" onClick={() => toggleWidget('calendar')} title={collapsedWidgets.calendar ? 'Expand Calendar' : 'Collapse Calendar'}>
                 {collapsedWidgets.calendar ? 'Expand' : 'Collapse'}
               </button>
             </div>

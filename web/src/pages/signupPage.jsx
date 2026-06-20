@@ -1,11 +1,72 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import logo from '../assets/JEDDSpace Logo (Transparent).png'
 import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, ROLE_OPTIONS } from '../constants/formOptions'
-
+import { registerUser } from '../services/authService'
+import { alertService } from '../utils/alertService'
 
 const SignUp = () => {
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [department, setDepartment] = useState('')
+  const [role, setRole] = useState('')
+  const [position, setPosition] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleRegister = async (e) => {
+    e.preventDefault()
+    if (!firstName || !lastName || !department || !role || !position || !email || !password || !confirmPassword) {
+      await alertService.warning('Please fill all fields')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      await alertService.warning('Passwords do not match')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const result = await registerUser(
+        email,
+        password,
+        confirmPassword,
+        firstName,
+        lastName,
+        position,
+        role,
+        department
+      )
+
+      const successMessage = result?.employeeCreated
+        ? 'Account created successfully.\n\nPlease check your email and click the verification link before logging in.'
+        : 'Account created successfully.\n\nA verification email has been sent. The employee record will be created automatically once the user verifies their email.'
+
+      await alertService.success(successMessage)
+
+      setFirstName('')
+      setLastName('')
+      setDepartment('')
+      setRole('')
+      setPosition('')
+      setEmail('')
+      setPassword('')
+      setConfirmPassword('')
+
+      navigate('/', {replace: true})
+    } catch (error) {
+      await alertService.error(error.message || 'Registration failed')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div>
@@ -21,23 +82,23 @@ const SignUp = () => {
       </header>
       <main className="container">
         <section className="form-box">
-          <h3>Sign Up</h3>
+          <h3>Sign Up / Register Employee</h3>
 
           <div style={{ display: 'flex', gap: '40px' }}>
             <div style={{ width: '50%' }}>
               <label>First Name</label>
-              <input type="text" placeholder="Enter First Name" />
+              <input type="text" placeholder="Enter First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
             </div>
             <div style={{ width: '50%' }}>
               <label>Last Name</label>
-              <input type="text" placeholder="Enter Last Name" />
+              <input type="text" placeholder="Enter Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '40px' }}>
             <div style={{ width: '50%' }}>
               <label>Department</label>
-              <select defaultValue="">
+              <select value={department} onChange={(e) => setDepartment(e.target.value)}>
                 <option disabled value="">Select Department</option>
                 {DEPARTMENT_OPTIONS.map((item) => (
                   <option key={item} value={item}>{item}</option>
@@ -46,7 +107,7 @@ const SignUp = () => {
             </div>
             <div style={{ width: '50%' }}>
               <label>Role</label>
-              <select defaultValue="">
+              <select value={role} onChange={(e) => setRole(e.target.value)}>
                 <option disabled value="">Select Role</option>
                 {ROLE_OPTIONS.map((item) => (
                   <option key={item} value={item}>{item}</option>
@@ -56,7 +117,7 @@ const SignUp = () => {
           </div>
 
           <label>Position</label>
-          <select defaultValue="">
+          <select value={position} onChange={(e) => setPosition(e.target.value)}>
             <option disabled value="">Select Position</option>
             {POSITION_OPTIONS.map((item) => (
               <option key={item} value={item}>{item}</option>
@@ -64,17 +125,15 @@ const SignUp = () => {
           </select>
 
           <label>Email</label>
-          <input type="email" placeholder="Enter Email Address" />
-
-          <label>Username</label>
-          <input type="text" placeholder="Enter Username" />
+          <input type="email" placeholder="Enter Email Address" value={email} onChange={(e) => setEmail(e.target.value)} />
 
           <label>Password</label>
           <div style={{ position: 'relative' }}>
-            <input type={showPassword ? "text" : "password"} placeholder="Enter Password" style={{ paddingRight: '40px' }} />
+            <input type={showPassword ? "text" : "password"} placeholder="Enter Password" style={{ paddingRight: '40px' }} value={password} onChange={(e) => setPassword(e.target.value)} />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
+              title={showPassword ? 'Hide password' : 'Show password'}
               style={{
                 position: 'absolute',
                 right: '10px',
@@ -107,10 +166,11 @@ const SignUp = () => {
 
           <label>Confirm Password</label>
           <div style={{ position: 'relative' }}>
-            <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirm Password" style={{ paddingRight: '40px' }} />
+            <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirm Password" style={{ paddingRight: '40px' }} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              title={showConfirmPassword ? 'Hide password' : 'Show password'}
               style={{
                 position: 'absolute',
                 right: '10px',
@@ -141,7 +201,9 @@ const SignUp = () => {
             </button>
           </div>
 
-          <button className="primary-btn">Register</button>
+          <button className="primary-btn" onClick={handleRegister} disabled={isSubmitting} title="Register new employee account">
+            {isSubmitting ? 'Registering...' : 'Register'}
+          </button>
         </section>
       </main>
     </div>

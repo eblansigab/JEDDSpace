@@ -19,7 +19,7 @@ const variants = {
   neutral: { backgroundColor: '#e5e7eb', color: '#111' }
 }
 
-export default function Button({ variant = 'primary', children, onClick, disabled, style, type = 'button' }) {
+export default function Button({ variant = 'primary', children, onClick, disabled, style, type = 'button', ...props }) {
   const v = variants[variant] || variants.primary
   return (
     <button
@@ -27,6 +27,7 @@ export default function Button({ variant = 'primary', children, onClick, disable
       onClick={onClick}
       disabled={disabled}
       style={{ ...base, ...v, opacity: disabled ? 0.6 : 1, pointerEvents: disabled ? 'none' : undefined, ...style }}
+      {...props}
     >
       {children}
     </button>

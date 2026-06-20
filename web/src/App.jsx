@@ -1,4 +1,3 @@
-console.log('APP LOADED')
 import { AuthProvider } from './services/authContext'
 import AppRoutes from './routes/AppRoutes'
 
