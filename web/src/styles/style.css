@@ -440,7 +440,7 @@ textarea {
 .verify-secondary-btn {
   width: 100%;
   min-height: 42px;
-  background-color: #475569;
+  background-color: #475569 !important;
 }
 
 .primary-btn:hover {
