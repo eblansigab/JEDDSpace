@@ -9,7 +9,6 @@ import { documentService } from '../services/documentService'
 import { profileService } from '../services/profileService'
 import { sessionService } from '../services/sessionService'
 import { alertService } from '../utils/alertService'
-import { DEPARTMENT_OPTIONS, POSITION_OPTIONS } from '../constants/formOptions'
 const THEME_KEY = 'jeddspace_theme'
 const STANDARD_THEME_KEY = 'theme'
 const API_KEY_STORAGE = 'jeddspace_admin_api_key'
@@ -53,8 +52,6 @@ const ProfileSettings = () => {
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [department, setDepartment] = useState('')
-  const [position, setPosition] = useState('')
   const [role, setRole] = useState('')
   const [accountStatus, setAccountStatus] = useState('Active')
   const [currentPassword, setCurrentPassword] = useState('')
@@ -96,8 +93,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
 
     setFirstName(profile.first_name || '')
     setLastName(profile.last_name || '')
-    setDepartment(profile.department || '')
-    setPosition(profile.position || '')
     setRole(profile.role || '')
     setAccountStatus(resolveAccountStatus(profile))
   }, [profile])
@@ -210,9 +205,7 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
     try {
       await profileService.updateAccountDetails(user.id, {
         first_name: firstName,
-        last_name: lastName,
-        department,
-        position
+        last_name: lastName
       })
 
       await alertService.success('Account details updated successfully.')
@@ -471,8 +464,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
             <h3>Identity Information</h3>
             <p><strong>Name:</strong> {`${firstName} ${lastName}`.trim() || 'No name set'}</p>
             <p><strong>Email:</strong> {user?.email || 'No email set'}</p>
-            <p><strong>Department:</strong> {department || 'No department set'}</p>
-            <p><strong>Position:</strong> {position || 'No position set'}</p>
             <p><strong>Role:</strong> {role || 'No role set'}</p>
             <p><strong>Employment Status:</strong> {profile?.employment_status || 'No employment status set'}</p>
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
@@ -558,22 +549,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
 
             <label>Last Name</label>
             <input className="border p-2 rounded w-full mb-4" value={lastName} onChange={(event) => setLastName(event.target.value)} />
-
-            <label>Department</label>
-            <select className="border p-2 rounded w-full mb-4" value={department} onChange={(event) => setDepartment(event.target.value)}>
-              <option value="" disabled>Select department</option>
-              {DEPARTMENT_OPTIONS.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-
-            <label>Position</label>
-            <select className="border p-2 rounded w-full mb-4" value={position} onChange={(event) => setPosition(event.target.value)}>
-              <option value="" disabled>Select position</option>
-              {POSITION_OPTIONS.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
 
             <Button onClick={handleSaveDetails} style={{marginTop:16}}>Update Account Details</Button>
           </section>

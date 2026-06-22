@@ -10,7 +10,10 @@ const AdminDashboardPage = () => {
     <DashboardLayout>
         <main className="content">
 
-          <h3>Admin Dashboard</h3>
+          <div>
+          <h1>Admin Dashboard</h1>
+          <p>Administrative access to edit employee information and notifications, and verify the blockchain behind every file upload.</p>
+          </div>
 
           <div className="admin-grid">
 
@@ -49,6 +52,8 @@ const AdminDashboardPage = () => {
               </Link>
 
             </div>
+            </div>
+            <div className='admin-grid'>
 
             {/* Assign Jobs */}
             <div className="admin-box">
@@ -67,7 +72,6 @@ const AdminDashboardPage = () => {
               </Link>
 
             </div>
-
             {/* Audit Blockchain */}
             <div className="admin-box">
 

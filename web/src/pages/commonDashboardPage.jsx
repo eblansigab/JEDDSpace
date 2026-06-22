@@ -182,9 +182,14 @@ const CommonDashboardPage = () => {
               <div className="dashboard-widget-body">
                 <p>You currently have {emailCount} logged {emailCount === 1 ? 'email' : 'emails'}.</p>
                 {latestEmail && <p className="date">Latest: {latestEmail}</p>}
-                <Link to="/emails" className="primary-btn">
-                  View Emails
-                </Link>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Button>
+                    Summarize Unread Emails
+                  </Button>
+                  <Link to="/emails" className="primary-btn">
+                    View Emails
+                  </Link>
+                </div>
               </div>
             )}
           </section>
@@ -222,7 +227,7 @@ const CommonDashboardPage = () => {
               style={{ display: 'none' }}
             />
           </section>
-
+          </div>
           <section className={`dashboard-widget ${collapsedWidgets.calendar ? 'is-collapsed' : ''} calendar-widget`}>
             <div className="dashboard-widget-header">
               <div>
@@ -249,7 +254,6 @@ const CommonDashboardPage = () => {
               </div>
             )}
           </section>
-        </div>
       </main>
     </DashboardLayout>
   )
