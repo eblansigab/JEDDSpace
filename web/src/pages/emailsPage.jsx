@@ -4,11 +4,11 @@ import DashboardLayout from '../layouts/dashboardLayout'
 import { Button, PageHeader, SearchBar } from '../components'
 import { useAuth } from '../services/authContext'
 import { emailService } from '../services/emailService'
-import { employeeService } from '../services/employeeService'
 import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
-import Swal from 'sweetalert2'
 import { supabaseClient } from '../supabase/supabaseClient'
+import ComposeMessageModal from '../components/messaging/ComposeMessageModal'
+import { getEmployeeDirectory, getThreadMessages, sendMessage } from '../services/messageService'
 
 const EmailsPage = () => {
   const { user, profile } = useAuth()
@@ -18,13 +18,36 @@ const EmailsPage = () => {
   const [activeTab, setActiveTab] = useState('inbox') // 'inbox', 'sent', 'unread'
   const [isLoading, setIsLoading] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState(null)
+  const [threadMessages, setThreadMessages] = useState([])
+  const [isComposeOpen, setIsComposeOpen] = useState(false)
+  const [composeRecipient, setComposeRecipient] = useState('')
+  const [composeSubject, setComposeSubject] = useState('')
+  const [composeReplyTo, setComposeReplyTo] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const loadThread = async (rootEmailId) => {
+    try {
+      const thread = await getThreadMessages(rootEmailId)
+      setThreadMessages(thread || [])
+    } catch (error) {
+      console.error('[EmailsPage] Error loading thread:', error)
+      setThreadMessages([])
+    }
+  }
 
   const loadData = async () => {
     setIsLoading(true)
     try {
       const [emailData, dirData] = await Promise.all([
         emailService.getEmailLogs(),
-        employeeService.getDirectory()
+        getEmployeeDirectory()
       ])
       setMessages(emailData)
       setDirectory(dirData || [])
@@ -72,14 +95,14 @@ const EmailsPage = () => {
   // Helper to resolve Recipient Name from email
   const getRecipientName = (email) => {
     if (!email) return 'All Employees'
-    if (email === 'all employees' || email === 'all') return 'All Employees'
-    const emp = directory.find((e) => String(e.email).trim().toLowerCase() === String(email).trim().toLowerCase())
+    if (email === 'all') return 'All Employees'
+    const emp = directory.find((e) => String(e.email || '').trim().toLowerCase() === String(email).trim().toLowerCase())
     return emp ? `${emp.first_name} ${emp.last_name}` : email
   }
 
   // Filter messages based on active tab and search term
   const filteredMessages = useMemo(() => {
-    const myEmail = String(user?.email || '').trim().toLowerCase()
+    const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const myEmployeeId = profile?.employee_id
 
     const tabMsgs = messages.filter((msg) => {
@@ -89,10 +112,10 @@ const EmailsPage = () => {
       if (activeTab === 'sent') {
         return isSentByMe
       } else if (activeTab === 'unread') {
-        return (recipientClean === myEmail || recipientClean === 'all employees' || recipientClean === 'all') && !msg.is_read && !isSentByMe
+        return (recipientClean === myEmail || recipientClean === 'all') && !msg.is_read && !isSentByMe
       } else {
         // inbox folder
-        return (recipientClean === myEmail || recipientClean === 'all employees' || recipientClean === 'all') && !isSentByMe
+        return (recipientClean === myEmail || recipientClean === 'all') && !isSentByMe
       }
     })
 
@@ -118,10 +141,11 @@ const EmailsPage = () => {
   // Select a message and automatically mark it as read if unread and sent to current user
   const handleSelectMessage = async (msg) => {
     setSelectedMessage(msg)
-    const myEmail = String(user?.email || '').trim().toLowerCase()
+    await loadThread(msg.email_id)
+    const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const recipientClean = String(msg.recipient_email || msg.recipient || '').trim().toLowerCase()
 
-    if ((recipientClean === myEmail || recipientClean === 'all employees' || recipientClean === 'all') && !msg.is_read) {
+    if ((recipientClean === myEmail || recipientClean === 'all') && !msg.is_read) {
       try {
         await emailService.markAsRead(msg.email_id)
         setMessages((prev) =>
@@ -159,114 +183,72 @@ const EmailsPage = () => {
     }
   }
 
-  // Compose new message with optional prefilled parameters (for reply)
-  const handleCompose = (prefilledRecipient = '', prefilledSubject = '') => {
-    // Generate select options of employees in directory
-    const employeeOptionsHtml = directory
-      .map(
-        (emp) =>
-          `<option value="${emp.email}" ${prefilledRecipient.toLowerCase() === emp.email.toLowerCase() ? 'selected' : ''}>${emp.first_name} ${emp.last_name} (${emp.email})</option>`
-      )
-      .join('')
+  const openCompose = (prefilledRecipient = '', prefilledSubject = '', replyTo = null) => {
+    setComposeRecipient(prefilledRecipient)
+    setComposeSubject(prefilledSubject)
+    setComposeReplyTo(replyTo)
+    setIsComposeOpen(true)
+  }
 
-    Swal.fire({
-      title: 'New Internal Message',
-      html: `
-        <div style="text-align: left; font-family: inherit;">
-          <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 14px;">Recipient Employee:</label>
-          <select id="swal-recipient" class="swal2-input" style="width: 100%; margin: 0 0 15px 0; font-size: 14px;">
-            <option value="">-- Select Recipient --</option>
-            <option value="all" ${prefilledRecipient === 'all' ? 'selected' : ''}>All Employees</option>
-            ${employeeOptionsHtml}
-          </select>
+  const closeCompose = () => {
+    setIsComposeOpen(false)
+    setComposeRecipient('')
+    setComposeSubject('')
+    setComposeReplyTo(null)
+  }
 
-          <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 14px;">Subject:</label>
-          <input type="text" placeholder="Enter subject" id="swal-subject" value="${prefilledSubject}" class="swal2-input" style="width: 100%; margin: 0 0 15px 0; font-size: 14px;" />
+  const handleComposeSubmit = async ({ recipient, subject, body }) => {
+    setIsSubmitting(true)
+    try {
+      const result = await sendMessage({
+        recipientEmail: recipient,
+        subject,
+        messageBody: body,
+        folder: 'inbox',
+        senderId: profile?.employee_id,
+        replyToEmailId: composeReplyTo
+      })
 
-          <label style="font-weight: 600; display: block; margin-bottom: 5px; font-size: 14px;">Message Body:</label>
-          <textarea rows="6" placeholder="Write your message here..." id="swal-body" class="swal2-textarea" style="width: 100%; margin: 0; min-height: 140px; font-size: 14px; font-family: inherit;"></textarea>
-        </div>
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText: 'Send',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#2563eb',
-      cancelButtonColor: '#64748b',
-      preConfirm: () => {
-        const recipient = document.getElementById('swal-recipient').value
-        const subject = document.getElementById('swal-subject').value.trim()
-        const body = document.getElementById('swal-body').value.trim()
-
-        if (!recipient) {
-          Swal.showValidationMessage('Please select a recipient employee.')
-          return false
-        }
-        if (!subject) {
-          Swal.showValidationMessage('Please enter a subject.')
-          return false
-        }
-        if (!body) {
-          Swal.showValidationMessage('Please write a message body.')
-          return false
-        }
-
-        return { recipient, subject, body }
-      }
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        setIsLoading(true)
-        try {
-          // 1. Create message log in DB
-          await emailService.createEmailLog({
-            recipient: result.value.recipient,
-            subject: result.value.subject,
-            body: result.value.body,
-            type: 'inbox',
-            senderId: profile?.employee_id
-          })
-
-          // 2. Integration with notification system
-          if (result.value.recipient === 'all' || result.value.recipient === 'all employees') {
-            // Notify all employees
-            await Promise.allSettled(
-              directory
-                .filter((emp) => emp.employee_id !== profile?.employee_id)
-                .map((emp) =>
-                  notificationService.createNotification({
-                    title: 'New Broadcast Message',
-                    message: `${profile?.first_name} ${profile?.last_name} sent a message to all employees: "${result.value.subject}"`,
-                    type: 'general',
-                    userId: user?.id,
-                    notifyTo: emp.employee_id
-                  })
-                )
-            )
-          } else {
-            // Notify specific employee
-            const recipientEmployee = directory.find(
-              (e) => String(e.email).trim().toLowerCase() === String(result.value.recipient).trim().toLowerCase()
-            )
-            if (recipientEmployee) {
-              await notificationService.createNotification({
-                title: 'New Message',
-                message: `${profile?.first_name} ${profile?.last_name} sent you a message: "${result.value.subject}"`,
-                type: 'general',
+      if (recipient === 'all') {
+        await Promise.allSettled(
+          directory
+            .filter((emp) => emp.employee_id !== profile?.employee_id)
+            .map((emp) =>
+              notificationService.createNotification({
+                title: 'New Broadcast Message',
+                message: `${profile?.first_name} ${profile?.last_name} sent a message to all employees: "${subject}"`,
+                type: 'message',
                 userId: user?.id,
-                notifyTo: recipientEmployee.employee_id
+                notifyTo: emp.employee_id
               })
-            }
-          }
-
-          await alertService.success('Your message was sent successfully!', 'Message Sent')
-          loadData()
-        } catch (error) {
-          await alertService.error(error.message || 'Unable to send message.', 'Failed')
-        } finally {
-          setIsLoading(false)
+            )
+        )
+      } else {
+        const recipientEmployee = directory.find(
+          (e) => String(e.email || '').trim().toLowerCase() === String(recipient).trim().toLowerCase()
+        )
+        if (recipientEmployee) {
+          await notificationService.createNotification({
+            title: 'New Message',
+            message: `${profile?.first_name} ${profile?.last_name} sent you a message: "${subject}"`,
+            type: 'message',
+            userId: user?.id,
+            notifyTo: recipientEmployee.employee_id
+          })
         }
       }
-    })
+
+      await alertService.success('Your message was sent successfully!', 'Message Sent')
+      closeCompose()
+      loadData()
+      if (selectedMessage) {
+        loadThread(selectedMessage.email_id)
+      }
+    } catch (error) {
+      await alertService.error(error.message || 'Unable to send message.', 'Failed')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Handle reply helper
@@ -274,27 +256,27 @@ const EmailsPage = () => {
     const senderEmp = directory.find((e) => e.employee_id === msg.sender_id)
     const replyRecipient = senderEmp ? senderEmp.email : msg.recipient_email
     const reSubject = String(msg.subject || '').startsWith('Re:') ? msg.subject : `Re: ${msg.subject || 'No Subject'}`
-    handleCompose(replyRecipient, reSubject)
+    openCompose(replyRecipient, reSubject, msg.email_id)
   }
 
   // Count helper functions for badge indicators
   const inboxUnreadCount = useMemo(() => {
-    const myEmail = String(user?.email || '').trim().toLowerCase()
+    const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const myEmployeeId = profile?.employee_id
     return messages.filter(
       (m) =>
-        (m.recipient_email === myEmail || m.recipient_email === 'All employees' || m.recipient_email === 'all') &&
+        (m.recipient_email === myEmail || m.recipient_email === 'all') &&
         !m.is_read &&
         m.sender_id !== myEmployeeId
     ).length
   }, [messages, user, profile])
 
   const inboxCount = useMemo(() => {
-    const myEmail = String(user?.email || '').trim().toLowerCase()
+    const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const myEmployeeId = profile?.employee_id
     return messages.filter(
       (m) =>
-        (m.recipient_email === myEmail || m.recipient_email === 'All employees' || m.recipient_email === 'all') &&
+        (m.recipient_email === myEmail || m.recipient_email === 'all') &&
         m.sender_id !== myEmployeeId
     ).length
   }, [messages, user, profile])
@@ -319,7 +301,7 @@ const EmailsPage = () => {
             <Button
               key="compose"
               variant="primary"
-              onClick={() => handleCompose()}
+              onClick={() => openCompose()}
               title="Compose a new internal message"
               style={{ marginLeft: '10px' }}
             >
@@ -328,9 +310,20 @@ const EmailsPage = () => {
           ]}
         />
 
-        <div className="internal-messaging-grid" style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '20px', marginTop: '10px' }}>
+        <div className="internal-messaging-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : '240px 1fr',
+          gap: isMobile ? '12px' : '20px',
+          marginTop: '10px'
+        }}>
           {/* Folders Sidebar */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'row' : 'column',
+            gap: '8px',
+            overflowX: isMobile ? 'auto' : 'visible',
+            paddingBottom: isMobile ? '4px' : '0'
+          }}>
             <button
               onClick={() => {
                 setActiveTab('inbox')
@@ -341,7 +334,7 @@ const EmailsPage = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '12px 16px',
+                padding: isMobile ? '8px 12px' : '12px 16px',
                 borderRadius: '8px',
                 border: 'none',
                 backgroundColor: activeTab === 'inbox' ? 'rgba(37, 99, 235, 0.1)' : 'transparent',
@@ -349,10 +342,11 @@ const EmailsPage = () => {
                 fontWeight: activeTab === 'inbox' ? '600' : '500',
                 cursor: 'pointer',
                 textAlign: 'left',
-                transition: 'background-color 0.2s ease, color 0.2s ease'
+                transition: 'background-color 0.2s ease, color 0.2s ease',
+                whiteSpace: 'nowrap'
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
                 📥 Inbox
               </span>
               <span style={{
@@ -377,7 +371,7 @@ const EmailsPage = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '12px 16px',
+                padding: isMobile ? '8px 12px' : '12px 16px',
                 borderRadius: '8px',
                 border: 'none',
                 backgroundColor: activeTab === 'unread' ? 'rgba(37, 99, 235, 0.1)' : 'transparent',
@@ -385,10 +379,11 @@ const EmailsPage = () => {
                 fontWeight: activeTab === 'unread' ? '600' : '500',
                 cursor: 'pointer',
                 textAlign: 'left',
-                transition: 'background-color 0.2s ease, color 0.2s ease'
+                transition: 'background-color 0.2s ease, color 0.2s ease',
+                whiteSpace: 'nowrap'
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
                 🔵 Unread
               </span>
               {inboxUnreadCount > 0 && (
@@ -415,7 +410,7 @@ const EmailsPage = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '12px 16px',
+                padding: isMobile ? '8px 12px' : '12px 16px',
                 borderRadius: '8px',
                 border: 'none',
                 backgroundColor: activeTab === 'sent' ? 'rgba(37, 99, 235, 0.1)' : 'transparent',
@@ -423,10 +418,11 @@ const EmailsPage = () => {
                 fontWeight: activeTab === 'sent' ? '600' : '500',
                 cursor: 'pointer',
                 textAlign: 'left',
-                transition: 'background-color 0.2s ease, color 0.2s ease'
+                transition: 'background-color 0.2s ease, color 0.2s ease',
+                whiteSpace: 'nowrap'
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
                 📤 Sent
               </span>
               <span style={{
@@ -445,18 +441,19 @@ const EmailsPage = () => {
           {/* Core Split Pane (Message List and Message Viewer) */}
           <div className="messaging-pane" style={{
             display: 'grid',
-            gridTemplateColumns: '380px 1fr',
+            gridTemplateColumns: isMobile ? '1fr' : '380px 1fr',
             border: '1px solid var(--border-color, #e2e8f0)',
             borderRadius: '12px',
             backgroundColor: 'var(--bg-card, #ffffff)',
-            minHeight: '600px',
+            minHeight: isMobile ? 'auto' : '600px',
             overflow: 'hidden'
           }}>
             {/* Message List Column */}
             <div style={{
-              borderRight: '1px solid var(--border-color, #e2e8f0)',
+              borderRight: isMobile ? 'none' : '1px solid var(--border-color, #e2e8f0)',
+              borderBottom: isMobile ? '1px solid var(--border-color, #e2e8f0)' : 'none',
               overflowY: 'auto',
-              maxHeight: '600px',
+              maxHeight: isMobile ? '300px' : '600px',
               display: 'flex',
               flexDirection: 'column'
             }}>
@@ -470,54 +467,57 @@ const EmailsPage = () => {
                 filteredMessages.map((msg) => {
                   const isUnread = !msg.is_read && activeTab !== 'sent'
                   const isSelected = selectedMessage?.email_id === msg.email_id
-                  return (
-                    <div
-                      key={msg.email_id}
-                      onClick={() => handleSelectMessage(msg)}
-                      style={{
-                        padding: '16px',
-                        borderBottom: '1px solid var(--border-color, #f1f5f9)',
-                        cursor: 'pointer',
-                        backgroundColor: isSelected
-                          ? 'rgba(37, 99, 235, 0.05)'
-                          : isUnread
-                          ? 'rgba(37, 99, 235, 0.02)'
-                          : 'transparent',
-                        transition: 'background-color 0.2s ease',
-                        position: 'relative',
-                        borderLeft: isUnread ? '4px solid #2563eb' : '4px solid transparent'
-                      }}
-                      title={`Read message: ${msg.subject || 'No Subject'}`}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{
-                          fontWeight: isUnread ? '700' : '600',
-                          fontSize: '14px',
-                          color: isUnread ? '#2563eb' : 'inherit'
-                        }}>
-                          {activeTab === 'sent' ? `To: ${getRecipientName(msg.recipient_email)}` : getSenderName(msg.sender_id)}
-                        </span>
-                        <span style={{ fontSize: '11px', color: '#64748b' }}>
-                          {msg.created_at ? new Date(msg.created_at).toLocaleDateString() : ''}
-                        </span>
-                      </div>
-                      <div style={{
-                        fontWeight: isUnread ? '700' : '500',
-                        fontSize: '13px',
-                        marginBottom: '4px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {msg.subject || '(No Subject)'}
-                      </div>
-                      <div style={{
-                        fontSize: '12px',
-                        color: '#64748b',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
+                   return (
+                     <div
+                       key={msg.email_id}
+                       onClick={() => handleSelectMessage(msg)}
+                       style={{
+                         padding: isMobile ? '12px' : '16px',
+                         borderBottom: '1px solid var(--border-color, #f1f5f9)',
+                         cursor: 'pointer',
+                         backgroundColor: isSelected
+                           ? 'rgba(37, 99, 235, 0.05)'
+                           : isUnread
+                           ? 'rgba(37, 99, 235, 0.02)'
+                           : 'transparent',
+                         transition: 'background-color 0.2s ease',
+                         position: 'relative',
+                         borderLeft: isUnread ? '4px solid #2563eb' : '4px solid transparent'
+                       }}
+                       title={`Read message: ${msg.subject || 'No Subject'}`}
+                     >
+                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', gap: '8px' }}>
+                         <span style={{
+                           fontWeight: isUnread ? '700' : '600',
+                           fontSize: isMobile ? '13px' : '14px',
+                           color: isUnread ? '#2563eb' : 'inherit',
+                           overflow: 'hidden',
+                           textOverflow: 'ellipsis',
+                           whiteSpace: 'nowrap'
+                         }}>
+                           {activeTab === 'sent' ? `To: ${getRecipientName(msg.recipient_email)}` : getSenderName(msg.sender_id)}
+                         </span>
+                         <span style={{ fontSize: '11px', color: '#64748b', flexShrink: 0 }}>
+                           {msg.created_at ? new Date(msg.created_at).toLocaleDateString() : ''}
+                         </span>
+                       </div>
+                       <div style={{
+                         fontWeight: isUnread ? '700' : '500',
+                         fontSize: isMobile ? '12px' : '13px',
+                         marginBottom: '4px',
+                         overflow: 'hidden',
+                         textOverflow: 'ellipsis',
+                         whiteSpace: 'nowrap'
+                       }}>
+                         {msg.subject || '(No Subject)'}
+                       </div>
+                       <div style={{
+                         fontSize: isMobile ? '11px' : '12px',
+                         color: '#64748b',
+                         overflow: 'hidden',
+                         textOverflow: 'ellipsis',
+                         whiteSpace: 'nowrap'
+                       }}>
                         {msg.message_body || msg.body || ''}
                       </div>
                     </div>
@@ -527,55 +527,69 @@ const EmailsPage = () => {
             </div>
 
             {/* Message Viewer Column */}
-            <div style={{ padding: '24px', overflowY: 'auto', maxHeight: '600px', display: 'flex', flexDirection: 'column', justifyContent: selectedMessage ? 'flex-start' : 'center', alignItems: selectedMessage ? 'stretch' : 'center' }}>
+            <div style={{ padding: isMobile ? '16px' : '24px', overflowY: 'auto', maxHeight: isMobile ? '400px' : '600px', display: 'flex', flexDirection: 'column', justifyContent: selectedMessage ? 'flex-start' : 'center', alignItems: selectedMessage ? 'stretch' : 'center' }}>
               {selectedMessage ? (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color, #e2e8f0)', paddingBottom: '16px', marginBottom: '20px' }}>
-                    <div>
-                      <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
-                        {selectedMessage.subject || 'No Subject'}
-                      </h2>
-                      <div style={{ fontSize: '14px', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span><strong>From:</strong> {getSenderName(selectedMessage.sender_id)}</span>
-                        <span><strong>To:</strong> {getRecipientName(selectedMessage.recipient_email)}</span>
-                        <span><strong>Date:</strong> {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : 'N/A'}</span>
+                  {(threadMessages.length > 0 ? threadMessages : [selectedMessage]).map((threadMsg, idx) => {
+                    const isOriginal = idx === 0
+                    return (
+                      <div key={threadMsg.email_id || idx} style={{ marginBottom: isOriginal ? 0 : 24, paddingBottom: isOriginal ? 0 : 24, borderBottom: isOriginal ? 'none' : '1px solid var(--border-color, #e2e8f0)' }}>
+                        {isOriginal && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color, #e2e8f0)', paddingBottom: '16px', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                            <div>
+                              <h2 style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: '700', marginBottom: '8px' }}>
+                                {selectedMessage.subject || 'No Subject'}
+                              </h2>
+                              <div style={{ fontSize: isMobile ? '13px' : '14px', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span><strong>From:</strong> {getSenderName(selectedMessage.sender_id)}</span>
+                                <span><strong>To:</strong> {getRecipientName(selectedMessage.recipient_email)}</span>
+                                <span><strong>Date:</strong> {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : 'N/A'}</span>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              {activeTab !== 'sent' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleReply(selectedMessage)}
+                                  title="Reply to this message"
+                                >
+                                  Reply
+                                </Button>
+                              )}
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => handleDeleteMessage(selectedMessage.email_id)}
+                                title="Delete this message"
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{
+                          fontSize: '15px',
+                          lineHeight: '1.6',
+                          whiteSpace: 'pre-wrap',
+                          padding: isOriginal ? '20px' : '16px',
+                          borderRadius: '8px',
+                          backgroundColor: isOriginal ? 'rgba(148, 163, 184, 0.05)' : 'rgba(148, 163, 184, 0.02)',
+                          border: `1px solid ${isOriginal ? 'var(--border-color, #f1f5f9)' : 'transparent'}`,
+                          minHeight: isOriginal ? '200px' : 'auto'
+                        }}>
+                          {!isOriginal && (
+                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                              <strong>From:</strong> {getSenderName(threadMsg.sender_id)} &nbsp;|&nbsp; <strong>To:</strong> {getRecipientName(threadMsg.recipient_email)} &nbsp;|&nbsp; {threadMsg.created_at ? new Date(threadMsg.created_at).toLocaleString() : ''}
+                            </div>
+                          )}  
+                          {threadMsg.message_body || threadMsg.body || 'No message body.'}
+                        </div>
                       </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {activeTab !== 'sent' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleReply(selectedMessage)}
-                          title="Reply to this message"
-                        >
-                          Reply
-                        </Button>
-                      )}
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDeleteMessage(selectedMessage.email_id)}
-                        title="Delete this message"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div style={{
-                    fontSize: '15px',
-                    lineHeight: '1.6',
-                    whiteSpace: 'pre-wrap',
-                    padding: '20px',
-                    borderRadius: '8px',
-                    backgroundColor: 'rgba(148, 163, 184, 0.05)',
-                    border: '1px solid var(--border-color, #f1f5f9)',
-                    minHeight: '200px'
-                  }}>
-                    {selectedMessage.message_body || selectedMessage.body || 'No message body.'}
-                  </div>
+                    )
+                  })}
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', color: '#64748b' }}>
@@ -590,6 +604,17 @@ const EmailsPage = () => {
           </div>
         </div>
       </main>
+
+      <ComposeMessageModal
+        visible={isComposeOpen}
+        onClose={closeCompose}
+        onSubmit={handleComposeSubmit}
+        employees={directory}
+        isLoadingDirectory={false}
+        isSubmitting={isSubmitting}
+        defaultRecipient={composeRecipient}
+        defaultSubject={composeSubject}
+      />
     </DashboardLayout>
   )
 }

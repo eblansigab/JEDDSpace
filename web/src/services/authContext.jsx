@@ -49,6 +49,7 @@ const ensureEmployeeRecord = async (user) => {
           position: meta.position || null,
           department: meta.department || null,
           role: String(meta.role || 'employee').toLowerCase() === 'admin' ? 'admin' : 'employee',
+            email: user.email,
         },
       ])
       .select()

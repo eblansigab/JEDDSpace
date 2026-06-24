@@ -75,9 +75,13 @@ export const createEmployeeRecord = async (authUserId, employeeData) => {
         last_name: employeeData.lastName,
         position: employeeData.position,
         department: employeeData.department,
-        role: String(employeeData.role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
+        role:
+          String(employeeData.role || '').toLowerCase() === 'admin'
+            ? 'admin'
+            : 'employee',
         user_id: authUserId,
         auth_user_id: authUserId,
+        email: employeeData.email
       },
     ])
     .select()
@@ -131,6 +135,7 @@ export const registerUser = async (
             role: String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
             user_id: authUserId,
             auth_user_id: authUserId,
+            email,
           },
         ])
         .select()

@@ -164,14 +164,14 @@ const CommonDashboardPage = () => {
       <main className="content">
         <div>
           <h1>Dashboard</h1>
-          <p>Quick access to your email logs, uploaded files, and today's schedule.</p>
+          <p>Quick access to your logs, uploaded files, and today's schedule.</p>
         </div>
 
         <div className="dashboard-grid">
           <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>
             <div className="dashboard-widget-header">
               <div>
-                <h3>Email Summary</h3>
+                <h3>Inbox Summary</h3>
                 <span>{emailCount} logged {emailCount === 1 ? 'email' : 'emails'}</span>
               </div>
               <button type="button" className="collapse-btn" onClick={() => toggleWidget('email')} title={collapsedWidgets.email ? 'Expand Email Summary' : 'Collapse Email Summary'}>
@@ -180,10 +180,10 @@ const CommonDashboardPage = () => {
             </div>
             {!collapsedWidgets.email && (
               <div className="dashboard-widget-body">
-                <p>You currently have {emailCount} logged {emailCount === 1 ? 'email' : 'emails'}.</p>
+                <p>You currently have {emailCount} logged {emailCount === 1 ? 'message' : 'messages'}.</p>
                 {latestEmail && <p className="date">Latest: {latestEmail}</p>}
                 <Link to="/emails" className="primary-btn">
-                  View Emails
+                  View Inbox
                 </Link>
               </div>
             )}

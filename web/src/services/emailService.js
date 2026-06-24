@@ -65,5 +65,64 @@ export const emailService = {
     if (error) throw error
 
     return true
+  },
+
+  async getEmployeeDirectory() {
+    const { data, error } = await supabaseClient
+      .from('employee')
+      .select('employee_id, first_name, last_name, email')
+      .order('first_name', { ascending: true })
+
+    if (error) {
+      console.error('[emailService] Error fetching employee directory:', error)
+      throw error
+    }
+
+    return (data || []).map((emp) => ({
+      employee_id: emp.employee_id,
+      full_name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
+      email: emp.email || ''
+    }))
+  },
+
+  async getUnreadCount({ email, employeeId }) {
+    const myEmail = String(email || '').trim().toLowerCase()
+
+    if (!myEmail) return 0
+
+    const directQuery = supabaseClient
+      .from('email')
+      .select('*', { count: 'exact', head: true })
+      .eq('recipient_email', myEmail)
+      .eq('is_read', false)
+
+    const broadcastQuery = supabaseClient
+      .from('email')
+      .select('*', { count: 'exact', head: true })
+      .eq('recipient_email', 'all')
+      .eq('is_read', false)
+
+    const myEmployeeId = Number(employeeId)
+
+    if (Number.isFinite(myEmployeeId) && myEmployeeId > 0) {
+      directQuery.neq('sender_id', myEmployeeId)
+      broadcastQuery.neq('sender_id', myEmployeeId)
+    }
+
+    const [{ count: directCount, error: directError }, { count: broadcastCount, error: broadcastError }] =
+      await Promise.all([directQuery, broadcastQuery])
+
+    if (directError) {
+      console.error('[emailService] Error counting unread emails:', directError)
+      return 0
+    }
+
+    if (broadcastError) {
+      console.error('[emailService] Error counting broadcast unread emails:', broadcastError)
+      return directCount || 0
+    }
+
+    return (directCount || 0) + (broadcastCount || 0)
   }
 }
+

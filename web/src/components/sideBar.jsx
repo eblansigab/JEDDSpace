@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../services/authContext'
 import { supabaseClient } from '../supabase/supabaseClient'
 import { profileService } from '../services/profileService'
+import { emailService } from '../services/emailService'
 
 const Sidebar = () => {
   const [showHRDropdown, setShowHRDropdown] = useState(false)
+  const [unreadEmailCount, setUnreadEmailCount] = useState(0)
   const { profile, loading, user, isEmailVerified } = useAuth()
   const [role, setRole] = useState(String(profile?.role || '').trim().toLowerCase() || '')
-  
+
   useEffect(() => {
     let mounted = true
 
@@ -35,7 +37,22 @@ const Sidebar = () => {
       }
     }
 
+    const loadUnreadCount = async () => {
+      if (!profile?.email && !user?.email) return
+
+      try {
+        const count = await emailService.getUnreadCount({
+          email: profile?.email || user?.email,
+          employeeId: profile?.employee_id
+        })
+        if (mounted) setUnreadEmailCount(count)
+      } catch (err) {
+        console.error('[Sidebar] Error loading unread email count:', err)
+      }
+    }
+
     ensureRole()
+    loadUnreadCount()
 
     return () => { mounted = false }
   }, [profile, user])
@@ -191,6 +208,22 @@ const Sidebar = () => {
             {/* Envelope icon */}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
             <span className="sidebar-link-text">Email</span>
+            {unreadEmailCount > 0 && (
+              <span
+                style={{
+                  marginLeft: 'auto',
+                  backgroundColor: '#ef4444',
+                  color: '#fff',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  lineHeight: 1
+                }}
+              >
+                {unreadEmailCount}
+              </span>
+            )}
           </Link>
         </li>
 
