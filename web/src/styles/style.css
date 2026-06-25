@@ -830,6 +830,34 @@ body.sidebar-collapsed .content {
   min-height: 0;
 }
 
+.ai-assistant-grid {
+  align-items: stretch;
+}
+
+.ai-assistant-sidebar-panel {
+  height: fit-content;
+}
+
+.ai-assistant-chat-panel {
+  min-width: 0;
+}
+
+.ai-assistant-chat-body {
+  display: grid;
+  gap: 14px;
+}
+
+.ai-assistant-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: #eef2ff;
+  color: #1e3a8a;
+  font-size: 0.96rem;
+  line-height: 1.55;
+  border: 1px solid #c7d2fe;
+}
+
 .calendar-box {
   background: #fff;
   border: 1px solid #ccc;

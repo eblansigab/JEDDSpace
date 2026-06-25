@@ -67,14 +67,18 @@ export const createEmployeeRecord = async (authUserId, employeeData) => {
     return existing;
   }
 
+  const fallbackFirstName = employeeData.firstName || employeeData.email?.split('@')[0] || 'Unknown'
+  const fallbackLastName = employeeData.lastName || 'User'
+
   const { data, error: insertError } = await supabaseClient
     .from('employee')
     .insert([
       {
-        first_name: employeeData.firstName,
-        last_name: employeeData.lastName,
-        position: employeeData.position,
-        department: employeeData.department,
+        first_name: fallbackFirstName,
+        last_name: fallbackLastName,
+        position: employeeData.position || 'employee',
+        department: employeeData.department || 'general',
+        employee_type: employeeData.employeeType || 'staff',
         role:
           String(employeeData.role || '').toLowerCase() === 'admin'
             ? 'admin'
@@ -124,14 +128,18 @@ export const registerUser = async (
 
   if (authUserId) {
     try {
-      const { data: createdEmployee, error: insertError } = await supabaseClient
+      const fallbackFirstName = firstName || email.split('@')[0] || 'Unknown'
+      const fallbackLastName = lastName || 'User'
+
+      const { data, error: insertError } = await supabaseClient
         .from('employee')
         .insert([
           {
-            first_name: firstName,
-            last_name: lastName,
+            first_name: fallbackFirstName,
+            last_name: fallbackLastName,
             position,
             department,
+            employee_type: 'staff',
             role: String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
             user_id: authUserId,
             auth_user_id: authUserId,
@@ -140,6 +148,8 @@ export const registerUser = async (
         ])
         .select()
         .single();
+
+      const createdEmployee = data;
 
       if (!insertError && createdEmployee) {
         clearPendingEmployee();
@@ -161,10 +171,11 @@ export const registerUser = async (
 
   savePendingEmployee({
     email,
-    firstName,
-    lastName,
-    position,
-    department,
+    firstName: firstName || email.split('@')[0] || 'Unknown',
+    lastName: lastName || 'User',
+    position: position || 'employee',
+    department: department || 'general',
+    employeeType: 'staff',
     role: String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
     createdAt: Date.now(),
   });

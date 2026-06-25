@@ -20,6 +20,7 @@ const EmployeesPage = lazy(() => import("../pages/employeesPage"));
 const AssignJobsPage = lazy(() => import("../pages/assignJobsPage"));
 const AuditBlockchainPage = lazy(() => import("../pages/auditBlockchainPage"));
 const LeaveFormPage = lazy(() => import("../pages/leaveFormPage"));
+const AiAssistantPage = lazy(() => import("../pages/aiAssistantPage"));
 const AdminRoute = lazy(() => import("../components/AdminRoute"));
 const ProtectedRoute = lazy(() => import('../components/ProtectedRoute'))
 
@@ -61,6 +62,7 @@ const InnerRoutes = () => {
           <Route path="/assign-jobs" element={<ProtectedRoute><AssignJobsPage /></ProtectedRoute>} />
           <Route path="/audit-blockchain" element={<ProtectedRoute><AuditBlockchainPage /></ProtectedRoute>} />
           <Route path="/leave-form" element={<ProtectedRoute><LeaveFormPage /></ProtectedRoute>} />
+          <Route path="/ai" element={<ProtectedRoute><AiAssistantPage /></ProtectedRoute>} />
         </Routes>
       </Suspense>
     </>

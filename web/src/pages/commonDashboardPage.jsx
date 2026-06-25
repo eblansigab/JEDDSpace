@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { Button } from '../components'
+import Modal from '../components/Modal'
 import { useAuth } from '../services/authContext'
 import { documentService } from '../services/documentService'
 import { emailService } from '../services/emailService'
@@ -14,7 +15,7 @@ import interactionPlugin from '@fullcalendar/interaction'
 import { supabaseClient } from '../supabase/supabaseClient'
 
 const CommonDashboardPage = () => {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const fileInputRef = useRef(null)
   const [emailCount, setEmailCount] = useState(0)
   const [fileCount, setFileCount] = useState(0)
@@ -27,6 +28,26 @@ const CommonDashboardPage = () => {
     files: false,
     calendar: false
   })
+  const [unreadEmails, setUnreadEmails] = useState([])
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false)
+  const [isLoadingUnread, setIsLoadingUnread] = useState(false)
+
+  const loadUnreadEmails = async () => {
+    setIsLoadingUnread(true)
+    try {
+      const emails = await emailService.getEmailLogs()
+      const myEmail = String(user?.email || '').trim().toLowerCase()
+      const unread = (emails || []).filter(
+        (m) => (m.recipient_email === myEmail || m.recipient_email === 'all') && !m.is_read && m.sender_id !== profile?.employee_id
+      )
+      setUnreadEmails(unread)
+      setIsSummaryOpen(true)
+    } catch (err) {
+      console.error('Error loading unread emails:', err)
+    } finally {
+      setIsLoadingUnread(false)
+    }
+  }
 
   const loadCalendarEvents = async () => {
     const { data: announcements } =
@@ -183,8 +204,8 @@ const CommonDashboardPage = () => {
                 <p>You currently have {emailCount} logged {emailCount === 1 ? 'message' : 'messages'}.</p>
                 {latestEmail && <p className="date">Latest: {latestEmail}</p>}
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <Button>
-                    Summarize Unread Emails
+                  <Button onClick={loadUnreadEmails} disabled={isLoadingUnread}>
+                    {isLoadingUnread ? 'Loading...' : 'Summarize Unread Emails'}
                   </Button>
                   <Link to="/emails" className="primary-btn">
                     View Emails
@@ -254,6 +275,25 @@ const CommonDashboardPage = () => {
               </div>
             )}
           </section>
+
+          <Modal
+            visible={isSummaryOpen}
+            onClose={() => setIsSummaryOpen(false)}
+            title="Unread Emails Summary"
+          >
+            {unreadEmails.length === 0 ? (
+              <p style={{ color: '#64748b', textAlign: 'center', padding: '20px 0' }}>No unread messages.</p>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {unreadEmails.map((email) => (
+                  <li key={email.email_id} style={{ borderBottom: '1px solid #f1f5f9', padding: '12px 0' }}>
+                    <strong style={{ display: 'block', marginBottom: '4px' }}>{email.subject || '(No Subject)'}</strong>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>{email.created_at ? new Date(email.created_at).toLocaleDateString() : ''}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Modal>
       </main>
     </DashboardLayout>
   )

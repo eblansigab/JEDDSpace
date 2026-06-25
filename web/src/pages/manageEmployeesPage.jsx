@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { employeeService } from '../services/employeeService'
 import { registerUser } from '../services/authService'
@@ -7,7 +6,6 @@ import { notificationService } from '../services/notificationService'
 import { useAuth } from '../services/authContext'
 import { alertService } from '../utils/alertService'
 import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
-import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, ROLE_OPTIONS } from '../constants/formOptions'
 
 const ManageEmployeesPage = () => {
   const { user } = useAuth()
@@ -16,9 +14,6 @@ const ManageEmployeesPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [position, setPosition] = useState('')
-  const [department, setDepartment] = useState('')
-  const [role, setRole] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -33,7 +28,11 @@ const ManageEmployeesPage = () => {
   }
 
   const handleAddEmployee = async () => {
-    if (!firstName || !lastName || !position || !department || !role || !email || !password || !confirmPassword) {
+    const trimmedFirstName = firstName.trim()
+    const trimmedLastName = lastName.trim()
+    const fallbackLastName = trimmedLastName || email.trim().split('@')[0] || 'User'
+
+    if (!trimmedFirstName || !fallbackLastName || !email || !password || !confirmPassword) {
       await alertService.warning('Please fill all fields')
       return
     }
@@ -45,20 +44,20 @@ const ManageEmployeesPage = () => {
 
     try {
       await registerUser(
-        email,
+        email.trim(),
         password,
         confirmPassword,
-        firstName,
-        lastName,
-        position,
-        role,
-        department
-      )
+        trimmedFirstName,
+        fallbackLastName,
+        'employee',
+        'employee',
+        'general',
+        )
 
       await Promise.allSettled([
         notificationService.createNotification({
           title: 'Employee record created',
-          message: `${firstName} ${lastName} was added to ${department}.`,
+          message: `${firstName} ${lastName} was added successfully!`,
           type: 'employee_update',
           priority: 'Normal',
           userId: user?.id
@@ -68,9 +67,6 @@ const ManageEmployeesPage = () => {
       await alertService.success('Employee added and registered successfully')
       setFirstName('')
       setLastName('')
-      setPosition('')
-      setDepartment('')
-      setRole('')
       setEmail('')
       setPassword('')
       setConfirmPassword('')
@@ -147,7 +143,6 @@ const ManageEmployeesPage = () => {
     return (
       name.includes(query) ||
       String(emp.position || '').toLowerCase().includes(query) ||
-      String(emp.department || '').toLowerCase().includes(query) ||
       String(emp.role || '').toLowerCase().includes(query)
     )
   })
@@ -160,7 +155,6 @@ const ManageEmployeesPage = () => {
       render: (_, row) => `${row.first_name} ${row.last_name}`
     },
     { key: 'position', title: 'Position' },
-    { key: 'department', title: 'Department' },
     { key: 'role', title: 'Role' },
     {
       key: 'status',
@@ -242,24 +236,7 @@ const ManageEmployeesPage = () => {
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
           />
-          <select value={position} onChange={(e) => setPosition(e.target.value)}>
-            <option value="" disabled>Select position</option>
-            {POSITION_OPTIONS.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-          <select value={department} onChange={(e) => setDepartment(e.target.value)}>
-            <option value="" disabled>Select department</option>
-            {DEPARTMENT_OPTIONS.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-          <select value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="" disabled>Select role</option>
-            {ROLE_OPTIONS.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
+          
           <input
             type="email"
             placeholder="Email Address"

@@ -37,6 +37,8 @@ const ensureEmployeeRecord = async (user) => {
 
     const meta = user.user_metadata || {}
     const emailName = (user.email || '').split('@')[0] || ''
+    const fallbackFirstName = meta.first_name || emailName || 'Unknown'
+    const fallbackLastName = meta.last_name || 'User'
 
     const { data: inserted, error: insertError } = await supabaseClient
       .from('employee')
@@ -44,12 +46,13 @@ const ensureEmployeeRecord = async (user) => {
         {
           user_id: user.id,
           auth_user_id: user.id,
-          first_name: meta.first_name || emailName || null,
-          last_name: meta.last_name || null,
-          position: meta.position || null,
-          department: meta.department || null,
+          first_name: fallbackFirstName,
+          last_name: fallbackLastName,
+          position: meta.position || 'employee',
+          department: meta.department || 'general',
+          employee_type: meta.employee_type || 'staff',
           role: String(meta.role || 'employee').toLowerCase() === 'admin' ? 'admin' : 'employee',
-            email: user.email,
+          email: user.email,
         },
       ])
       .select()

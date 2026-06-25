@@ -11,6 +11,26 @@ export const employeeService = {
     return data
   },
 
+  async getFieldWorkers() {
+    const { data, error } = await supabaseClient
+      .from('employee')
+      .select('employee_id, first_name, last_name, position, department, employee_type, employment_status, is_archived')
+      .eq('employee_type', 'field_worker')
+      .eq('employment_status', 'active')
+      .eq('is_archived', false)
+      .order('first_name')
+
+    if (error) throw error
+
+    return (data || []).map(({ employee_id, first_name, last_name, position, department }) => ({
+      employee_id,
+      first_name,
+      last_name,
+      position,
+      department,
+    }))
+  },
+
   async create(employeeData) {
     const { data, error } = await supabaseClient
       .from('employee')
@@ -78,5 +98,6 @@ export const employeeService = {
       if (error) throw error 
 
       return data
-  }
+  },
+
 }

@@ -7,31 +7,35 @@ export const profileService = {
    * email-confirmation flow was bypassed and the record was never created).
    */
   async updateAccountDetails(userId, updates) {
-    const payload = {
-      user_id: userId,
-      auth_user_id: userId,
-      first_name: updates.first_name?.trim() || null,
-      last_name: updates.last_name?.trim() || null,
-      department: updates.department?.trim() || null,
-      position: updates.position?.trim() || null,
-    }
-
     // First, try to update. If no row is affected, do an upsert.
     const { data: existing } = await supabaseClient
       .from('employee')
-      .select('employee_id')
+      .select('employee_id, first_name, last_name, department, position')
       .eq('user_id', userId)
       .maybeSingle()
 
     if (existing) {
+      const updatePayload = {}
+
+      if (updates.first_name?.trim()) {
+        updatePayload.first_name = updates.first_name.trim()
+      }
+
+      if (updates.last_name?.trim()) {
+        updatePayload.last_name = updates.last_name.trim()
+      }
+
+      if (updates.department?.trim()) {
+        updatePayload.department = updates.department.trim()
+      }
+
+      if (updates.position?.trim()) {
+        updatePayload.position = updates.position.trim()
+      }
+
       const { data, error } = await supabaseClient
         .from('employee')
-        .update({
-          first_name: payload.first_name,
-          last_name: payload.last_name,
-          department: payload.department,
-          position: payload.position,
-        })
+        .update(updatePayload)
         .eq('user_id', userId)
         .select()
         .single()
@@ -41,6 +45,15 @@ export const profileService = {
     }
 
     // No employee record exists yet — create one.
+    const payload = {
+      user_id: userId,
+      auth_user_id: userId,
+      first_name: updates.first_name?.trim() || existing?.first_name || 'Unknown',
+      last_name: updates.last_name?.trim() || existing?.last_name || 'User',
+      department: updates.department?.trim() || existing?.department || 'general',
+      position: updates.position?.trim() || existing?.position || 'employee',
+    }
+
     const { data, error } = await supabaseClient
       .from('employee')
       .insert([payload])

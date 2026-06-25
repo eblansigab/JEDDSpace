@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
-import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { jobService } from '../services/jobsService'
 import { employeeService } from '../services/employeeService'
 import { emailService } from '../services/emailService'
 import { notificationService } from '../services/notificationService'
+import { getRecommendations } from '../services/recommendationService'
 import { useAuth } from '../services/authContext'
 import { alertService } from '../utils/alertService'
 import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
-import { DEPARTMENT_OPTIONS, JOB_STATUS_OPTIONS, NCR_DESTINATION_OPTIONS } from '../constants/formOptions'
+import { NCR_DESTINATION_OPTIONS, JOB_STATUS_OPTIONS } from '../constants/formOptions'
 
 const AssignJobsPage = () => {
   const { user } = useAuth()
@@ -16,13 +16,14 @@ const AssignJobsPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isFormVisible, setIsFormVisible] = useState(false)
 
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [department, setDepartment] = useState('')
+  const [fieldWorkers, setFieldWorkers] = useState([])
+  const [selectedEmployee, setSelectedEmployee] = useState('')
   const [destination, setDestination] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [notes, setNotes] = useState('')
+  const [recommendations, setRecommendations] = useState([])
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false)
 
   const fetchJobs = async () => {
     try {
@@ -33,25 +34,61 @@ const AssignJobsPage = () => {
     }
   }
 
+  const fetchFieldWorkers = async () => {
+    try {
+      const data = await employeeService.getFieldWorkers()
+      setFieldWorkers(data)
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
   const resetForm = () => {
-    setFirstName('')
-    setLastName('')
-    setDepartment('')
+    setSelectedEmployee('')
     setDestination('')
     setStartDate('')
     setEndDate('')
     setNotes('')
+    setRecommendations([])
     setIsFormVisible(false)
   }
 
+  const handleGetRecommendations = async () => {
+    if (!startDate || !endDate) {
+      await alertService.warning('Please select start and end dates first')
+      return
+    }
+
+    setLoadingRecommendations(true)
+    try {
+      const data = await getRecommendations({
+        startDate,
+        endDate
+      })
+      setRecommendations(data || [])
+      if (!data || data.length === 0) {
+        await alertService.info('No recommendations available for the selected dates')
+      }
+    } catch (error) {
+      await alertService.error(error.message || 'Failed to get recommendations')
+    } finally {
+      setLoadingRecommendations(false)
+    }
+  }
+
+  const handleUseRecommendation = (employee) => {
+    setSelectedEmployee(employee.employee_id)
+    setRecommendations([])
+  }
+
   const handleAddJob = async () => {
-    if (!firstName || !lastName || !department || !destination || !startDate || !endDate) {
+    if (!selectedEmployee || !destination || !startDate || !endDate) {
       await alertService.warning('Please fill all required fields')
       return
     }
 
     try {
-      const employee = await employeeService.findByName(firstName, lastName)
+      const employee = fieldWorkers.find((w) => String(w.employee_id) === String(selectedEmployee))
 
       if (!employee) {
         await alertService.error('Employee not found')
@@ -59,8 +96,8 @@ const AssignJobsPage = () => {
       }
 
       await jobService.create({
-        employee_id: employee.employee_id,
-        department,
+        employee_id: selectedEmployee,
+        department: employee.department,
         destination,
         start_date: startDate,
         end_date: endDate,
@@ -68,18 +105,20 @@ const AssignJobsPage = () => {
         status: 'open'
       })
 
+      const employeeName = `${employee.first_name} ${employee.last_name}`
+
       await Promise.allSettled([
         notificationService.createNotification({
           title: 'New job assignment created',
-          message: `${firstName} ${lastName} was assigned to ${destination}.`,
+          message: `${employeeName} was assigned to ${destination}.`,
           type: 'job_assignment',
           priority: 'High',
           userId: user?.id
         }),
         emailService.createEmailLog({
           subject: `Job Assignment: ${destination}`,
-          body: `${firstName} ${lastName} was assigned to ${destination} from ${startDate} to ${endDate}.`,
-          recipient: `${firstName} ${lastName}`,
+          body: `${employeeName} was assigned to ${destination} from ${startDate} to ${endDate}.`,
+          recipient: employeeName,
           type: 'job_assignment',
           userId: user?.id
         })
@@ -238,6 +277,7 @@ const AssignJobsPage = () => {
 
   useEffect(() => {
     fetchJobs()
+    fetchFieldWorkers()
   }, [])
 
   const filteredJobs = jobs.filter((job) => {
@@ -247,7 +287,6 @@ const AssignJobsPage = () => {
       : ''
     return (
       employeeName.includes(query) ||
-      String(job.department || '').toLowerCase().includes(query) ||
       String(job.destination || '').toLowerCase().includes(query) ||
       String(job.status || '').toLowerCase().includes(query)
     )
@@ -261,7 +300,6 @@ const AssignJobsPage = () => {
       render: (_, row) =>
         row.employee ? `${row.employee.first_name} ${row.employee.last_name}` : 'Unknown Employee'
     },
-    { key: 'department', title: 'Department' },
     { key: 'destination', title: 'Destination' },
     { key: 'start_date', title: 'Start Date' },
     { key: 'end_date', title: 'End Date' },
@@ -307,7 +345,7 @@ const AssignJobsPage = () => {
             title="Travel Job Assignment"
             actions={[
               <SearchBar key="search" value={searchTerm} onChange={setSearchTerm} placeholder="Search jobs..." />,
-              <Button key="assign" onClick={() => setIsFormVisible(true)}>
+              <Button key="assign" onClick={() => { fetchFieldWorkers(); setIsFormVisible(true) }}>
                 Assign New Job
               </Button>
             ]}
@@ -330,19 +368,17 @@ const AssignJobsPage = () => {
       >
         <div style={{ display: 'grid', gap: 14 }}>
           <div>
-            <label>First Name</label>
-            <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Juan" />
-          </div>
-          <div>
-            <label>Last Name</label>
-            <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Dela Cruz" />
-          </div>
-          <div>
-            <label>Department</label>
-            <select value={department} onChange={(e) => setDepartment(e.target.value)}>
-              <option value="" disabled>Select department</option>
-              {DEPARTMENT_OPTIONS.map((item) => (
-                <option key={item} value={item}>{item}</option>
+            <label>Employee</label>
+            <select
+              value={selectedEmployee}
+              onChange={(e) => setSelectedEmployee(e.target.value)}
+            >
+              <option value="">Select Employee</option>
+              {fieldWorkers.map((worker) => (
+                <option key={worker.employee_id} value={worker.employee_id}>
+                  {worker.first_name} {worker.last_name}
+                  {worker.position ? ` (${worker.position})` : ''}
+                </option>
               ))}
             </select>
           </div>
@@ -367,6 +403,54 @@ const AssignJobsPage = () => {
             <label>Travel Notes (optional)</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add itinerary details, important reminders, or travel notes" rows={4} style={{ width: '100%' }} />
           </div>
+          <Button
+            variant="outline"
+            onClick={handleGetRecommendations}
+            disabled={loadingRecommendations}
+            style={{ minWidth: 200 }}
+          >
+            {loadingRecommendations ? 'Loading...' : '🤖 Recommend Best Worker'}
+          </Button>
+          {recommendations.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <h4 style={{ margin: '0 0 12px', color: '#1E0977' }}>Recommended Workers</h4>
+              <div style={{ display: 'grid', gap: 12 }}>
+                {recommendations.map((emp) => (
+                  <div
+                    key={emp.employee_id}
+                    style={{
+                      border: '1px solid #ddd',
+                      borderRadius: 6,
+                      padding: 12,
+                      background: '#fafafa'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div>
+                        <strong style={{ fontSize: 14 }}>{emp.full_name}</strong>
+                        {emp.position && (
+                          <div style={{ fontSize: 12, color: '#64748b' }}>{emp.position}</div>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: '#1E0977' }}>{emp.score}%</span>
+                    </div>
+                    <ul style={{ margin: '0 0 10px', paddingLeft: 16, fontSize: 13 }}>
+                      {emp.reasons.map((reason, idx) => (
+                        <li key={idx} style={{ color: '#334155' }}>✓ {reason}</li>
+                      ))}
+                    </ul>
+                    <Button
+                      variant="primary"
+                      style={{ padding: '6px 12px', fontSize: 13 }}
+                      onClick={() => handleUseRecommendation(emp)}
+                    >
+                      Use Recommendation
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
       </DashboardLayout>

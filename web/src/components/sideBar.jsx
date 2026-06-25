@@ -82,7 +82,7 @@ const Sidebar = () => {
     return 'status-available'
   }
 
-  const isAdmin = role || position === 'admin' 
+  const isAdmin = role === 'admin'
 
   const closeMobileSidebar = () => {
     document.body.classList.remove('mobile-sidebar-open')
@@ -207,7 +207,7 @@ const Sidebar = () => {
           <Link to="/emails" onClick={closeMobileSidebar} title="Emails">
             {/* Envelope icon */}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-            <span className="sidebar-link-text">Email</span>
+            <span className="sidebar-link-text">Inbox</span>
             {unreadEmailCount > 0 && (
               <span
                 style={{
@@ -240,6 +240,14 @@ const Sidebar = () => {
             {/* Megaphone icon */}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"></path></svg>
             <span className="sidebar-link-text">Announcements</span>
+          </Link>
+        </li>
+
+        <li>
+          <Link to="/ai" onClick={closeMobileSidebar} title="AI Assistant">
+            {/* Sparkles icon */}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path><path d="M19 3l.8 2.2L22 6l-2.2.8L19 9l-.8-2.2L16 6l2.2-.8L19 3z"></path><path d="M5 14l.9 2.6L8 17.5l-2.1.9L5 21l-.9-2.6L2 17.5l2.1-.9L5 14z"></path></svg>
+            <span className="sidebar-link-text">AI Assistant</span>
           </Link>
         </li>
 
