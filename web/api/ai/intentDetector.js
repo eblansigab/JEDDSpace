@@ -5,6 +5,10 @@ const includesAny = (text, keywords) => keywords.some((keyword) => text.includes
 export const detectIntent = (message) => {
   const text = normalize(message)
 
+  if (includesAny(text, ['chat', 'log', 'logs', 'previous', 'history', 'past'])) {
+    return 'chat_logs'
+  }
+
   if (
     includesAny(text, [
       'recommendation',
@@ -15,23 +19,23 @@ export const detectIntent = (message) => {
       'why was',
       'why is this person',
       'assignment window',
-    ])
+      ])
   ) {
     return 'recommendation'
   }
 
   if (
     includesAny(text, [
-      'unread notification',
-      'unread notifications',
-      'notification',
-      'notifications',
-      'announcement',
-      'alerts',
-      'alert',
-    ])
+      'document',
+      'documents',
+      'uploaded',
+      'upload',
+      'file',
+      'pdf',
+      'handbook',
+      ])
   ) {
-    return 'notification'
+    return 'document'
   }
 
   if (
@@ -84,9 +88,27 @@ export const detectIntent = (message) => {
       'who can',
       'who is available',
       'available workers',
-    ])
+      ])
   ) {
     return 'employee'
+  }
+
+  if (
+    includesAny(text, [
+      'unread notification',
+      'unread notifications',
+      'notification',
+      'notifications',
+      'announcement',
+      'alerts',
+      'alert',
+      ])
+  ) {
+    return 'notification'
+  }
+
+  if (includesAny(text, ['operations', 'operation', 'how are', 'status', 'overview', 'today', 'dashboard'])) {
+    return 'operations'
   }
 
   return 'general'

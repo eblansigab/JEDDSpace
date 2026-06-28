@@ -2,6 +2,7 @@ import { employeeService } from './employeeService'
 import { jobService } from './jobsService'
 import { contractService } from './contractService'
 import { notificationService } from './notificationService'
+import { documentService } from './documentService'
 import { supabaseClient } from '../supabase/supabaseClient'
 
 const toReadableEmployee = (employee) => {
@@ -190,6 +191,29 @@ const buildContext = async (prompt) => {
       '',
       'Current employees:',
       ...(employees || []).slice(0, 30).map(toReadableEmployee),
+      '',
+      `Question: ${prompt}`
+    ].join('\n')
+  }
+
+  if (intent === 'general' && prompt.toLowerCase().includes('document')) {
+    const documents = await documentService.getAllDocuments()
+    const documentsWithSummaries = await Promise.all(
+      (documents || []).slice(0, 5).map(async (doc) => {
+        const summary = await documentService.getDocumentSummary(doc.document_id)
+        return { ...doc, ai_summary: summary?.summary || null }
+      })
+    )
+
+    return [
+      'You are the AI assistant for JEDDSpace.',
+      'Use the following document context to answer the question in natural language.',
+      '',
+      'Documents:',
+      ...(documentsWithSummaries || []).map((doc) => {
+        const summaryText = doc.ai_summary ? `Summary: ${doc.ai_summary}` : 'No summary available'
+        return `${doc.title || doc.file_name || 'Untitled'} | ${summaryText}`
+      }),
       '',
       `Question: ${prompt}`
     ].join('\n')

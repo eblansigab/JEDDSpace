@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useRef, useState } from 'react'
 import Button from '../Button'
 
 const ALLOWED_TYPES = [
@@ -19,6 +19,7 @@ const ALLOWED_TYPES = [
 const TYPE_LABELS = {
   'application/pdf': 'PDF',
   'text/plain': 'TXT',
+  'text/csv': 'CSV',
   'image/png': 'PNG',
   'image/jpeg': 'JPG',
   'image/jpg': 'JPG',
@@ -30,31 +31,25 @@ const TYPE_LABELS = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
 }
 
-export default function ChatInput({ value, onChange, onSend, loading = false, placeholder, attachments = [], onAddAttachment, onRemoveAttachment }) {
+export default function AttachmentUploader({ attachments = [], onAdd, onRemove }) {
   const fileInputRef = useRef(null)
   const [isUploading, setIsUploading] = useState(false)
 
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      onSend()
-    }
-  }
-
   const handleFileSelected = async (event) => {
     const files = Array.from(event.target.files || [])
-    if (!files.length || !onAddAttachment) return
+    if (!files.length || !onAdd) return
 
     const validFiles = files.filter(f => ALLOWED_TYPES.includes(f.type))
     if (validFiles.length !== files.length) {
-      alert('Some files were skipped due to unsupported type.')
+      alert('Some files were skipped due to unsupported type. Supported: PDF, TXT, CSV, DOCX, XLSX, PNG, JPG, WEBP, MP3, WAV, M4A')
     }
 
     for (const file of validFiles) {
       setIsUploading(true)
-      await onAddAttachment(file)
+      await onAdd(file)
       setIsUploading(false)
     }
+
     event.target.value = ''
   }
 
@@ -65,17 +60,18 @@ export default function ChatInput({ value, onChange, onSend, loading = false, pl
   }
 
   return (
-    <div
-      style={{
-        marginTop: 16,
-        padding: 16,
-        borderRadius: 8,
-        border: '1px solid #dbe3ef',
-        background: '#fff'
-      }}
-    >
+    <div style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+          {isUploading ? 'Uploading...' : '📎 Attach Files'}
+        </Button>
+        <span style={{ fontSize: 12, color: '#64748b', alignSelf: 'center' }}>
+          PDF, TXT, CSV, DOCX, XLSX, PNG, JPG, WEBP, MP3, WAV, M4A supported
+        </span>
+      </div>
+
       {attachments.length > 0 && (
-        <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'grid', gap: 8 }}>
           {attachments.map((att) => (
             <div
               key={att.document_id || att.id}
@@ -99,7 +95,7 @@ export default function ChatInput({ value, onChange, onSend, loading = false, pl
               </div>
               <button
                 type="button"
-                onClick={() => onRemoveAttachment?.(att.document_id || att.id)}
+                onClick={() => onRemove?.(att.document_id || att.id)}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -108,7 +104,7 @@ export default function ChatInput({ value, onChange, onSend, loading = false, pl
                   fontSize: 16,
                   padding: 4,
                 }}
-                title="Remove"
+                title="Remove attachment"
               >
                 ×
               </button>
@@ -116,50 +112,6 @@ export default function ChatInput({ value, onChange, onSend, loading = false, pl
           ))}
         </div>
       )}
-
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        rows={3}
-        style={{
-          width: '100%',
-          resize: 'vertical',
-          borderRadius: 6,
-          border: '1px solid #cbd5e1',
-          padding: 14,
-          fontSize: 15,
-          lineHeight: 1.5,
-          outline: 'none'
-        }}
-      />
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            title="Attach files"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: 20,
-              cursor: 'pointer',
-              padding: 4,
-            }}
-          >
-            📎
-          </button>
-          <span style={{ fontSize: 12, color: '#64748b' }}>
-            PDF, TXT, CSV, DOCX, XLSX, PNG, JPG, WEBP, MP3, WAV, M4A
-          </span>
-        </div>
-        <Button onClick={onSend} disabled={loading || !String(value || '').trim()}>
-          {loading ? 'Thinking...' : 'Send Message'}
-        </Button>
-      </div>
 
       <input
         ref={fileInputRef}

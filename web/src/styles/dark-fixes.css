@@ -1,0 +1,40 @@
+/* Dark mode fixes for Documents page */
+[data-theme="dark"] .documents-page .document-card {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+[data-theme="dark"] .documents-page .document-card strong {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .documents-page .document-card p {
+  color: #cbd5e1 !important;
+}
+
+/* Dark mode fixes for Emails page */
+[data-theme="dark"] .emails-page .messaging-pane {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+}
+
+[data-theme="dark"] .emails-page .email-message-item {
+  border-bottom-color: #334155 !important;
+}
+
+[data-theme="dark"] .emails-page .email-text-secondary {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .emails-page .email-text-primary {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .emails-page .email-viewer {
+  background: #1e293b !important;
+}
+
+[data-theme="dark"] .emails-page .email-bg-subtle {
+  background: #334155 !important;
+}

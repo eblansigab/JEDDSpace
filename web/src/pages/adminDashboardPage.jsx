@@ -1,11 +1,8 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../styles/style.css'
-import logo from '../assets/JEDDSpace Logo (Transparent).png'
-import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
-const AdminDashboardPage = () => {
 
+const AdminDashboardPage = () => {
   return (
     <DashboardLayout>
         <main className="content">
@@ -83,6 +80,42 @@ const AdminDashboardPage = () => {
 
               <Link
                 to="/audit-blockchain"
+                className="primary-btn"
+              >
+                Go
+              </Link>
+
+            </div>
+
+            {/* AI Analytics */}
+            <div className="admin-box">
+
+              <h3>AI Analytics</h3>
+
+              <p>
+                View AI usage patterns and insights.
+              </p>
+
+              <Link
+                to="/ai-analytics"
+                className="primary-btn"
+              >
+                Go
+              </Link>
+
+            </div>
+
+            {/* AI History */}
+            <div className="admin-box">
+
+              <h3>AI Chat History</h3>
+
+              <p>
+                View all AI conversation logs across the system.
+              </p>
+
+              <Link
+                to="/ai-chat-logs"
                 className="primary-btn"
               >
                 Go

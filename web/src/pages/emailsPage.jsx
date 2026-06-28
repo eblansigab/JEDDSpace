@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { Button, PageHeader, SearchBar } from '../components'
 import { useAuth } from '../services/authContext'
@@ -287,7 +286,7 @@ const EmailsPage = () => {
 
   return (
     <DashboardLayout>
-      <main className="content">
+      <main className="content emails-page">
         <PageHeader
           title="Messages"
           actions={[
@@ -458,9 +457,9 @@ const EmailsPage = () => {
               flexDirection: 'column'
             }}>
               {isLoading ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>Loading messages...</div>
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary, #64748b)' }}>Loading messages...</div>
               ) : filteredMessages.length === 0 ? (
-                <div style={{ padding: '40px 24px', textAlign: 'center', color: '#64748b' }}>
+                <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-secondary, #64748b)' }}>
                   No messages in {activeTab}.
                 </div>
               ) : (
@@ -471,6 +470,7 @@ const EmailsPage = () => {
                      <div
                        key={msg.email_id}
                        onClick={() => handleSelectMessage(msg)}
+                       className="email-message-item"
                        style={{
                          padding: isMobile ? '12px' : '16px',
                          borderBottom: '1px solid var(--border-color, #f1f5f9)',
@@ -478,8 +478,8 @@ const EmailsPage = () => {
                          backgroundColor: isSelected
                            ? 'rgba(37, 99, 235, 0.05)'
                            : isUnread
-                           ? 'rgba(37, 99, 235, 0.02)'
-                           : 'transparent',
+                             ? 'rgba(37, 99, 235, 0.02)'
+                             : 'transparent',
                          transition: 'background-color 0.2s ease',
                          position: 'relative',
                          borderLeft: isUnread ? '4px solid #2563eb' : '4px solid transparent'
@@ -494,10 +494,10 @@ const EmailsPage = () => {
                            overflow: 'hidden',
                            textOverflow: 'ellipsis',
                            whiteSpace: 'nowrap'
-                         }}>
+                         }} className="email-text-primary">
                            {activeTab === 'sent' ? `To: ${getRecipientName(msg.recipient_email)}` : getSenderName(msg.sender_id)}
                          </span>
-                         <span style={{ fontSize: '11px', color: '#64748b', flexShrink: 0 }}>
+                         <span style={{ fontSize: '11px', color: 'var(--text-secondary, #64748b)', flexShrink: 0 }} className="email-text-secondary">
                            {msg.created_at ? new Date(msg.created_at).toLocaleDateString() : ''}
                          </span>
                        </div>
@@ -510,24 +510,24 @@ const EmailsPage = () => {
                          whiteSpace: 'nowrap'
                        }}>
                          {msg.subject || '(No Subject)'}
-                       </div>
+                         </div>
                        <div style={{
-                         fontSize: isMobile ? '11px' : '12px',
-                         color: '#64748b',
-                         overflow: 'hidden',
-                         textOverflow: 'ellipsis',
-                         whiteSpace: 'nowrap'
-                       }}>
-                        {msg.message_body || msg.body || ''}
-                      </div>
-                    </div>
-                  )
+                           fontSize: isMobile ? '11px' : '12px',
+                           color: 'var(--text-secondary, #64748b)',
+                           overflow: 'hidden',
+                           textOverflow: 'ellipsis',
+                           whiteSpace: 'nowrap'
+                         }} className="email-text-secondary">
+                           {msg.message_body || msg.body || ''}
+                         </div>
+                       </div>
+                   )
                 })
               )}
             </div>
 
             {/* Message Viewer Column */}
-            <div style={{ padding: isMobile ? '16px' : '24px', overflowY: 'auto', maxHeight: isMobile ? '400px' : '600px', display: 'flex', flexDirection: 'column', justifyContent: selectedMessage ? 'flex-start' : 'center', alignItems: selectedMessage ? 'stretch' : 'center' }}>
+            <div style={{ padding: isMobile ? '16px' : '24px', overflowY: 'auto', maxHeight: isMobile ? '400px' : '600px', display: 'flex', flexDirection: 'column', justifyContent: selectedMessage ? 'flex-start' : 'center', alignItems: selectedMessage ? 'stretch' : 'center' }} className="email-viewer">
               {selectedMessage ? (
                 <div>
                   {(threadMessages.length > 0 ? threadMessages : [selectedMessage]).map((threadMsg, idx) => {
@@ -540,7 +540,7 @@ const EmailsPage = () => {
                               <h2 style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: '700', marginBottom: '8px' }}>
                                 {selectedMessage.subject || 'No Subject'}
                               </h2>
-                              <div style={{ fontSize: isMobile ? '13px' : '14px', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ fontSize: isMobile ? '13px' : '14px', color: 'var(--text-secondary, #64748b)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <span><strong>From:</strong> {getSenderName(selectedMessage.sender_id)}</span>
                                 <span><strong>To:</strong> {getRecipientName(selectedMessage.recipient_email)}</span>
                                 <span><strong>Date:</strong> {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : 'N/A'}</span>
@@ -579,9 +579,9 @@ const EmailsPage = () => {
                           backgroundColor: isOriginal ? 'rgba(148, 163, 184, 0.05)' : 'rgba(148, 163, 184, 0.02)',
                           border: `1px solid ${isOriginal ? 'var(--border-color, #f1f5f9)' : 'transparent'}`,
                           minHeight: isOriginal ? '200px' : 'auto'
-                        }}>
+                        }} className="email-bg-subtle">
                           {!isOriginal && (
-                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary, #64748b)', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }} className="email-text-muted">
                               <strong>From:</strong> {getSenderName(threadMsg.sender_id)} &nbsp;|&nbsp; <strong>To:</strong> {getRecipientName(threadMsg.recipient_email)} &nbsp;|&nbsp; {threadMsg.created_at ? new Date(threadMsg.created_at).toLocaleString() : ''}
                             </div>
                           )}  
@@ -592,7 +592,7 @@ const EmailsPage = () => {
                   })}
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', color: '#64748b' }}>
+                <div style={{ textAlign: 'center', color: 'var(--text-secondary, #64748b)' }}>
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: '12px', opacity: 0.5 }}>
                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
                     <polyline points="22,6 12,13 2,6"></polyline>

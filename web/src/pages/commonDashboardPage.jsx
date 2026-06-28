@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { Button } from '../components'
 import Modal from '../components/Modal'
@@ -24,6 +23,7 @@ const CommonDashboardPage = () => {
   const [isUploading, setIsUploading] = useState(false)
   const [calendarEvents, setCalendarEvents] = useState([])
   const [collapsedWidgets, setCollapsedWidgets] = useState({
+    overview: false,
     email: false,
     files: false,
     calendar: false
@@ -78,8 +78,6 @@ const CommonDashboardPage = () => {
         .from('businessform')
         .select('*')
 
-
-
     const businessEvents =
       (businessTrips || []).map(item => ({
         title: `🧳 ${item.location}`,
@@ -119,6 +117,7 @@ const CommonDashboardPage = () => {
       ...contractEvents
     ])
   }
+
   const toggleWidget = (widget) => {
     setCollapsedWidgets((current) => ({
       ...current,
@@ -151,14 +150,12 @@ const CommonDashboardPage = () => {
     init()
   }, [])
 
-  // Step 3: Update session activity on page load AND every 5 minutes so that
-  // the Session Management page can show "Just now" / "X minutes ago" live.
   useEffect(() => {
     if (!user) return
     sessionService.updateSessionActivity()
     const interval = setInterval(() => {
       sessionService.updateSessionActivity()
-    }, 5 * 60 * 1000) // every 5 minutes
+    }, 5 * 60 * 1000)
     return () => clearInterval(interval)
   }, [user])
 
@@ -189,6 +186,33 @@ const CommonDashboardPage = () => {
         </div>
 
         <div className="dashboard-grid">
+          <section className={`dashboard-widget ${collapsedWidgets.overview ? 'is-collapsed' : ''}`}>
+            <div className="dashboard-widget-header">
+              <div>
+                <h3>Today's Overview</h3>
+                <span>Quick stats</span>
+              </div>
+              <button type="button" className="collapse-btn" onClick={() => toggleWidget('overview')} title={collapsedWidgets.overview ? 'Expand Overview' : 'Collapse Overview'}>
+                {collapsedWidgets.overview ? 'Expand' : 'Collapse'}
+              </button>
+            </div>
+            {!collapsedWidgets.overview && (
+              <div className="dashboard-widget-body">
+                <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+                  <div style={{ fontSize: 14 }}>
+                    <strong>{emailCount}</strong> messages logged
+                  </div>
+                  <div style={{ fontSize: 14 }}>
+                    <strong>{fileCount}</strong> files uploaded
+                  </div>
+                </div>
+                <Link to="/ai-assistant" className="primary-btn" style={{ padding: '8px 12px', textDecoration: 'none' }}>
+                  Open AI Assistant
+                </Link>
+              </div>
+            )}
+          </section>
+
           <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>
             <div className="dashboard-widget-header">
               <div>
@@ -205,7 +229,7 @@ const CommonDashboardPage = () => {
                 {latestEmail && <p className="date">Latest: {latestEmail}</p>}
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                   <Button onClick={loadUnreadEmails} disabled={isLoadingUnread}>
-                    {isLoadingUnread ? 'Loading...' : 'Summarize Unread Emails'}
+                    {isLoadingUnread ? 'Loading...' : 'Show Unread Emails'}
                   </Button>
                   <Link to="/emails" className="primary-btn">
                     View Emails
@@ -238,17 +262,17 @@ const CommonDashboardPage = () => {
                     Check Documents
                   </Link>
                 </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelected}
+                  style={{ display: 'none' }}
+                />
               </div>
             )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              onChange={handleFileSelected}
-              style={{ display: 'none' }}
-            />
           </section>
-          </div>
+
           <section className={`dashboard-widget ${collapsedWidgets.calendar ? 'is-collapsed' : ''} calendar-widget`}>
             <div className="dashboard-widget-header">
               <div>
@@ -279,7 +303,7 @@ const CommonDashboardPage = () => {
           <Modal
             visible={isSummaryOpen}
             onClose={() => setIsSummaryOpen(false)}
-            title="Unread Emails Summary"
+            title="Unread Emails"
           >
             {unreadEmails.length === 0 ? (
               <p style={{ color: '#64748b', textAlign: 'center', padding: '20px 0' }}>No unread messages.</p>
@@ -294,6 +318,7 @@ const CommonDashboardPage = () => {
               </ul>
             )}
           </Modal>
+        </div>
       </main>
     </DashboardLayout>
   )

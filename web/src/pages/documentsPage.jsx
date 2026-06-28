@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { Button, PageHeader } from '../components'
 import { useAuth } from '../services/authContext'
 import { documentService } from '../services/documentService'
 import { alertService } from '../utils/alertService'
-import { supabaseClient } from '../supabase/supabaseClient'
+import { Link } from 'react-router-dom'
 
 const DocumentsPage = () => {
   const { user } = useAuth()
@@ -47,7 +46,7 @@ const DocumentsPage = () => {
 
   return (
     <DashboardLayout>
-      <main className="content">
+      <main className="content documents-page">
         <PageHeader
           title="Documents"
           actions={[
@@ -56,7 +55,7 @@ const DocumentsPage = () => {
             </Button>
           ]}
         />
-        <p>Uploaded files are listed here for tracking and review.</p>
+        <p>Uploaded files are listed here for tracking and review. Ask the AI Assistant to summarize or explain any document.</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {(files || []).map((file) => {
@@ -69,6 +68,7 @@ const DocumentsPage = () => {
             return (
               <div
                 key={file.document_id || file.id}
+                className="document-card"
                 style={{
                   border: '1px solid var(--border-color, #e2e8f0)',
                   borderRadius: 10,
@@ -115,7 +115,7 @@ const DocumentsPage = () => {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       {url ? (
                         <a
                           href={url}
@@ -138,6 +138,15 @@ const DocumentsPage = () => {
                           Download
                         </a>
                       ) : null}
+
+                      <Link
+                        to="/ai-assistant"
+                        state={{ prefilledPrompt: `Summarize the document "${fileName}"` }}
+                        className="primary-btn"
+                        style={{ padding: '8px 12px', textDecoration: 'none' }}
+                      >
+                        Ask AI
+                      </Link>
                     </div>
                   </div>
                 )}
@@ -146,7 +155,7 @@ const DocumentsPage = () => {
           })}
 
           {!files.length && (
-            <p style={{ color: '#64748b', fontSize: 14 }}>No documents uploaded yet.</p>
+            <p style={{ color: '#64748b', fontSize: 14 }}>No documents uploaded yet. Use the Upload button to add files.</p>
           )}
         </div>
 

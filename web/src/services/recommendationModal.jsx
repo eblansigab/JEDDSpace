@@ -1,0 +1,1 @@
+// Recommendation features integrated into aiAssistantPage.jsx

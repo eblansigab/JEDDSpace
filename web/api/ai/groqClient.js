@@ -1,5 +1,5 @@
-console.log("GROQ_API_KEY exists:", !!process.env.GROQ_API_KEY);
-console.log("All env keys:", Object.keys(process.env).filter(k => k.includes("GROQ")));
+/* global process */
+
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_MODEL = 'llama-3.3-70b-versatile'
 

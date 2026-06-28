@@ -2,7 +2,8 @@ const SYSTEM_PROMPT = `You are the JEDDSpace AI Assistant.
 
 Answer only using the supplied company data.
 If the requested information is unavailable, state that clearly.
-Do not invent employees, contracts, jobs, leave requests, or notifications.
+Do not invent employees, contracts, jobs, leave requests, notifications, or documents.
+Respect user authorization boundaries. If data is not present in the supplied context, say it is not available to you.
 Provide concise and professional responses.`
 
 const formatEmployee = (employee) => {
@@ -69,6 +70,20 @@ const formatNotification = (notification) => {
   ].filter(Boolean).join(' | ')
 }
 
+const formatDocument = (document) => {
+  const parts = [
+    `Title: ${document.title || document.file_name || 'Untitled document'}`,
+    `File: ${document.file_name || 'Unknown'}`,
+    `Type: ${document.file_type || 'Unknown'}`,
+  ]
+
+  if (document.ai_summary) {
+    parts.push(`Summary: ${document.ai_summary}`)
+  }
+
+  return parts.join(' | ')
+}
+
 const formatRecommendation = (recommendation) => {
   return [
     `Employee: ${recommendation.full_name || 'Unknown employee'}`,
@@ -79,87 +94,134 @@ const formatRecommendation = (recommendation) => {
   ].join(' | ')
 }
 
-const buildUserContext = ({ intent, message, data }) => {
-  if (intent === 'employee') {
-    return [
-      'Employees',
-      ...(data.employees || []).map(formatEmployee),
-      '',
-      `Question: ${message}`,
-    ].join('\n')
-  }
-
-  if (intent === 'job') {
-    return [
-      'Current Jobs',
-      ...(data.jobs || []).map(formatJob),
-      '',
-      `Question: ${message}`,
-    ].join('\n')
-  }
-
-  if (intent === 'leave') {
-    return [
-      'Approved Leave Requests',
-      ...(data.leaves || []).map(formatLeave),
-      '',
-      `Question: ${message}`,
-    ].join('\n')
-  }
-
-  if (intent === 'contract') {
-    return [
-      'Contracts',
-      ...(data.contracts || []).map(formatContract),
-      '',
-      `Question: ${message}`,
-    ].join('\n')
-  }
-
-  if (intent === 'recommendation') {
-    return [
-      'Recommended Workers',
-      ...(data.recommendations || []).map(formatRecommendation),
-      '',
-      `Question: ${message}`,
-    ].join('\n')
-  }
-
-  if (intent === 'notification') {
-    return [
-      'Notifications',
-      ...(data.notifications || []).map(formatNotification),
-      '',
-      `Question: ${message}`,
-    ].join('\n')
-  }
-
-  return [
-    'Business Context',
-    'Employees',
-    ...(data.employees || []).map(formatEmployee),
-    '',
-    'Current Jobs',
-    ...(data.jobs || []).map(formatJob),
-    '',
-    'Approved Leave Requests',
-    ...(data.leaves || []).map(formatLeave),
-    '',
-    'Contracts',
-    ...(data.contracts || []).map(formatContract),
-    '',
-    'Notifications',
-    ...(data.notifications || []).map(formatNotification),
-    '',
-    `Question: ${message}`,
-  ].join('\n')
+const formatOperations = (ops) => {
+  const lines = [
+    `Total Employees: ${ops.employees || 0}`,
+    `Active Jobs: ${ops.active_jobs || 0}`,
+    `Employees on Leave: ${ops.employees_on_leave || 0}`,
+    `Contracts Expiring Soon: ${ops.expiring_contracts || 0}`,
+    `Unread Notifications: ${ops.unread_notifications || 0}`,
+    `Scheduling Conflicts: ${ops.scheduling_conflicts || 0}`,
+  ]
+  return lines.join('\n')
 }
 
-export const buildMessages = ({ intent, message, data }) => {
+const formatChatLog = (log) => {
+  if (log.prompt || log.response) {
+    return [
+      log.created_at ? `Date: ${new Date(log.created_at).toLocaleString()}` : null,
+      log.intent ? `Intent: ${log.intent}` : null,
+      log.prompt ? `User asked: ${log.prompt}` : null,
+      log.response ? `Assistant answered: ${String(log.response).slice(0, 700)}` : null,
+    ].filter(Boolean).join(' | ')
+  }
+
+  const typeMap = {
+    weekly_leave_summary: 'Weekly Leave Summary',
+    contract_summary: 'Contract Summary',
+    notification_summary: 'Notification Summary',
+    job_daily_summary: 'Daily Job Summary',
+    employee_activity_summary: 'Employee Activity Summary',
+  }
+  const typeLabel = typeMap[log.reference_type] || log.reference_type
+  return `[${typeLabel}] ${log.created_at ? new Date(log.created_at).toLocaleDateString() : ''}`
+}
+
+const compactMessages = (messages = []) => {
+  return messages
+    .filter((message) => message?.role && message?.content && message.role !== 'system')
+    .slice(-8)
+    .map((message) => {
+      const label = message.role === 'assistant' ? 'Assistant' : 'User'
+      return `${label}: ${String(message.content).slice(0, 1200)}`
+    })
+    .join('\n')
+}
+
+const buildDataContext = ({ intent, data }) => {
+  const contextParts = []
+
+  if (intent === 'operations') {
+    contextParts.push('Today\'s Operations Summary')
+    contextParts.push(formatOperations(data.operations))
+  } else if (intent === 'chat_logs') {
+    contextParts.push('Previous AI Summaries')
+    contextParts.push(...(data.logs || []).map(formatChatLog))
+  } else if (intent === 'employee') {
+    contextParts.push('Employees')
+    contextParts.push(...(data.employees || []).map(formatEmployee))
+  } else if (intent === 'job') {
+    contextParts.push('Current Jobs')
+    contextParts.push(...(data.jobs || []).map(formatJob))
+  } else if (intent === 'leave') {
+    contextParts.push('Approved Leave Requests')
+    contextParts.push(...(data.leaves || []).map(formatLeave))
+  } else if (intent === 'contract') {
+    contextParts.push('Contracts')
+    contextParts.push(...(data.contracts || []).map(formatContract))
+  } else if (intent === 'recommendation') {
+    contextParts.push('Recommended Workers')
+    contextParts.push(...(data.recommendations || []).map(formatRecommendation))
+  } else if (intent === 'notification') {
+    contextParts.push('Notifications')
+    contextParts.push(...(data.notifications || []).map(formatNotification))
+  } else if (intent === 'document') {
+    contextParts.push('Documents')
+    contextParts.push(...(data.documents || []).map(formatDocument))
+  } else {
+    contextParts.push('Business Context')
+    contextParts.push('Employees')
+    contextParts.push(...(data.employees || []).map(formatEmployee))
+    contextParts.push('')
+    contextParts.push('Current Jobs')
+    contextParts.push(...(data.jobs || []).map(formatJob))
+    contextParts.push('')
+    contextParts.push('Approved Leave Requests')
+    contextParts.push(...(data.leaves || []).map(formatLeave))
+    contextParts.push('')
+    contextParts.push('Contracts')
+    contextParts.push(...(data.contracts || []).map(formatContract))
+    contextParts.push('')
+    contextParts.push('Notifications')
+    contextParts.push(...(data.notifications || []).map(formatNotification))
+  }
+
+  return contextParts.join('\n')
+}
+
+export const buildMessages = ({ intent, message, data, messages = [], attachmentContext = '' }) => {
+  const databaseContext = buildDataContext({ intent, data }) || 'No relevant database records were loaded.'
+  const conversationContext = compactMessages(messages)
+  const sections = [
+    'Conversation',
+    conversationContext || 'No prior conversation supplied.',
+    '',
+    'Database Context',
+    databaseContext,
+  ]
+
+  if (attachmentContext) {
+    sections.push('', 'Uploaded Files', attachmentContext)
+  }
+
+  sections.push('', 'Question', message)
+
   return [
     { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: buildUserContext({ intent, message, data }) },
+    { role: 'user', content: sections.join('\n') },
   ]
+}
+
+export const buildSystemContext = ({ intent, data, attachmentContext = '', messages = [] }) => {
+  const context = buildDataContext({ intent, data })
+  const conversationContext = compactMessages(messages)
+  const fullContext = [
+    conversationContext ? `Conversation Memory\n${conversationContext}` : null,
+    `Database Context\n${context || 'No relevant database records were loaded.'}`,
+    attachmentContext ? `Uploaded Files\n${attachmentContext}` : null,
+  ].filter(Boolean).join('\n\n')
+
+  return `${SYSTEM_PROMPT}\n\n${fullContext}`
 }
 
 export { SYSTEM_PROMPT }

@@ -10,15 +10,22 @@ const getLocalDocuments = () => {
   }
 }
 
-const saveLocalDocuments = (document) => {
-  localStorage.setItem(LOCAL_DOCUMENTS_KEY, JSON.stringify(document))
-}
-
 const getDocumentDate = (document) =>
   document.created_at || document.uploaded_at || document.date || ''
 
 const sortDocuments = (documents) =>
   documents.sort((a, b) => new Date(getDocumentDate(b)) - new Date(getDocumentDate(a)))
+
+const getAuthHeaders = async () => {
+  const {
+    data: { session }
+  } = await supabaseClient.auth.getSession()
+
+  return {
+    'Content-Type': 'application/json',
+    ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+  }
+}
 
 export const documentService = {
   async getAllDocuments() {
@@ -35,7 +42,7 @@ export const documentService = {
     return sortDocuments([...localDocuments, ...(data || [])])
   },
 
-  async getUploadHistory(userId) {
+async getUploadHistory(userId) {
     const localDocuments = getLocalDocuments().filter((item) => !userId || item.uploaded_by === userId)
 
     const { data, error } = await supabaseClient
@@ -53,42 +60,53 @@ export const documentService = {
     return sortDocuments([...localDocuments, ...remoteDocuments])
   },
 
-async recordUpload(file, userId) {
+  async getDocumentSummary(documentId) {
+    const response = await fetch('/api/summarizeDocument', {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ documentId })
+    })
 
-  const fileName = `${Date.now()}-${file.name}`
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error?.error || 'Unable to get document summary')
+    }
 
-  // Upload file
-  const { error: uploadError } =
-    await supabaseClient.storage
-      .from('document')
-      .upload(fileName, file)
+    const { summary, cached } = await response.json()
+    return { summary, cached }
+  },
 
-  if (uploadError) throw uploadError
+  async recordUpload(file, userId) {
+    const fileName = `${Date.now()}-${file.name}`
 
-  // Get URL
-  const { data: publicUrlData } =
-    supabaseClient.storage
-      .from('document')
-      .getPublicUrl(fileName)
+    const { error: uploadError } =
+      await supabaseClient.storage
+        .from('document')
+        .upload(fileName, file)
 
-  // Save metadata
-  const { data, error } =
-    await supabaseClient
-      .from('document')
-      .insert({
-        uploaded_by: userId,
+    if (uploadError) throw uploadError
 
-        title: file.name,
-        file_name: file.name,
-        file_path: publicUrlData.publicUrl,
-        file_type: file.type,
-        file_size: file.size
-      })
-      .select()
-      .single()
+    const { data: publicUrlData } =
+      supabaseClient.storage
+        .from('document')
+        .getPublicUrl(fileName)
 
-  if (error) throw error
+    const { data, error } =
+      await supabaseClient
+        .from('document')
+        .insert({
+          uploaded_by: userId,
+          title: file.name,
+          file_name: file.name,
+          file_path: publicUrlData.publicUrl,
+          file_type: file.type,
+          file_size: file.size
+        })
+        .select()
+        .single()
 
-  return data
-}
+    if (error) throw error
+
+    return data
+  }
 }

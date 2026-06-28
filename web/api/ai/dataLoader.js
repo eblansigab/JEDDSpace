@@ -51,6 +51,15 @@ const CONTRACT_SELECT = `
   )
 `
 const NOTIFICATION_SELECT = 'notifications_id, title, message, type, priority, is_read, created_at, notify_to, created_by'
+const DOCUMENT_SELECT = `
+  document_id,
+  title,
+  file_name,
+  file_type,
+  file_size,
+  file_path,
+  created_at
+`
 
 const hasDateOverlap = (start1, end1, start2, end2) => {
   return new Date(start1) <= new Date(end2) && new Date(end1) >= new Date(start2)
@@ -60,13 +69,30 @@ const orderByCreatedAtDesc = { ascending: false }
 
 const getClient = () => getSupabaseServerClient()
 
+const isAdmin = (viewer) => Boolean(viewer?.isAdmin)
+const viewerEmployeeId = (viewer) => viewer?.employee?.employee_id ?? null
+const viewerUserId = (viewer) => viewer?.employee?.user_id || viewer?.user?.id || null
+
 const queryOrThrow = async (query) => {
   const { data, error } = await query
   if (error) throw error
   return data || []
 }
 
+const scopeEmployeeQuery = (query, viewer) => {
+  if (isAdmin(viewer)) return query
+  const employeeId = viewerEmployeeId(viewer)
+  return employeeId ? query.eq('employee_id', employeeId) : query.limit(0)
+}
+
+const scopeUserQuery = (query, viewer, column) => {
+  if (isAdmin(viewer)) return query
+  const userId = viewerUserId(viewer)
+  return userId ? query.eq(column, userId) : query.limit(0)
+}
+
 const loadEmployees = async (options = {}) => {
+  const { viewer } = options
   const { activeOnly = true, fieldWorkersOnly = false, limit = 25 } = options
   let query = getClient().from('employee').select(EMPLOYEE_SELECT).order('first_name').limit(limit)
 
@@ -78,15 +104,17 @@ const loadEmployees = async (options = {}) => {
     query = query.eq('employee_type', 'field_worker')
   }
 
+  query = scopeEmployeeQuery(query, viewer)
+
   return await queryOrThrow(query)
 }
 
-const loadJobs = async (limit = 25) => {
+const loadJobs = async (limit = 25, viewer = null) => {
   const query = getClient().from('job').select(JOB_SELECT).order('created_at', orderByCreatedAtDesc).limit(limit)
-  return await queryOrThrow(query)
+  return await queryOrThrow(scopeEmployeeQuery(query, viewer))
 }
 
-const loadApprovedLeaves = async (limit = 25) => {
+const loadApprovedLeaves = async (limit = 25, viewer = null) => {
   const query = getClient()
     .from('leaveform')
     .select(LEAVE_SELECT)
@@ -94,29 +122,55 @@ const loadApprovedLeaves = async (limit = 25) => {
     .order('start_date', orderByCreatedAtDesc)
     .limit(limit)
 
-  return await queryOrThrow(query)
+  return await queryOrThrow(scopeEmployeeQuery(query, viewer))
 }
 
-const loadContracts = async (limit = 25) => {
+const loadContracts = async (limit = 25, viewer = null) => {
   const query = getClient().from('contracts').select(CONTRACT_SELECT).order('created_at', orderByCreatedAtDesc).limit(limit)
-  return await queryOrThrow(query)
+  if (isAdmin(viewer)) return await queryOrThrow(query)
+  const employeeId = viewerEmployeeId(viewer)
+  return await queryOrThrow(employeeId ? query.eq('contractor', employeeId) : query.limit(0))
 }
 
-const loadNotifications = async (limit = 25, unreadOnly = false) => {
+const loadNotifications = async (limit = 25, unreadOnly = false, viewer = null) => {
   let query = getClient().from('notification').select(NOTIFICATION_SELECT).order('created_at', orderByCreatedAtDesc).limit(limit)
 
   if (unreadOnly) {
     query = query.eq('is_read', false)
   }
 
+  if (!isAdmin(viewer)) {
+    const employeeId = viewerEmployeeId(viewer)
+    query = employeeId ? query.eq('notify_to', employeeId) : query.limit(0)
+  }
+
   return await queryOrThrow(query)
 }
 
-const loadRecommendations = async () => {
+const loadDocuments = async (limit = 25, viewer = null) => {
+  const query = getClient().from('document').select(DOCUMENT_SELECT).order('created_at', orderByCreatedAtDesc).limit(limit)
+  return await queryOrThrow(scopeUserQuery(query, viewer, 'uploaded_by'))
+}
+
+const loadDocumentSummary = async (documentId) => {
+  const client = getClient()
+  const { data, error } = await client
+    .from('ai_summarization')
+    .select('content_summary')
+    .eq('reference_type', `document_${documentId}`)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (error) return null
+  return data?.content_summary || null
+}
+
+const loadRecommendations = async (viewer = null) => {
   const [employees, leaves, jobs] = await Promise.all([
-    loadEmployees({ activeOnly: true, fieldWorkersOnly: true, limit: 50 }),
-    loadApprovedLeaves(100),
-    loadJobs(100),
+    loadEmployees({ activeOnly: true, fieldWorkersOnly: true, limit: 50, viewer }),
+    loadApprovedLeaves(100, viewer),
+    loadJobs(100, viewer),
   ])
 
   const startDate = new Date()
@@ -188,42 +242,129 @@ const loadRecommendations = async () => {
   return recommendations
 }
 
-export const loadDataForIntent = async (intent, message) => {
+const loadOperations = async (viewer = null) => {
+  const [employees, jobs, leaves, contracts, notifications] = await Promise.all([
+    loadEmployees({ activeOnly: false, fieldWorkersOnly: false, limit: 100, viewer }),
+    loadJobs(100, viewer),
+    loadApprovedLeaves(100, viewer),
+    loadContracts(100, viewer),
+    loadNotifications(50, false, viewer),
+  ])
+
+  const activeJobs = (jobs || []).filter((j) => String(j.status || '').toLowerCase() === 'open' || String(j.status || '').toLowerCase() === 'ongoing')
+  const onLeave = leaves || []
+  const expiringContracts = (contracts || []).filter((c) => {
+    const end = c.end_date ? new Date(c.end_date) : null
+    if (!end) return false
+    const thirtyDays = new Date()
+    thirtyDays.setDate(thirtyDays.getDate() + 30)
+    return end <= thirtyDays
+  })
+  const unreadNotifications = (notifications || []).filter((n) => !n.is_read)
+
+  const conflictChecks = employees.map((emp) => {
+    const empJobs = jobs.filter((j) => j.employee_id === emp.employee_id)
+    const empLeaves = leaves.filter((l) => l.employee_id === emp.employee_id)
+    let conflicts = 0
+    empJobs.forEach((j) => {
+      empLeaves.forEach((l) => {
+        if (hasDateOverlap(j.start_date, j.end_date, l.start_date, l.end_date)) {
+          conflicts++
+        }
+      })
+    })
+    return { employee_id: emp.employee_id, conflicts }
+  }).filter((c) => c.conflicts > 0)
+
+  return {
+    employees: employees.length,
+    active_jobs: activeJobs.length,
+    employees_on_leave: onLeave.length,
+    expiring_contracts: expiringContracts.length,
+    unread_notifications: unreadNotifications.length,
+    scheduling_conflicts: conflictChecks.length
+  }
+}
+
+export const loadDataForIntent = async (intent, message, viewer = null) => {
   const text = String(message || '').toLowerCase()
+
+  if (intent === 'operations') {
+    return { operations: await loadOperations(viewer) }
+  }
+
+  if (intent === 'chat_logs') {
+    if (!isAdmin(viewer)) {
+      const userId = viewerUserId(viewer)
+      if (!userId) return { logs: [] }
+
+      const { data: logs, error } = await getClient()
+        .from('ai_chat_logs')
+        .select('prompt, response, intent, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (error) return { logs: [] }
+      return { logs: logs || [] }
+    }
+
+    const { data: logs, error } = await getClient()
+      .from('ai_summarization')
+      .select('content_summary, created_at, reference_type')
+      .in('reference_type', ['weekly_leave_summary', 'contract_summary', 'notification_summary', 'job_daily_summary', 'employee_activity_summary'])
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    if (error) return { logs: [] }
+    return { logs: logs || [] }
+  }
 
   if (intent === 'employee') {
     const availabilityOnly = text.includes('available') || text.includes('who can') || text.includes('who is available')
-    const employees = await loadEmployees({ activeOnly: true, fieldWorkersOnly: availabilityOnly, limit: availabilityOnly ? 50 : 25 })
+    const employees = await loadEmployees({ activeOnly: true, fieldWorkersOnly: availabilityOnly, limit: availabilityOnly ? 50 : 25, viewer })
     return { employees }
   }
 
   if (intent === 'job') {
-    return { jobs: await loadJobs() }
+    return { jobs: await loadJobs(25, viewer) }
   }
 
   if (intent === 'leave') {
-    return { leaves: await loadApprovedLeaves() }
+    return { leaves: await loadApprovedLeaves(25, viewer) }
   }
 
   if (intent === 'contract') {
-    return { contracts: await loadContracts() }
+    return { contracts: await loadContracts(25, viewer) }
   }
 
   if (intent === 'recommendation') {
-    return { recommendations: await loadRecommendations() }
+    return { recommendations: await loadRecommendations(viewer) }
   }
 
   if (intent === 'notification') {
     const unreadOnly = text.includes('unread')
-    return { notifications: await loadNotifications(25, unreadOnly) }
+    return { notifications: await loadNotifications(25, unreadOnly, viewer) }
   }
 
-  const [employees, jobs, leaves, contracts, notifications] = await Promise.all([
-    loadEmployees({ activeOnly: true, fieldWorkersOnly: false, limit: 10 }),
-    loadJobs(10),
-    loadApprovedLeaves(10),
-    loadContracts(10),
-    loadNotifications(10, false),
+  if (intent === 'document') {
+    const documents = await loadDocuments(25, viewer)
+    const documentsWithSummaries = await Promise.all(
+      (documents || []).map(async (doc) => {
+        const summary = await loadDocumentSummary(doc.document_id)
+        return { ...doc, ai_summary: summary }
+      })
+    )
+    return { documents: documentsWithSummaries }
+  }
+
+  const [employees, jobs, leaves, contracts, notifications, documents] = await Promise.all([
+    loadEmployees({ activeOnly: true, fieldWorkersOnly: false, limit: 10, viewer }),
+    loadJobs(10, viewer),
+    loadApprovedLeaves(10, viewer),
+    loadContracts(10, viewer),
+    loadNotifications(10, false, viewer),
+    loadDocuments(10, viewer),
   ])
 
   return {
@@ -232,5 +373,6 @@ export const loadDataForIntent = async (intent, message) => {
     leaves,
     contracts,
     notifications,
+    documents,
   }
 }
