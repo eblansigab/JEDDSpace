@@ -112,6 +112,68 @@ const findByMessage = (documents, message) => {
   return null
 }
 
+const getSearchTerms = (message) => {
+  const stopWords = new Set([
+    'the',
+    'that',
+    'this',
+    'document',
+    'file',
+    'find',
+    'show',
+    'summarize',
+    'explain',
+    'about',
+    'discussing',
+    'discusses',
+    'related',
+    'uploaded',
+    'latest',
+  ])
+
+  return normalize(message)
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 4 && !stopWords.has(word))
+    .slice(0, 5)
+}
+
+const searchDocumentCache = async ({ client, documents, message }) => {
+  const terms = getSearchTerms(message)
+  if (!terms.length) return null
+
+  let query = client
+    .from('ai_summarization')
+    .select('reference_type, content_summary')
+    .like('reference_type', 'document_text_v2_%')
+    .limit(10)
+
+  terms.slice(0, 2).forEach((term) => {
+    query = query.ilike('content_summary', `%${term}%`)
+  })
+
+  const { data, error } = await query
+  if (error || !data?.length) return null
+
+  const allowedIds = new Set((documents || []).map((document) => Number(document.document_id)))
+  const match = data.find((row) => {
+    const documentId = Number(String(row.reference_type || '').replace('document_text_v2_', ''))
+    return allowedIds.has(documentId)
+  })
+
+  if (!match) return null
+
+  const documentId = Number(String(match.reference_type || '').replace('document_text_v2_', ''))
+  const document = documents.find((item) => Number(item.document_id) === documentId)
+
+  return document
+    ? {
+        document,
+        reason: 'cached_content_search',
+        confidence: 0.82,
+      }
+    : null
+}
+
 export const loadResolvableDocuments = async ({ client, viewer, limit = 50 }) => {
   const query = client
     .from('document')
@@ -130,6 +192,7 @@ export const resolveDocumentReference = async ({ client, viewer, message, messag
     return {
       document: attachmentDocument,
       reason: 'attached_file',
+      confidence: 1,
     }
   }
 
@@ -147,6 +210,7 @@ export const resolveDocumentReference = async ({ client, viewer, message, messag
     return {
       document: documents[0],
       reason: 'latest_document',
+      confidence: 0.92,
     }
   }
 
@@ -155,8 +219,12 @@ export const resolveDocumentReference = async ({ client, viewer, message, messag
     return {
       document: directMatch,
       reason: 'message_match',
+      confidence: 0.96,
     }
   }
+
+  const contentMatch = await searchDocumentCache({ client, documents, message })
+  if (contentMatch) return contentMatch
 
   if (['it', 'that', 'this', 'tell me more', 'summarize it', 'explain it'].some((phrase) => text.includes(phrase))) {
     const conversationMatch = findMentionedDocument(documents, messages)
@@ -164,6 +232,7 @@ export const resolveDocumentReference = async ({ client, viewer, message, messag
       return {
         document: conversationMatch,
         reason: 'conversation_reference',
+        confidence: 0.78,
       }
     }
   }

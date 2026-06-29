@@ -15,6 +15,28 @@ const welcomeMessage = {
     'I can answer questions about employees, jobs, leave requests, contracts, notifications, documents, and recommendations. You can also upload PDF, TXT, CSV, DOCX, XLSX, PNG, JPG, WEBP, MP3, WAV, or M4A files for analysis.',
 }
 
+const SESSION_STORAGE_KEY = 'jeddspace_ai_session_id'
+const SESSION_LIST_STORAGE_KEY = 'jeddspace_ai_sessions'
+
+const createSessionId = () => `session_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+
+const getStoredSessionId = () => {
+  const existing = localStorage.getItem(SESSION_STORAGE_KEY)
+  if (existing) return existing
+  const created = createSessionId()
+  localStorage.setItem(SESSION_STORAGE_KEY, created)
+  return created
+}
+
+const getStoredSessions = () => {
+  try {
+    const sessions = JSON.parse(localStorage.getItem(SESSION_LIST_STORAGE_KEY) || '[]')
+    return Array.isArray(sessions) && sessions.length ? sessions : [getStoredSessionId()]
+  } catch {
+    return [getStoredSessionId()]
+  }
+}
+
 export default function AiAssistantPage() {
   const { user, profile } = useAuth()
   const location = useLocation()
@@ -23,12 +45,14 @@ export default function AiAssistantPage() {
   const [loading, setLoading] = useState(false)
   const [loadingStatus, setLoadingStatus] = useState('')
   const [attachments, setAttachments] = useState([])
+  const [sessionId, setSessionId] = useState(() => getStoredSessionId())
+  const [sessions, setSessions] = useState(() => getStoredSessions())
 
   useEffect(() => {
     const loadHistory = async () => {
       if (user?.id) {
         try {
-          const history = await aiService.loadChatHistory(user.id)
+          const history = await aiService.loadChatHistory(user.id, sessionId)
           if (history && history.length > 0) {
             setMessages(history)
           }
@@ -38,7 +62,7 @@ export default function AiAssistantPage() {
       }
     }
     loadHistory()
-  }, [user?.id])
+  }, [user?.id, sessionId])
 
   useEffect(() => {
     if (location.state?.prefilledPrompt) {
@@ -117,7 +141,7 @@ export default function AiAssistantPage() {
     setMessages((current) => {
       const updated = [...current, { role, content }]
       if (user?.id) {
-        aiService.saveChatHistory(user.id, updated).catch(() => {})
+        aiService.saveChatHistory(user.id, updated, sessionId).catch(() => {})
       }
       return updated
     })
@@ -146,12 +170,30 @@ export default function AiAssistantPage() {
           : 'Generating response...')
       }, 900)
 
-      const reply = await aiService.chatWithContext(allMessages, user?.id, attachContext ? attachments : [])
-      setLoadingStatus('Generating response...')
-      setMessages((current) => [...current, { role: 'assistant', content: reply || 'I could not generate a response.' }])
+      const assistantMessage = { role: 'assistant', content: '' }
+      setMessages((current) => [...current, assistantMessage])
+
+      const result = await aiService.chatWithContextStream(allMessages, user?.id, attachContext ? attachments : [], {
+        sessionId,
+        onProgress: (message) => setLoadingStatus(message),
+        onToken: (_token, fullText) => {
+          setMessages((current) => {
+            const updated = [...current]
+            updated[updated.length - 1] = { role: 'assistant', content: fullText }
+            return updated
+          })
+        }
+      })
+
+      const reply = result.response || 'I could not generate a response.'
+      setMessages((current) => {
+        const updated = [...current]
+        updated[updated.length - 1] = { role: 'assistant', content: reply }
+        return updated
+      })
       if (user?.id) {
         const updated = [...allMessages, { role: 'assistant', content: reply || '' }]
-        aiService.saveChatHistory(user.id, updated).catch(() => {})
+        aiService.saveChatHistory(user.id, updated, sessionId).catch(() => {})
       }
     } catch (error) {
       console.error('[AiAssistantPage] AI request failed:', error)
@@ -216,8 +258,28 @@ export default function AiAssistantPage() {
     setPrompt('')
     setAttachments([])
     if (user?.id) {
-      aiService.saveChatHistory(user.id, cleared).catch(() => {})
+      aiService.saveChatHistory(user.id, cleared, sessionId).catch(() => {})
     }
+  }
+
+  const handleNewChat = () => {
+    const nextSessionId = createSessionId()
+    localStorage.setItem(SESSION_STORAGE_KEY, nextSessionId)
+    const nextSessions = [nextSessionId, ...sessions.filter((item) => item !== nextSessionId)].slice(0, 8)
+    localStorage.setItem(SESSION_LIST_STORAGE_KEY, JSON.stringify(nextSessions))
+    setSessions(nextSessions)
+    setSessionId(nextSessionId)
+    setMessages([welcomeMessage])
+    setPrompt('')
+    setAttachments([])
+  }
+
+  const handleSwitchSession = (nextSessionId) => {
+    localStorage.setItem(SESSION_STORAGE_KEY, nextSessionId)
+    setSessionId(nextSessionId)
+    setMessages([welcomeMessage])
+    setPrompt('')
+    setAttachments([])
   }
 
   const handleAddAttachment = async (file) => {
@@ -240,8 +302,25 @@ export default function AiAssistantPage() {
           title="AI Assistant"
           subtitle={`JEDDSpace AI is ready${profile?.first_name ? `, ${profile.first_name}` : ''}. Ask about jobs, employees, leave, contracts, notifications, documents, or upload files for analysis.`}
           actions={[
+            <select
+              key="ai-session-select"
+              value={sessionId}
+              onChange={(event) => handleSwitchSession(event.target.value)}
+              disabled={loading}
+              title="Switch chat session"
+              style={{ minHeight: 38, borderRadius: 6, border: '1px solid #cbd5e1', padding: '0 10px' }}
+            >
+              {sessions.map((item, index) => (
+                <option key={item} value={item}>
+                  {index === 0 ? 'Current Chat' : `Chat ${index + 1}`}
+                </option>
+              ))}
+            </select>,
             <Button key="clear-ai-chat" variant="outline" onClick={handleClearChat} disabled={loading} title="Clear chat">
               Clear Chat
+            </Button>,
+            <Button key="new-ai-chat" variant="outline" onClick={handleNewChat} disabled={loading} title="Start new AI chat">
+              New Chat
             </Button>,
           ]}
         />

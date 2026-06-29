@@ -1,10 +1,12 @@
 import { Buffer } from 'node:buffer'
 import { inflateRawSync } from 'node:zlib'
+import { groqClient } from './groqClient.js'
 import { getSummaryByType, saveSummary } from './supabaseClient.js'
 import { loadStoredFile } from './storageLoader.js'
 
 const MAX_EXTRACTED_CHARS = 12000
 const EXTRACTION_TIMEOUT_MS = 10000
+const CACHE_VERSION = 'document_text_v2'
 
 export class ContentExtractionError extends Error {
   constructor(message, cause = null) {
@@ -209,8 +211,22 @@ const extractXlsxText = (arrayBuffer) => {
   return text.slice(0, MAX_EXTRACTED_CHARS)
 }
 
-const imageMessage = (document) => {
-  return `Image file retrieved (${document.file_name || document.title || 'uploaded image'}). Visual image understanding is not available in the current Groq text request, so I can only use the filename, type, and metadata.`
+const imageMessage = async ({ document, arrayBuffer, mime }) => {
+  const imageMime = mime || document.file_type || 'image/png'
+  const dataUrl = `data:${imageMime};base64,${Buffer.from(arrayBuffer).toString('base64')}`
+
+  try {
+    const analysis = await groqClient.analyzeImage({
+      dataUrl,
+      prompt: 'Describe the image or screenshot. Extract visible text, important UI elements, diagrams, and business-relevant details. If it is a screenshot, summarize what the screen shows.',
+    })
+
+    return analysis.configured
+      ? analysis.content || 'Image was processed, but no visual details were returned.'
+      : `Image file retrieved (${document.file_name || document.title || 'uploaded image'}). ${analysis.content}`
+  } catch (error) {
+    return `Image file retrieved (${document.file_name || document.title || 'uploaded image'}), but visual analysis failed: ${error?.message || 'Unknown image analysis error.'}`
+  }
 }
 
 const audioMessage = (document) => {
@@ -230,7 +246,7 @@ const withExtractionTimeout = async (promise) => {
   }
 }
 
-const extractByType = ({ document, arrayBuffer, contentType }) => {
+const extractByType = async ({ document, arrayBuffer, contentType }) => {
   const mime = normalizeMime(document, contentType)
   const extension = getExtension(document)
 
@@ -251,7 +267,7 @@ const extractByType = ({ document, arrayBuffer, contentType }) => {
   }
 
   if (mime.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp'].includes(extension)) {
-    return imageMessage(document)
+    return await imageMessage({ document, arrayBuffer, mime: mime || contentType })
   }
 
   if (mime.startsWith('audio/') || ['mp3', 'wav', 'm4a'].includes(extension)) {
@@ -266,14 +282,22 @@ export const extractDocumentContent = async ({ client, document, useCache = true
     throw new ContentExtractionError('No document was selected for analysis.')
   }
 
-  const cacheKey = `document_text_${document.document_id}`
+  const sourceFingerprint = [
+    document.document_id,
+    document.file_path,
+    document.file_size,
+    document.updated_at,
+    document.created_at,
+  ].filter(Boolean).join('|')
+  const cacheKey = `${CACHE_VERSION}_${document.document_id}`
   if (useCache) {
     const cached = await getSummaryByType(cacheKey)
-    if (cached?.content_summary) {
+    if (cached?.content_summary && (!cached.raw_data_snapshot || cached.raw_data_snapshot.includes(sourceFingerprint))) {
       return {
         content: cached.content_summary,
         cached: true,
         source: 'cache',
+        extractedAt: cached.raw_data_snapshot?.match(/Extracted at: ([^\n]+)/)?.[1] || null,
       }
     }
   }
@@ -287,13 +311,18 @@ export const extractDocumentContent = async ({ client, document, useCache = true
     await saveSummary({
       referenceType: cacheKey,
       contentSummary: content,
-      rawDataSnapshot: `Document: ${document.title || document.file_name || document.document_id}`,
+      rawDataSnapshot: [
+        `Document: ${document.title || document.file_name || document.document_id}`,
+        `Source fingerprint: ${sourceFingerprint}`,
+        `Extracted at: ${new Date().toISOString()}`,
+      ].join('\n'),
     })
 
     return {
       content,
       cached: false,
       source: 'storage',
+      extractedAt: new Date().toISOString(),
     }
   } catch (error) {
     if (error?.name === 'StorageLoaderError') {

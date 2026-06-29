@@ -109,6 +109,35 @@ export default function AiAnalyticsPage() {
             )}
           </div>
         </section>
+
+        <section className="dashboard-widget">
+          <div className="dashboard-widget-header">
+            <h3>AI Performance</h3>
+          </div>
+          <div className="dashboard-widget-body">
+            {loading ? (
+              <p>Loading...</p>
+            ) : analytics?.performance ? (
+              <ul className="admin-list">
+                <li>Measured Requests: {analytics.performance.totalMeasuredRequests}</li>
+                <li>Average Response Time: {analytics.performance.averageResponseTimeMs} ms</li>
+                <li>Average Groq Latency: {analytics.performance.averageGroqLatencyMs} ms</li>
+                <li>Average Confidence: {analytics.performance.averageConfidence}</li>
+                <li>Documents Processed: {analytics.performance.documentsProcessed}</li>
+                <li>Extraction Successes: {analytics.performance.extractionSuccesses}</li>
+                <li>Cache Hit Rate: {analytics.performance.cacheHitRate}%</li>
+                <li>Cache Hits: {analytics.performance.cacheHits}</li>
+                <li>Cache Misses: {analytics.performance.cacheMisses}</li>
+                <li>Entity Resolution Successes: {analytics.performance.entityResolutionSuccesses}</li>
+                <li>Entity Resolution Success Rate: {analytics.performance.entityResolutionSuccessRate}%</li>
+                <li>Clarification Requests: {analytics.performance.clarificationRequests}</li>
+                <li>Timeouts: {analytics.performance.timeoutCount}</li>
+              </ul>
+            ) : (
+              <p>No performance metrics available.</p>
+            )}
+          </div>
+        </section>
       </main>
     </DashboardLayout>
   )

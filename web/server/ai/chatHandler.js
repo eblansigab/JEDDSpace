@@ -1,114 +1,142 @@
 import { detectIntent } from './intentDetector.js'
-import { loadDataForIntent } from './dataLoader.js'
+import { buildAIContext } from './contextBuilder.js'
 import { buildMessages } from './promptBuilder.js'
 import { groqClient } from './groqClient.js'
 import { getSupabaseServerClient } from './supabaseClient.js'
-import { processAttachments } from './attachmentProcessor.js'
-import { resolveDocumentReference } from './documentResolver.js'
-import { extractDocumentContent } from './contentExtractor.js'
+import { createRequestContext, timedStage } from './pipeline.js'
 
-const logAI = (stage, details = {}) => {
-  console.log('[AI]', stage, details)
+const buildClarificationResponse = (lowConfidenceEntities = []) => {
+  const entityTypes = lowConfidenceEntities
+    .map((entity) => entity.type)
+    .filter(Boolean)
+    .join(', ')
+
+  return `I found a possible ${entityTypes || 'entity'} match, but I am not confident enough to use it safely. Please specify the exact document, employee, contract, job, or leave record you want me to analyze.`
 }
 
-const buildAttachmentContext = async (attachments = []) => {
-  let attachmentContext = ''
-
-  if (!attachments.length) return attachmentContext
-
-  try {
-    logAI('Processing attachments', { count: attachments.length })
-    const processed = await processAttachments(attachments)
-    for (const att of processed) {
-      if (att.attachmentType === 'document' && att.extractedContent) {
-        attachmentContext += `\n\nUploaded Document (${att.title || att.file_name}):\n${att.extractedContent.slice(0, 5000)}`
-      } else if (att.attachmentType === 'image') {
-        attachmentContext += `\n\nUploaded Image (${att.title || att.file_name}):\n${att.extractedContent || 'Image understanding is unavailable in the current text request.'}`
-      } else if (att.attachmentType === 'audio') {
-        attachmentContext += `\n\nUploaded Audio (${att.title || att.file_name}):\n${att.extractedContent || 'Audio transcription is not implemented yet.'}`
-      }
-    }
-  } catch (error) {
-    console.error('[AI] Attachment processing error:', error)
-    attachmentContext += '\n\nUploaded Files:\nUnable to analyze one or more uploaded files.'
+const saveMetrics = async ({ requestContext, viewer, intent, message, response, context, groqResult = null }) => {
+  const metrics = {
+    ...requestContext.metrics(),
+    groqModel: groqResult?.model || null,
+    groqLatencyMs: groqResult?.latencyMs || null,
+    conversationLength: context?.conversationLength || 0,
+    sessionId: context?.sessionId || 'default',
+    entityResolutionSucceeded: Boolean(context?.entityContext),
+    referencedEntities: context?.entities || {},
+    warnings: context?.warnings || [],
   }
 
-  return attachmentContext
+  try {
+    await getSupabaseServerClient()
+      .from('ai_summarization')
+      .insert({
+        reference_type: `ai_metric_${requestContext.requestId}`,
+        content_summary: JSON.stringify({
+          user_id: viewer.employee?.user_id || viewer.user.id,
+          intent,
+          prompt: message,
+          response,
+        }),
+        raw_data_snapshot: JSON.stringify(metrics),
+      })
+  } catch (error) {
+    requestContext.fail('metrics:error', error)
+  }
+
+  return metrics
 }
 
-const buildReferencedDocumentContext = async ({ viewer, message, messages, attachments }) => {
-  try {
-    const client = getSupabaseServerClient()
-    logAI('Resolving document', { message })
-    const resolved = await resolveDocumentReference({
-      client,
+const prepareChat = async ({ viewer, payload = {} }) => {
+  const { message, messages = [], attachments = [], sessionId = 'default' } = payload
+  const requestContext = createRequestContext()
+
+  if (!message) {
+    return { error: { status: 400, message: 'Message is required' }, requestContext }
+  }
+
+  const intent = detectIntent(message)
+  requestContext.log('intent:detected', { intent, sessionId })
+
+  const context = await buildAIContext({ viewer, intent, message, messages, attachments, requestContext })
+
+  if (context.lowConfidenceEntities?.length) {
+    const response = buildClarificationResponse(context.lowConfidenceEntities)
+    requestContext.log('entity:clarification_required', {
+      lowConfidenceEntities: context.lowConfidenceEntities.map((entity) => ({
+        type: entity.type,
+        reason: entity.reason,
+        confidence: entity.confidence,
+      })),
+    })
+
+    const metrics = await saveMetrics({
+      requestContext,
       viewer,
+      intent,
       message,
-      messages,
-      attachments,
+      response,
+      context: { ...context, conversationLength: messages.length },
     })
 
-    if (!resolved?.document) return ''
+    return {
+      clarification: {
+        response,
+        intent,
+        referencedEntities: context.entities,
+        warnings: context.warnings,
+        metrics,
+      },
+      requestContext,
+    }
+  }
 
-    logAI('Downloading file', {
-      reason: resolved.reason,
-      documentId: resolved.document.document_id,
-      fileName: resolved.document.file_name,
-    })
+  requestContext.log('prompt:build:start', {
+    hasFileContext: Boolean(context.attachmentContext),
+    hasEntityContext: Boolean(context.entityContext),
+    warnings: context.warnings,
+  })
+  const groqMessages = buildMessages({
+    intent,
+    message,
+    data: context.data,
+    messages,
+    attachmentContext: context.attachmentContext,
+    entityContext: context.entityContext,
+    warningContext: context.warnings?.join('\n') || '',
+  })
+  requestContext.log('prompt:build:complete')
 
-    const extracted = await extractDocumentContent({
-      client,
-      document: resolved.document,
-      useCache: true,
-    })
-
-    logAI('Extracting text', {
-      documentId: resolved.document.document_id,
-      cached: extracted.cached,
-    })
-
-    return [
-      `Referenced Document (${resolved.document.title || resolved.document.file_name || resolved.document.document_id})`,
-      `File: ${resolved.document.file_name || 'Unknown'}`,
-      `Type: ${resolved.document.file_type || 'Unknown'}`,
-      `Resolved By: ${resolved.reason}`,
-      '',
-      extracted.content,
-    ].join('\n')
-  } catch (error) {
-    console.error('[AI] Document analysis failed', error)
-    return `\n\nReferenced Document:\n${error?.message || 'Unable to analyze the selected document.'}`
+  return {
+    requestContext,
+    intent,
+    message,
+    messages,
+    sessionId,
+    context,
+    groqMessages,
   }
 }
 
 export const handleChat = async ({ viewer, payload = {} }) => {
-  const { message, messages = [], attachments = [] } = payload
+  const prepared = await prepareChat({ viewer, payload })
 
-  if (!message) {
-    return { status: 400, error: 'Message is required' }
+  if (prepared.error) {
+    return { status: prepared.error.status, error: prepared.error.message }
   }
 
-  const intent = detectIntent(message)
-  logAI('Intent detected', { intent })
-
-  const data = await loadDataForIntent(intent, message, viewer)
-  let attachmentContext = await buildAttachmentContext(attachments)
-
-  if (!attachmentContext) {
-    attachmentContext = await buildReferencedDocumentContext({
-      viewer,
-      message,
-      messages,
-      attachments,
-    })
+  if (prepared.clarification) {
+    return { data: prepared.clarification }
   }
 
-  logAI('Building prompt', { hasFileContext: Boolean(attachmentContext) })
-  const groqMessages = buildMessages({ intent, message, data, messages, attachmentContext })
+  const { requestContext, intent, message, messages = [], sessionId, context, groqMessages } = prepared
 
-  logAI('Calling Groq')
-  const response = await groqClient.chat(groqMessages)
-  logAI('Returning response')
+  const groqResult = await timedStage(
+    requestContext,
+    'groq',
+    () => groqClient.chatWithMetadata(groqMessages),
+    { model: 'llama-3.3-70b-versatile' }
+  )
+  const response = groqResult.content
 
   try {
     await getSupabaseServerClient()
@@ -120,13 +148,98 @@ export const handleChat = async ({ viewer, payload = {} }) => {
         intent,
       })
   } catch (error) {
-    console.error('[AI] Failed to log chat:', error)
+    requestContext.fail('chat-log:error', error)
   }
+
+  requestContext.log('response:sent', {
+    intent,
+    groqLatencyMs: groqResult.latencyMs,
+    model: groqResult.model,
+  })
+
+  const metrics = await saveMetrics({
+    requestContext,
+    viewer,
+    intent,
+    message,
+    response,
+    context: { ...context, conversationLength: messages.length, sessionId },
+    groqResult,
+  })
 
   return {
     data: {
       response,
       intent,
+      referencedEntities: context.entities,
+      warnings: context.warnings,
+      metrics,
     },
   }
+}
+
+export const handleChatStream = async ({ viewer, payload = {}, sendEvent }) => {
+  const prepared = await prepareChat({ viewer, payload })
+
+  if (prepared.error) {
+    sendEvent('error', { error: prepared.error.message })
+    return
+  }
+
+  if (prepared.clarification) {
+    sendEvent('progress', { message: 'Clarifying reference...' })
+    sendEvent('token', { token: prepared.clarification.response })
+    sendEvent('done', prepared.clarification)
+    return
+  }
+
+  const { requestContext, intent, message, messages = [], sessionId, context, groqMessages } = prepared
+  let response = ''
+  const groqStartedAt = Date.now()
+
+  sendEvent('progress', { message: 'Generating answer...' })
+  requestContext.log('groq:stream:start', { model: 'llama-3.3-70b-versatile' })
+
+  for await (const token of groqClient.streamChat(groqMessages)) {
+    response += token
+    sendEvent('token', { token })
+  }
+
+  const groqResult = {
+    content: response,
+    model: 'llama-3.3-70b-versatile',
+    latencyMs: Date.now() - groqStartedAt,
+  }
+  requestContext.log('groq:stream:complete', { latencyMs: groqResult.latencyMs })
+
+  try {
+    await getSupabaseServerClient()
+      .from('ai_chat_logs')
+      .insert({
+        user_id: viewer.employee?.user_id || viewer.user.id,
+        prompt: message,
+        response: response || null,
+        intent,
+      })
+  } catch (error) {
+    requestContext.fail('chat-log:error', error)
+  }
+
+  const metrics = await saveMetrics({
+    requestContext,
+    viewer,
+    intent,
+    message,
+    response,
+    context: { ...context, conversationLength: messages.length, sessionId },
+    groqResult,
+  })
+
+  sendEvent('done', {
+    response,
+    intent,
+    referencedEntities: context.entities,
+    warnings: context.warnings,
+    metrics,
+  })
 }

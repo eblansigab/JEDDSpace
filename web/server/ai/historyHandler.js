@@ -1,23 +1,25 @@
 import { getSupabaseServerClient } from './supabaseClient.js'
 
-const saveChatHistory = async (userId, messages) => {
+const getHistoryKey = (userId, sessionId = 'default') => `chat_history_${userId}_${sessionId || 'default'}`
+
+const saveChatHistory = async (userId, messages, sessionId = 'default') => {
   const client = getSupabaseServerClient()
   const { error } = await client
     .from('ai_summarization')
     .upsert({
-      reference_type: `chat_history_${userId}`,
+      reference_type: getHistoryKey(userId, sessionId),
       content_summary: JSON.stringify(messages),
-      raw_data_snapshot: `Last updated: ${new Date().toISOString()}`,
+      raw_data_snapshot: `Session: ${sessionId || 'default'}\nLast updated: ${new Date().toISOString()}`,
     })
   if (error) throw error
 }
 
-const getChatHistory = async (userId) => {
+const getChatHistory = async (userId, sessionId = 'default') => {
   const client = getSupabaseServerClient()
   const { data, error } = await client
     .from('ai_summarization')
     .select('content_summary')
-    .eq('reference_type', `chat_history_${userId}`)
+    .eq('reference_type', getHistoryKey(userId, sessionId))
     .order('created_at', { ascending: false })
     .limit(1)
     .single()
@@ -31,7 +33,7 @@ const getChatHistory = async (userId) => {
 }
 
 export const handleHistory = async ({ viewer, payload = {} }) => {
-  const { mode = 'load', userId, messages } = payload
+  const { mode = 'load', userId, messages, sessionId = 'default' } = payload
 
   if (!userId) {
     return { status: 400, error: 'User ID required' }
@@ -46,12 +48,12 @@ export const handleHistory = async ({ viewer, payload = {} }) => {
       return { status: 400, error: 'Messages are required' }
     }
 
-    await saveChatHistory(userId, messages)
+    await saveChatHistory(userId, messages, sessionId)
     return { data: { saved: true } }
   }
 
-  const history = await getChatHistory(userId)
-  return { data: { messages: history || [] } }
+  const history = await getChatHistory(userId, sessionId)
+  return { data: { messages: history || [], sessionId } }
 }
 
 export const handleChatLogs = async ({ viewer }) => {

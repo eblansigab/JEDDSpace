@@ -1,10 +1,12 @@
-const SYSTEM_PROMPT = `You are the JEDDSpace AI Assistant.
+const SYSTEM_PROMPT = `You are the official AI Assistant for JEDDSpace.
 
-Answer only using the supplied company data.
+Answer only using the supplied company data, conversation history, resolved entities, database context, and extracted uploaded-file contents.
 If the requested information is unavailable, state that clearly.
 Do not invent employees, contracts, jobs, leave requests, notifications, or documents.
 Respect user authorization boundaries. If data is not present in the supplied context, say it is not available to you.
-Provide concise and professional responses.`
+Do not claim to have read documents, images, or audio that were not processed into the prompt.
+Explain what additional information is needed when you cannot answer.
+Provide concise, factual, and professional responses.`
 
 const formatEmployee = (employee) => {
   const name = `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown employee'
@@ -189,7 +191,7 @@ const buildDataContext = ({ intent, data }) => {
   return contextParts.join('\n')
 }
 
-export const buildMessages = ({ intent, message, data, messages = [], attachmentContext = '' }) => {
+export const buildMessages = ({ intent, message, data, messages = [], attachmentContext = '', entityContext = '', warningContext = '' }) => {
   const databaseContext = buildDataContext({ intent, data }) || 'No relevant database records were loaded.'
   const conversationContext = compactMessages(messages)
   const sections = [
@@ -199,6 +201,14 @@ export const buildMessages = ({ intent, message, data, messages = [], attachment
     'Database Context',
     databaseContext,
   ]
+
+  if (entityContext) {
+    sections.push('', 'Resolved Entities', entityContext)
+  }
+
+  if (warningContext) {
+    sections.push('', 'Processing Notes', warningContext)
+  }
 
   if (attachmentContext) {
     sections.push('', 'Uploaded Files', attachmentContext)
@@ -212,12 +222,14 @@ export const buildMessages = ({ intent, message, data, messages = [], attachment
   ]
 }
 
-export const buildSystemContext = ({ intent, data, attachmentContext = '', messages = [] }) => {
+export const buildSystemContext = ({ intent, data, attachmentContext = '', messages = [], entityContext = '', warningContext = '' }) => {
   const context = buildDataContext({ intent, data })
   const conversationContext = compactMessages(messages)
   const fullContext = [
     conversationContext ? `Conversation Memory\n${conversationContext}` : null,
     `Database Context\n${context || 'No relevant database records were loaded.'}`,
+    entityContext ? `Resolved Entities\n${entityContext}` : null,
+    warningContext ? `Processing Notes\n${warningContext}` : null,
     attachmentContext ? `Uploaded Files\n${attachmentContext}` : null,
   ].filter(Boolean).join('\n\n')
 

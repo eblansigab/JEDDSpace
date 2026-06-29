@@ -1,4 +1,4 @@
-import { handleChat } from '../server/ai/chatHandler.js'
+import { handleChat, handleChatStream } from '../server/ai/chatHandler.js'
 import { handleDocumentSummary } from '../server/ai/documentHandler.js'
 import { handleHistory, handleChatLogs } from '../server/ai/historyHandler.js'
 import { handleOperations } from '../server/ai/operationsHandler.js'
@@ -57,6 +57,30 @@ export default async function handler(req, res) {
     const viewer = await getRequestUserContext(req)
     if (!viewer?.user?.id) {
       return fail(res, 401, 'Authentication is required')
+    }
+
+    if ((action === 'chat' || action === 'conversation') && payload?.stream) {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+      })
+
+      const sendEvent = (event, data = {}) => {
+        res.write(`event: ${event}\n`)
+        res.write(`data: ${JSON.stringify(data)}\n\n`)
+      }
+
+      try {
+        sendEvent('progress', { message: 'Building context...' })
+        await handleChatStream({ viewer, payload, sendEvent })
+      } catch (error) {
+        console.error('[AI] Streaming request failed', { action, error: error?.message })
+        sendEvent('error', { error: error?.message || 'AI streaming failed.' })
+      } finally {
+        res.end()
+      }
+      return
     }
 
     logAI(action, 'Started')

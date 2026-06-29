@@ -82,6 +82,45 @@ export const handleAnalytics = async ({ viewer }) => {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
 
+  const metricsResponse = await client
+    .from('ai_summarization')
+    .select('raw_data_snapshot, created_at')
+    .like('reference_type', 'ai_metric_%')
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  const metricRows = (metricsResponse.data || [])
+    .map((row) => {
+      try {
+        return JSON.parse(row.raw_data_snapshot || '{}')
+      } catch {
+        return null
+      }
+    })
+    .filter(Boolean)
+
+  const average = (values) => {
+    const numeric = values.filter((value) => Number.isFinite(Number(value))).map(Number)
+    if (!numeric.length) return 0
+    return Math.round(numeric.reduce((sum, value) => sum + value, 0) / numeric.length)
+  }
+
+  const allStages = metricRows.flatMap((metric) => metric.stages || [])
+  const confidenceValues = metricRows.flatMap((metric) => {
+    const entities = Object.values(metric.referencedEntities || {})
+    return entities
+      .map((entity) => entity?.confidence)
+      .filter((confidence) => Number.isFinite(Number(confidence)))
+  })
+  const cacheHits = allStages.filter((stage) => stage.cached === true).length
+  const cacheMisses = allStages.filter((stage) => stage.cached === false).length
+  const timeoutCount = allStages.filter((stage) => String(stage.error || '').toLowerCase().includes('timeout')).length
+  const clarificationRequests = metricRows.filter((metric) =>
+    (metric.warnings || []).some((warning) => String(warning).toLowerCase().includes('low confidence'))
+  ).length
+  const documentsProcessed = allStages.filter((stage) => String(stage.stage || '').includes('document:extract:complete')).length
+  const entityResolutionSuccesses = metricRows.filter((metric) => metric.entityResolutionSucceeded).length
+
   return {
     data: {
       topics,
@@ -90,6 +129,23 @@ export const handleAnalytics = async ({ viewer }) => {
         today: todayCount.count || 0,
         thisWeek: weekCount.count || 0,
         thisMonth: monthCount.count || 0,
+      },
+      performance: {
+        totalMeasuredRequests: metricRows.length,
+        averageResponseTimeMs: average(metricRows.map((metric) => metric.totalLatencyMs)),
+        averageGroqLatencyMs: average(metricRows.map((metric) => metric.groqLatencyMs)),
+        averageConfidence: confidenceValues.length
+          ? Number((confidenceValues.reduce((sum, value) => sum + Number(value), 0) / confidenceValues.length).toFixed(2))
+          : 0,
+        cacheHits,
+        cacheMisses,
+        cacheHitRate: cacheHits + cacheMisses > 0 ? Math.round((cacheHits / (cacheHits + cacheMisses)) * 100) : 0,
+        documentsProcessed,
+        extractionSuccesses: documentsProcessed,
+        entityResolutionSuccesses,
+        entityResolutionSuccessRate: metricRows.length > 0 ? Math.round((entityResolutionSuccesses / metricRows.length) * 100) : 0,
+        timeoutCount,
+        clarificationRequests,
       },
     },
   }
