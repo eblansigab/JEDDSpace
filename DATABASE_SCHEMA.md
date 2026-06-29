@@ -161,7 +161,7 @@ CREATE TABLE public.audit_logs (
 );
 CREATE TABLE public.ai_summarization (
   summary_id integer NOT NULL DEFAULT nextval('ai_summarization_summary_id_seq'::regclass),
-  reference_type character varying,
+  reference_type text,
   content_summary text,
   raw_data_snapshot text,
   created_at timestamp with time zone DEFAULT now(),

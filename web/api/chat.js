@@ -6,8 +6,19 @@ import { handleRecommendation } from '../server/ai/recommendationHandler.js'
 import { getRequestUserContext } from '../server/ai/supabaseClient.js'
 import { fail, ok } from '../server/_shared/response.js'
 
-const logAI = (action, stage) => {
-  console.log('[AI]', 'Action', action, stage)
+const logAIError = (action, error, meta = {}) => {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    action,
+    message: error?.message ?? String(error),
+    details: error?.details ?? null,
+    hint: error?.hint ?? null,
+    code: error?.code ?? null,
+    stack: error?.stack ?? null,
+    error,
+    ...meta,
+  }
+  console.error('[AI]', JSON.stringify(entry))
 }
 
 const getBody = (req) => req.body || {}
@@ -75,7 +86,7 @@ export default async function handler(req, res) {
         sendEvent('progress', { message: 'Building context...' })
         await handleChatStream({ viewer, payload, sendEvent })
       } catch (error) {
-        console.error('[AI] Streaming request failed', { action, error: error?.message })
+        logAIError(action, error, { stage: 'streaming', stream: true })
         sendEvent('error', { error: error?.message || 'AI streaming failed.' })
       } finally {
         res.end()
@@ -83,18 +94,18 @@ export default async function handler(req, res) {
       return
     }
 
-    logAI(action, 'Started')
+    console.log('[AI]', JSON.stringify({ timestamp: new Date().toISOString(), action, stage: 'Started' }))
     const result = await runAction({ action, viewer, payload })
 
     if (result?.error) {
-      logAI(action, 'Failed')
+      console.log('[AI]', JSON.stringify({ timestamp: new Date().toISOString(), action, stage: 'Failed', error: result.error }))
       return fail(res, result.status || 500, result.error)
     }
 
-    logAI(action, 'Completed')
+    console.log('[AI]', JSON.stringify({ timestamp: new Date().toISOString(), action, stage: 'Completed' }))
     return ok(res, result?.data || {})
   } catch (error) {
-    console.error('[AI] Request failed', { action, error: error?.message })
+    logAIError(action, error, { stage: 'handler' })
     return fail(res, 500, 'AI service is currently unavailable.')
   }
 }

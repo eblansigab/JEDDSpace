@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Button, PageHeader } from '../components'
 import ChatWindow from '../components/ai/ChatWindow'
@@ -19,6 +19,34 @@ const SESSION_STORAGE_KEY = 'jeddspace_ai_session_id'
 const SESSION_LIST_STORAGE_KEY = 'jeddspace_ai_sessions'
 
 const createSessionId = () => `session_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+
+const logAssistantError = (label, error, meta = {}) => {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    label,
+    message: error?.message ?? String(error),
+    details: error?.details ?? null,
+    hint: error?.hint ?? null,
+    code: error?.code ?? null,
+    stack: error?.stack ?? null,
+    error,
+    ...meta,
+  }
+  console.error('[AiAssistantPage]', JSON.stringify(entry))
+}
+
+const logSaveCall = (saveCallCountRef, lastSaveTimestampRef, sessionId, messageCount, payloadSize) => {
+  const now = new Date().toISOString()
+  saveCallCountRef.current += 1
+  lastSaveTimestampRef.current = now
+  console.log('[HistorySave]', JSON.stringify({
+    timestamp: now,
+    sessionId,
+    messageCount,
+    payloadSize,
+    callCount: saveCallCountRef.current,
+  }))
+}
 
 const getStoredSessionId = () => {
   const existing = localStorage.getItem(SESSION_STORAGE_KEY)
@@ -47,6 +75,8 @@ export default function AiAssistantPage() {
   const [attachments, setAttachments] = useState([])
   const [sessionId, setSessionId] = useState(() => getStoredSessionId())
   const [sessions, setSessions] = useState(() => getStoredSessions())
+  const saveCallCountRef = useRef(0)
+  const lastSaveTimestampRef = useRef(null)
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -141,7 +171,15 @@ export default function AiAssistantPage() {
     setMessages((current) => {
       const updated = [...current, { role, content }]
       if (user?.id) {
-        aiService.saveChatHistory(user.id, updated, sessionId).catch(() => {})
+        const payload = JSON.stringify(updated)
+        logSaveCall(saveCallCountRef, lastSaveTimestampRef, sessionId, updated.length, payload.length)
+        aiService.saveChatHistory(user.id, updated, sessionId).catch((error) => {
+          logAssistantError('Save chat history failed in appendMessage', error, {
+            sessionId,
+            messageCount: updated.length,
+            payloadSize: payload.length,
+          })
+        })
       }
       return updated
     })
@@ -193,10 +231,22 @@ export default function AiAssistantPage() {
       })
       if (user?.id) {
         const updated = [...allMessages, { role: 'assistant', content: reply || '' }]
-        aiService.saveChatHistory(user.id, updated, sessionId).catch(() => {})
+        const payload = JSON.stringify(updated)
+        logSaveCall(saveCallCountRef, lastSaveTimestampRef, sessionId, updated.length, payload.length)
+        aiService.saveChatHistory(user.id, updated, sessionId).catch((error) => {
+          logAssistantError('Save chat history failed after runPrompt', error, {
+            sessionId,
+            messageCount: updated.length,
+            payloadSize: payload.length,
+          })
+        })
       }
     } catch (error) {
-      console.error('[AiAssistantPage] AI request failed:', error)
+      logAssistantError('AI request failed', error, {
+        sessionId,
+        messageCount: messages.length,
+        prompt: trimmed,
+      })
       setMessages((current) => [...current, { role: 'assistant', content: 'AI service is currently unavailable.' }])
     } finally {
       if (statusTimer) clearTimeout(statusTimer)
@@ -242,7 +292,10 @@ export default function AiAssistantPage() {
         setLoading(false)
         setLoadingStatus('')
       } catch (error) {
-        console.error('[AiAssistantPage] Recommendation error:', error)
+        logAssistantError('Recommendation error', error, {
+          sessionId,
+          messageCount: messages.length,
+        })
         appendMessage('assistant', 'Unable to fetch recommendations at this time.')
         setLoading(false)
         setLoadingStatus('')
@@ -258,7 +311,15 @@ export default function AiAssistantPage() {
     setPrompt('')
     setAttachments([])
     if (user?.id) {
-      aiService.saveChatHistory(user.id, cleared, sessionId).catch(() => {})
+      const payload = JSON.stringify(cleared)
+      logSaveCall(saveCallCountRef, lastSaveTimestampRef, sessionId, cleared.length, payload.length)
+      aiService.saveChatHistory(user.id, cleared, sessionId).catch((error) => {
+        logAssistantError('Save chat history failed in handleClearChat', error, {
+          sessionId,
+          messageCount: cleared.length,
+          payloadSize: payload.length,
+        })
+      })
     }
   }
 
@@ -287,7 +348,11 @@ export default function AiAssistantPage() {
       const uploaded = await aiService.uploadAttachment(file)
       setAttachments((current) => [...current, uploaded])
     } catch (error) {
-      console.error('[AiAssistantPage] Upload failed:', error)
+      logAssistantError('Upload failed', error, {
+        fileName: file?.name,
+        fileSize: file?.size,
+        fileType: file?.type,
+      })
     }
   }
 

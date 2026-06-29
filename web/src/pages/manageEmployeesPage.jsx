@@ -23,7 +23,16 @@ const ManageEmployeesPage = () => {
       const data = await employeeService.getAll()
       setEmployees(data)
     } catch (error) {
-      console.error(error.message)
+      console.error(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        label: 'Fetch employees failed',
+        message: error?.message ?? String(error),
+        details: error?.details ?? null,
+        hint: error?.hint ?? null,
+        code: error?.code ?? null,
+        stack: error?.stack ?? null,
+        error,
+      }))
     }
   }
 
