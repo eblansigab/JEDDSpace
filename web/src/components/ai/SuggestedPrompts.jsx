@@ -2,9 +2,10 @@ import Button from '../Button'
 
 export default function SuggestedPrompts({ prompts = [], onSelect }) {
   return (
-    <div style={{ display: 'grid', gap: 10 }}>
+    <div  style={{ display: 'grid', gap: 10 }}>
       {prompts.map((prompt) => (
         <Button
+          className='suggested-prompt'
           key={prompt.label}
           variant="outline"
           onClick={() => onSelect(prompt)}
