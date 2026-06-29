@@ -21,6 +21,7 @@ export default function AiAssistantPage() {
   const [messages, setMessages] = useState([welcomeMessage])
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingStatus, setLoadingStatus] = useState('')
   const [attachments, setAttachments] = useState([])
 
   useEffect(() => {
@@ -41,7 +42,8 @@ export default function AiAssistantPage() {
 
   useEffect(() => {
     if (location.state?.prefilledPrompt) {
-      setPrompt(location.state.prefilledPrompt)
+      const timer = setTimeout(() => setPrompt(location.state.prefilledPrompt), 0)
+      return () => clearTimeout(timer)
     }
   }, [location.state?.prefilledPrompt])
 
@@ -126,15 +128,26 @@ export default function AiAssistantPage() {
     if (!trimmed || loading) return
 
     setLoading(true)
+    setLoadingStatus(attachContext || /document|file|upload|screenshot|pdf|image|handbook/i.test(trimmed)
+      ? 'Retrieving document...'
+      : 'Thinking...')
     setPrompt('')
     const userMessage = { role: 'user', content: trimmed }
+    let statusTimer = null
 
     try {
       const historyMessages = messages.map((m) => ({ role: m.role, content: m.content }))
       const allMessages = [...historyMessages, userMessage]
       setMessages((current) => [...current, userMessage])
 
+      statusTimer = setTimeout(() => {
+        setLoadingStatus(attachContext || /document|file|upload|screenshot|pdf|image|handbook/i.test(trimmed)
+          ? 'Reading document...'
+          : 'Generating response...')
+      }, 900)
+
       const reply = await aiService.chatWithContext(allMessages, user?.id, attachContext ? attachments : [])
+      setLoadingStatus('Generating response...')
       setMessages((current) => [...current, { role: 'assistant', content: reply || 'I could not generate a response.' }])
       if (user?.id) {
         const updated = [...allMessages, { role: 'assistant', content: reply || '' }]
@@ -144,7 +157,9 @@ export default function AiAssistantPage() {
       console.error('[AiAssistantPage] AI request failed:', error)
       setMessages((current) => [...current, { role: 'assistant', content: 'AI service is currently unavailable.' }])
     } finally {
+      if (statusTimer) clearTimeout(statusTimer)
       setLoading(false)
+      setLoadingStatus('')
     }
   }
 
@@ -175,6 +190,7 @@ export default function AiAssistantPage() {
         ].join('\n')
 
         setLoading(true)
+        setLoadingStatus('Generating response...')
         setPrompt('')
         appendMessage('user', item.message)
 
@@ -182,10 +198,12 @@ export default function AiAssistantPage() {
         const reply = await aiService.chatWithContext([...historyMessages, { role: 'user', content: dynamicPrompt }])
         appendMessage('assistant', reply || 'I could not generate a response.')
         setLoading(false)
+        setLoadingStatus('')
       } catch (error) {
         console.error('[AiAssistantPage] Recommendation error:', error)
         appendMessage('assistant', 'Unable to fetch recommendations at this time.')
         setLoading(false)
+        setLoadingStatus('')
       }
       return
     }
@@ -255,7 +273,7 @@ export default function AiAssistantPage() {
             </div>
 
             <div className="dashboard-widget-body ai-assistant-chat-body">
-              <ChatWindow messages={messages} isLoading={loading} />
+              <ChatWindow messages={messages} isLoading={loading} loadingLabel={loadingStatus || 'Thinking...'} />
 
               <ChatInput
                 value={prompt}

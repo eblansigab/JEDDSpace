@@ -75,6 +75,9 @@ export const aiService = {
 
   async uploadAttachment(file) {
     const fileName = `${Date.now()}-${file.name}`
+    const {
+      data: { session }
+    } = await supabaseClient.auth.getSession()
 
     const { error: uploadError } =
       await supabaseClient.storage
@@ -92,6 +95,7 @@ export const aiService = {
       await supabaseClient
         .from('document')
         .insert({
+          uploaded_by: session?.user?.id || null,
           title: file.name,
           file_name: file.name,
           file_path: publicUrlData.publicUrl,

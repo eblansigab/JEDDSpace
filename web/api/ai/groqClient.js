@@ -2,6 +2,7 @@
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_MODEL = 'llama-3.3-70b-versatile'
+const GROQ_TIMEOUT_MS = 30000
 
 const getGroqApiKey = () => {
   const apiKey = process.env.GROQ_API_KEY
@@ -25,19 +26,33 @@ const parseErrorMessage = async (response) => {
 
 export const groqClient = {
   async chat(messages) {
-    const response = await fetch(GROQ_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${getGroqApiKey()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages,
-        temperature: 0.2,
-        max_tokens: 900,
-      }),
-    })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS)
+
+    let response
+    try {
+      response = await fetch(GROQ_URL, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${getGroqApiKey()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages,
+          temperature: 0.2,
+          max_tokens: 900,
+        }),
+      })
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Groq request timed out.', { cause: error })
+      }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     if (!response.ok) {
       throw new Error(await parseErrorMessage(response))

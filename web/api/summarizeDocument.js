@@ -1,33 +1,6 @@
 import { getRequestUserContext, getSupabaseServerClient, saveSummary, getSummaryByType } from './ai/supabaseClient.js'
 import { groqClient } from './ai/groqClient.js'
-
-const extractTextFromFile = async (fileUrl, fileType) => {
-  try {
-    const response = await fetch(fileUrl)
-    if (!response.ok) return null
-
-    if (fileType === 'application/pdf') {
-      const buffer = await response.arrayBuffer()
-      const data = buffer.toString()
-      if (data.includes('PDF')) {
-        return `[PDF file - use the summarizeDocument endpoint to generate summary]`
-      }
-      return null
-    }
-
-    if (fileType === 'text/plain') {
-      return await response.text()
-    }
-
-    if (fileType?.startsWith('image/')) {
-      return `[Image file - OCR would be needed for text extraction]`
-    }
-
-    return null
-  } catch {
-    return null
-  }
-}
+import { extractDocumentContent } from './ai/contentExtractor.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -69,12 +42,8 @@ export default async function handler(req, res) {
       })
     }
 
-    const fileUrl = document.file_path
-    let extractedText = await extractTextFromFile(fileUrl, document.file_type)
-
-    if (!extractedText || extractedText.length < 50) {
-      extractedText = `Document: ${document.title || document.file_name}. Content extraction not available for this file type. Summary will be generated based on filename when content is accessible.`
-    }
+    const extracted = await extractDocumentContent({ client, document, useCache: true })
+    const extractedText = extracted.content || `Document: ${document.title || document.file_name}. Content extraction is unavailable.`
 
     const prompt = [
       'You are the JEDDSpace AI Assistant.',

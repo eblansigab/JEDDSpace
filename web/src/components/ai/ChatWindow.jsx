@@ -8,7 +8,7 @@ const typingDot = {
   background: '#64748b'
 }
 
-export default function ChatWindow({ messages = [], isLoading = false }) {
+export default function ChatWindow({ messages = [], isLoading = false, loadingLabel = 'Thinking...' }) {
   const endRef = useRef(null)
 
   useEffect(() => {
@@ -46,6 +46,7 @@ export default function ChatWindow({ messages = [], isLoading = false }) {
         <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 6 }}>
           <div style={{ background: '#f8fafc', border: '1px solid #dbe3ef', borderRadius: 8, padding: '12px 14px' }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>JEDDSpace AI</div>
+            <div style={{ fontSize: 13, color: '#334155', marginBottom: 8 }}>{loadingLabel}</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <span style={typingDot} />
               <span style={{ ...typingDot, opacity: 0.7 }} />

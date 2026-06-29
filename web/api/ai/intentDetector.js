@@ -33,6 +33,13 @@ export const detectIntent = (message) => {
       'file',
       'pdf',
       'handbook',
+      'screenshot',
+      'image',
+      'picture',
+      'photo',
+      'tell me more',
+      'summarize it',
+      'explain it',
       ])
   ) {
     return 'document'
