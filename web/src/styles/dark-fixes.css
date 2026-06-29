@@ -38,3 +38,34 @@
 [data-theme="dark"] .emails-page .email-bg-subtle {
   background: #334155 !important;
 }
+
+/* Dark mode fixes for AI Assistant page */
+[data-theme="dark"] .suggested-prompt  {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+[data-theme="dark"] .ai-assistant-note {
+  background: #031633 !important;
+  color: #eef2ff !important;
+  border-color: #084298 !important
+}
+
+[data-theme="dark"] .chat-window-bg {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+[data-theme="dark"] .chat-input-box {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+[data-theme="dark"] .chat-input-box textarea {
+  background: #1e293b!important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
