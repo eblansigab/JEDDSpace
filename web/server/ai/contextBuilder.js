@@ -8,17 +8,56 @@ import { resolveRecentContext, hasCurrentEntityReference } from './recentContext
 
 const DATABASE_TIMEOUT_MS = 12000
 
+const enrichAttachmentUploader = async (attachments, client, requestContext) => {
+  const attachmentsNeedingEnrich = attachments.filter(
+    (att) => att.uploaded_by && !att.employee
+  )
+
+  if (!attachmentsNeedingEnrich.length) return attachments
+
+  const userIds = [...new Set(attachmentsNeedingEnrich.map((att) => att.uploaded_by))]
+  const { data: employees, error } = await client
+    .from('employee')
+    .select('user_id, first_name, last_name')
+    .in('user_id', userIds)
+
+  if (error) {
+    requestContext?.fail?.('attachments:enrich:error', error)
+    return attachments
+  }
+
+  const employeeMap = new Map(employees.map((emp) => [emp.user_id, emp]))
+  return attachments.map((att) => {
+    if (att.employee) return att
+    const emp = employeeMap.get(att.uploaded_by)
+    if (emp) {
+      return { ...att, employee: emp }
+    }
+    return att
+  })
+}
+
 const buildAttachmentContext = async (attachments = [], requestContext = null) => {
   let attachmentContext = ''
 
   if (!attachments.length) return attachmentContext
 
+  const client = getSupabaseServerClient()
+  let processed = await processAttachments(attachments)
+  processed = await enrichAttachmentUploader(processed, client, requestContext)
+
   try {
     requestContext?.log?.('attachments:start', { count: attachments.length })
-    const processed = await processAttachments(attachments)
     for (const att of processed) {
+      const uploadDate = att.created_at ? new Date(att.created_at).toLocaleDateString() : 'Unknown'
+      const uploaderName = att.employee
+        ? `${att.employee.first_name} ${att.employee.last_name}`.trim()
+        : att.uploaded_by
+          ? `User ID: ${att.uploaded_by}`
+          : 'Unknown'
+
       if (att.attachmentType === 'document' && att.extractedContent) {
-        attachmentContext += `\n\nUploaded Document (${att.title || att.file_name}):\n${att.extractedContent.slice(0, 5000)}`
+        attachmentContext += `\n\nUploaded Document (${att.title || att.file_name}):\nFile: ${att.file_name || 'Unknown'}\nType: ${att.file_type || 'Unknown'}\nUploaded: ${uploadDate}\nUploaded By: ${uploaderName}\n\n${att.extractedContent.slice(0, 5000)}`
       } else if (att.attachmentType === 'image') {
         attachmentContext += `\n\nUploaded Image (${att.title || att.file_name}):\n${att.extractedContent || 'Image understanding is unavailable in the current text request.'}`
       } else if (att.attachmentType === 'audio') {
@@ -57,10 +96,21 @@ const buildReferencedDocumentContext = async ({ client, entities, requestContext
       extractedAt: extracted.extractedAt,
     })
 
+    const uploadDate = resolved.document.created_at
+      ? new Date(resolved.document.created_at).toLocaleDateString()
+      : 'Unknown'
+    const uploader = resolved.document.employee
+      ? `${resolved.document.employee.first_name} ${resolved.document.employee.last_name}`.trim()
+      : resolved.document.uploaded_by
+        ? `User ID: ${resolved.document.uploaded_by}`
+        : 'Unknown'
+
     return [
       `Referenced Document (${resolved.document.title || resolved.document.file_name || resolved.document.document_id})`,
       `File: ${resolved.document.file_name || 'Unknown'}`,
       `Type: ${resolved.document.file_type || 'Unknown'}`,
+      `Uploaded: ${uploadDate}`,
+      `Uploaded By: ${uploader}`,
       `Resolved By: ${resolved.reason}`,
       '',
       extracted.content,

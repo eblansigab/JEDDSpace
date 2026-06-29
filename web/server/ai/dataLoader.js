@@ -58,7 +58,13 @@ const DOCUMENT_SELECT = `
   file_type,
   file_size,
   file_path,
-  created_at
+  created_at,
+  uploaded_by,
+  employee:uploaded_by (
+    first_name,
+    last_name,
+    position
+  )
 `
 
 const hasDateOverlap = (start1, end1, start2, end2) => {
@@ -244,7 +250,7 @@ const loadRecommendations = async (viewer = null) => {
 
 const loadOperations = async (viewer = null) => {
   const [employees, jobs, leaves, contracts, notifications] = await Promise.all([
-    loadEmployees({ activeOnly: false, fieldWorkersOnly: false, limit: 100, viewer }),
+    loadEmployees({ activeOnly: true, fieldWorkersOnly: false, limit: 100, viewer }),
     loadJobs(100, viewer),
     loadApprovedLeaves(100, viewer),
     loadContracts(100, viewer),

@@ -95,6 +95,7 @@ export const groqClient = {
         }
       }
     } finally {
+      reader.releaseLock()
       clearTimeout(timeoutId)
     }
   },

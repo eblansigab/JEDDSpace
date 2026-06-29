@@ -106,6 +106,17 @@ const formatDocument = (document) => {
     `Type: ${document.file_type || 'Unknown'}`,
   ]
 
+  if (document.created_at) {
+    parts.push(`Uploaded: ${new Date(document.created_at).toLocaleDateString()}`)
+  }
+
+  if (document.uploaded_by) {
+    const uploaderName = document.employee
+      ? `${document.employee.first_name || ''} ${document.employee.last_name || ''}`.trim()
+      : `User ID: ${document.uploaded_by}`
+    parts.push(`Uploaded By: ${uploaderName}`)
+  }
+
   if (document.ai_summary) {
     parts.push(`Summary: ${document.ai_summary}`)
   }

@@ -138,28 +138,32 @@ export const aiService = {
     let fullText = ''
     let donePayload = null
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-      buffer += decoder.decode(value, { stream: true })
-      const parsed = parseStreamEvents(buffer)
-      buffer = parsed.remainder
+        buffer += decoder.decode(value, { stream: true })
+        const parsed = parseStreamEvents(buffer)
+        buffer = parsed.remainder
 
-      for (const item of parsed.events) {
-        if (item.event === 'progress') {
-          onProgress?.(item.data?.message || 'Working...')
-        } else if (item.event === 'token') {
-          const token = item.data?.token || ''
-          fullText += token
-          onToken?.(token, fullText)
-        } else if (item.event === 'done') {
-          donePayload = item.data || {}
-          onDone?.(donePayload)
-        } else if (item.event === 'error') {
-          throw new Error(item.data?.error || 'AI streaming failed.')
+        for (const item of parsed.events) {
+          if (item.event === 'progress') {
+            onProgress?.(item.data?.message || 'Working...')
+          } else if (item.event === 'token') {
+            const token = item.data?.token || ''
+            fullText += token
+            onToken?.(token, fullText)
+          } else if (item.event === 'done') {
+            donePayload = item.data || {}
+            onDone?.(donePayload)
+          } else if (item.event === 'error') {
+            throw new Error(item.data?.error || 'AI streaming failed.')
+          }
         }
       }
+    } finally {
+      reader.releaseLock()
     }
 
     return {

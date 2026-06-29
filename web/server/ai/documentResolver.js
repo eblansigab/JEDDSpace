@@ -7,7 +7,12 @@ const DOCUMENT_SELECT = `
   file_path,
   uploaded_by,
   created_at,
-  ai_summary
+  ai_summary,
+  employee:uploaded_by (
+    first_name,
+    last_name,
+    position
+  )
 `
 
 const normalize = (value) =>
