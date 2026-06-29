@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer'
+import { inflateRawSync } from 'node:zlib'
 import { getSummaryByType, saveSummary } from './supabaseClient.js'
 import { loadStoredFile } from './storageLoader.js'
 
@@ -45,8 +47,166 @@ const extractPdfText = (arrayBuffer) => {
   return readable.slice(0, MAX_EXTRACTED_CHARS)
 }
 
-const unsupportedOfficeMessage = (label) => {
-  return `${label} file retrieved, but full text extraction is not available in the current runtime. Use an exported TXT/CSV/PDF version for deeper analysis.`
+const asBytes = (arrayBuffer) => new Uint8Array(arrayBuffer)
+
+const findEndOfCentralDirectory = (bytes) => {
+  const minOffset = Math.max(0, bytes.length - 0xffff - 22)
+  for (let offset = bytes.length - 22; offset >= minOffset; offset--) {
+    if (
+      bytes[offset] === 0x50 &&
+      bytes[offset + 1] === 0x4b &&
+      bytes[offset + 2] === 0x05 &&
+      bytes[offset + 3] === 0x06
+    ) {
+      return offset
+    }
+  }
+  return -1
+}
+
+const readZipEntries = (arrayBuffer) => {
+  const bytes = asBytes(arrayBuffer)
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const eocdOffset = findEndOfCentralDirectory(bytes)
+
+  if (eocdOffset < 0) {
+    throw new ContentExtractionError('The Office document could not be read because its ZIP structure is invalid.')
+  }
+
+  const entryCount = view.getUint16(eocdOffset + 10, true)
+  const centralDirectoryOffset = view.getUint32(eocdOffset + 16, true)
+  const entries = new Map()
+  let offset = centralDirectoryOffset
+
+  for (let index = 0; index < entryCount; index++) {
+    if (view.getUint32(offset, true) !== 0x02014b50) break
+
+    const compressionMethod = view.getUint16(offset + 10, true)
+    const compressedSize = view.getUint32(offset + 20, true)
+    const fileNameLength = view.getUint16(offset + 28, true)
+    const extraLength = view.getUint16(offset + 30, true)
+    const commentLength = view.getUint16(offset + 32, true)
+    const localHeaderOffset = view.getUint32(offset + 42, true)
+    const fileName = new TextDecoder('utf-8').decode(bytes.slice(offset + 46, offset + 46 + fileNameLength))
+
+    if (view.getUint32(localHeaderOffset, true) === 0x04034b50) {
+      const localNameLength = view.getUint16(localHeaderOffset + 26, true)
+      const localExtraLength = view.getUint16(localHeaderOffset + 28, true)
+      const dataStart = localHeaderOffset + 30 + localNameLength + localExtraLength
+      const compressed = bytes.slice(dataStart, dataStart + compressedSize)
+
+      entries.set(fileName, () => {
+        if (compressionMethod === 0) return compressed
+        if (compressionMethod === 8) return inflateRawSync(Buffer.from(compressed))
+        throw new ContentExtractionError(`Unsupported ZIP compression method ${compressionMethod}.`)
+      })
+    }
+
+    offset += 46 + fileNameLength + extraLength + commentLength
+  }
+
+  return entries
+}
+
+const decodeXmlEntities = (value) => {
+  return String(value || '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+}
+
+const xmlToPlainText = (xml) => {
+  return decodeXmlEntities(
+    String(xml || '')
+      .replace(/<w:tab\b[^>]*\/>/g, '\t')
+      .replace(/<w:br\b[^>]*\/>/g, '\n')
+      .replace(/<\/w:tc>/g, '\t')
+      .replace(/<\/w:tr>/g, '\n')
+      .replace(/<\/w:p>/g, '\n')
+      .replace(/<[^>]+>/g, '')
+  )
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
+const extractDocxText = (arrayBuffer) => {
+  const entries = readZipEntries(arrayBuffer)
+  const relevantEntries = [...entries.keys()]
+    .filter((name) =>
+      name === 'word/document.xml' ||
+      /^word\/(header|footer|footnotes|endnotes|comments)\d*\.xml$/.test(name)
+    )
+    .sort((a, b) => {
+      if (a === 'word/document.xml') return -1
+      if (b === 'word/document.xml') return 1
+      return a.localeCompare(b)
+    })
+
+  if (!relevantEntries.includes('word/document.xml')) {
+    throw new ContentExtractionError('The DOCX file does not contain a readable Word document body.')
+  }
+
+  const text = relevantEntries
+    .map((name) => {
+      const bytes = entries.get(name)()
+      const xml = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+      return xmlToPlainText(xml)
+    })
+    .filter(Boolean)
+    .join('\n\n')
+    .trim()
+
+  if (!text) {
+    throw new ContentExtractionError('The DOCX file was opened, but no readable text was found.')
+  }
+
+  return text.slice(0, MAX_EXTRACTED_CHARS)
+}
+
+const extractXlsxText = (arrayBuffer) => {
+  const entries = readZipEntries(arrayBuffer)
+  const sharedStringsXml = entries.get('xl/sharedStrings.xml')?.()
+  const sharedStrings = sharedStringsXml
+    ? [...new TextDecoder('utf-8', { fatal: false }).decode(sharedStringsXml).matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)]
+      .map((match) => xmlToPlainText(match[1]))
+    : []
+
+  const sheetNames = [...entries.keys()]
+    .filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name))
+    .sort((a, b) => a.localeCompare(b))
+
+  const rows = sheetNames.flatMap((name, sheetIndex) => {
+    const xml = new TextDecoder('utf-8', { fatal: false }).decode(entries.get(name)())
+    const rowMatches = [...xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)]
+
+    return [
+      `Sheet ${sheetIndex + 1}`,
+      ...rowMatches.map((rowMatch) => {
+        const cellMatches = [...rowMatch[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)]
+        return cellMatches
+          .map((cellMatch) => {
+            const attrs = cellMatch[1]
+            const body = cellMatch[2]
+            const value = body.match(/<v>([\s\S]*?)<\/v>/)?.[1] || body.match(/<t[^>]*>([\s\S]*?)<\/t>/)?.[1] || ''
+            if (attrs.includes('t="s"')) return sharedStrings[Number(value)] || ''
+            return decodeXmlEntities(value)
+          })
+          .filter(Boolean)
+          .join(' | ')
+      }).filter(Boolean),
+    ]
+  })
+
+  const text = rows.join('\n').trim()
+  if (!text) {
+    throw new ContentExtractionError('The XLSX file was opened, but no readable worksheet text was found.')
+  }
+
+  return text.slice(0, MAX_EXTRACTED_CHARS)
 }
 
 const imageMessage = (document) => {
@@ -83,11 +243,11 @@ const extractByType = ({ document, arrayBuffer, contentType }) => {
   }
 
   if (mime.includes('wordprocessingml') || extension === 'docx') {
-    return unsupportedOfficeMessage('DOCX document')
+    return extractDocxText(arrayBuffer)
   }
 
   if (mime.includes('spreadsheetml') || extension === 'xlsx') {
-    return unsupportedOfficeMessage('XLSX spreadsheet')
+    return extractXlsxText(arrayBuffer)
   }
 
   if (mime.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp'].includes(extension)) {
