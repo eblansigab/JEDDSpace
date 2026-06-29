@@ -1,7 +1,7 @@
 import { processAttachments } from './attachmentProcessor.js'
 import { extractDocumentContent } from './contentExtractor.js'
 import { loadDataForIntent } from './dataLoader.js'
-import { resolveEntities, formatResolvedEntities, getLowConfidenceEntities } from './entityResolver.js'
+import { detectReference, isCapabilityQuestion, isPureGreeting, shouldResolveEntities, resolveEntities, formatResolvedEntities, getLowConfidenceEntities } from './entityResolver.js'
 import { timedStage, withTimeout } from './pipeline.js'
 import { getSupabaseServerClient } from './supabaseClient.js'
 
@@ -76,20 +76,53 @@ export const buildAIContext = async ({ viewer, intent, message, messages = [], a
   let data = {}
   const warnings = []
 
-  try {
-    entities = await timedStage(
-      requestContext,
-      'entities',
-      () => withTimeout(
-        resolveEntities({ client, viewer, message, messages, attachments }),
-        DATABASE_TIMEOUT_MS,
-        'Entity resolution exceeded the allowed processing time.'
-      ),
-      { intent }
-    )
-  } catch (error) {
-    warnings.push('Entity resolution failed, so follow-up references may need to be stated explicitly.')
-    requestContext?.fail?.('entities:degraded', error)
+  const trimmedMessage = String(message || '').trim()
+  const referenceDetected = detectReference(trimmedMessage)
+  const capabilityQuestion = isCapabilityQuestion(trimmedMessage)
+  const greeting = isPureGreeting(trimmedMessage)
+  const shouldResolve = shouldResolveEntities(trimmedMessage, intent, attachments)
+
+  requestContext?.log?.('intent:detected', { intent })
+  requestContext?.log?.('reference:detected', { detected: referenceDetected })
+  requestContext?.log?.('entity:resolution:planned', {
+    executed: shouldResolve,
+    capabilityQuestion,
+    greeting,
+    attachmentsCount: attachments.length,
+  })
+
+  if (shouldResolve) {
+    try {
+      entities = await timedStage(
+        requestContext,
+        'entities',
+        () => withTimeout(
+          resolveEntities({ client, viewer, message: trimmedMessage, messages, attachments }),
+          DATABASE_TIMEOUT_MS,
+          'Entity resolution exceeded the allowed processing time.'
+        ),
+        { intent }
+      )
+    } catch (error) {
+      warnings.push('Entity resolution failed, so follow-up references may need to be stated explicitly.')
+      requestContext?.fail?.('entities:degraded', error)
+    }
+  } else {
+    const skipReason = capabilityQuestion
+      ? 'capability_question_without_data_request'
+      : greeting
+        ? 'pure_greeting_without_entity_reference'
+        : intent === 'general'
+          ? 'general_intent_no_reference'
+          : 'no_reference_detected'
+
+    requestContext?.log?.('entity:resolution:skipped', {
+      reason: skipReason,
+      intent,
+      referenceDetected,
+      capabilityQuestion,
+      greeting,
+    })
   }
 
   try {

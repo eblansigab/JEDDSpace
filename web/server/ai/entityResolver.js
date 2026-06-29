@@ -10,6 +10,15 @@ const normalize = (value) =>
 const isAdmin = (viewer) => Boolean(viewer?.isAdmin)
 const viewerEmployeeId = (viewer) => viewer?.employee?.employee_id ?? null
 
+const logEntity = (label, meta = {}) => {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    label,
+    ...meta,
+  }
+  console.log('[EntityResolver]', JSON.stringify(entry))
+}
+
 const hasFollowUpReference = (message) => {
   const text = normalize(message)
   return [
@@ -161,6 +170,164 @@ const resolveRecommendation = async ({ message, messages }) => {
   return {
     ...resolved('recommendation', 'recommendation_topic', { topic: 'employee assignment recommendation' }, 0.9),
   }
+}
+
+const ENTITY_TYPE_KEYWORDS = [
+  'employee',
+  'worker',
+  'staff',
+  'contract',
+  'agreement',
+  'job',
+  'assignment',
+  'schedule',
+  'leave',
+  'absence',
+  'vacation',
+  'document',
+  'file',
+  'upload',
+  'pdf',
+  'handbook',
+  'screenshot',
+  'image',
+  'photo',
+  'notification',
+  'alert',
+  'recommendation',
+  'operation',
+  'status',
+  'overview',
+]
+
+const CONTEXT_REFERENCE_KEYWORDS = [
+  'this',
+  'that',
+  'it',
+  'them',
+  'latest',
+  'recent',
+  'current',
+  'summarize it',
+  'explain it',
+  'tell me more',
+  'that employee',
+  'that contract',
+  'that job',
+  'that leave',
+]
+
+const DATA_ACTION_VERBS = [
+  'show',
+  'list',
+  'get',
+  'find',
+  'tell',
+  'summarize',
+  'explain',
+  'display',
+  'what is',
+  'what are',
+  'how many',
+  'how much',
+  'when is',
+  'where is',
+  'who is',
+  'who are',
+]
+
+const CAPABILITY_PATTERNS = [
+  /^(can you|are you able to|do you|will you)\s/i,
+  /^(what (can|do) you)\s/i,
+  /^(how do you)\s/i,
+]
+
+const GREETINGS = new Set([
+  'hi',
+  'hello',
+  'hey',
+  'good morning',
+  'good afternoon',
+  'good evening',
+  'how are you',
+])
+
+export const detectReference = (message) => {
+  const text = normalize(message)
+  const hasEntityKeyword = ENTITY_TYPE_KEYWORDS.some((keyword) => text.includes(keyword))
+  const hasContextKeyword = CONTEXT_REFERENCE_KEYWORDS.some((keyword) => text.includes(keyword))
+  return hasEntityKeyword || hasContextKeyword
+}
+
+export const isCapabilityQuestion = (message) => {
+  const text = normalize(message)
+  return CAPABILITY_PATTERNS.some((pattern) => pattern.test(text))
+}
+
+export const isPureGreeting = (message) => {
+  const text = normalize(message).trim()
+  return GREETINGS.has(text)
+}
+
+export const shouldResolveEntities = (message, intent, attachments = []) => {
+  if (attachments.length > 0) {
+    logEntity('Reference check', { referenceDetected: true, reason: 'attachments_present' })
+    return true
+  }
+
+  const hasReference = detectReference(message)
+  const capabilityQuestion = isCapabilityQuestion(message)
+  const greeting = isPureGreeting(message)
+
+  if (capabilityQuestion) {
+    const hasDataAction = DATA_ACTION_VERBS.some((verb) => normalize(message).includes(verb))
+    const shouldResolve = hasDataAction
+    logEntity('Reference check', {
+      referenceDetected: hasReference,
+      capabilityQuestion: true,
+      hasDataAction,
+      resolve: shouldResolve,
+      reason: shouldResolve ? 'data_action_verb_present' : 'capability_question_without_data_request',
+    })
+    return shouldResolve
+  }
+
+  if (greeting && !hasReference) {
+    logEntity('Reference check', {
+      referenceDetected: false,
+      greeting: true,
+      resolve: false,
+      reason: 'pure_greeting_without_entity_reference',
+    })
+    return false
+  }
+
+  if (hasReference) {
+    logEntity('Reference check', {
+      referenceDetected: true,
+      resolve: true,
+      reason: intent !== 'general' ? 'specific_intent_with_reference' : 'reference_detected',
+    })
+    return true
+  }
+
+  if (intent !== 'general') {
+    logEntity('Reference check', {
+      referenceDetected: false,
+      intent,
+      resolve: true,
+      reason: 'specific_intent',
+    })
+    return true
+  }
+
+  logEntity('Reference check', {
+    referenceDetected: false,
+    intent: 'general',
+    resolve: false,
+    reason: 'general_intent_no_reference',
+  })
+  return false
 }
 
 export const resolveEntities = async ({ client, viewer, message, messages = [], attachments = [] }) => {
