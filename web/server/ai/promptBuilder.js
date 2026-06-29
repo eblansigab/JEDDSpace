@@ -1,4 +1,31 @@
+const getCurrentDateTime = () => {
+  const now = new Date()
+  const date = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  const time = now.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+  try {
+    return { date, time, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }
+  } catch {
+    return { date, time, timezone: 'UTC' }
+  }
+}
+
+export const buildDateTimeContext = () => {
+  const { date, time, timezone } = getCurrentDateTime()
+  return `Current Date and Time\nDate: ${date}\nTime: ${time}\nTimezone: ${timezone}`
+}
+
 const SYSTEM_PROMPT = `You are the official AI Assistant for JEDDSpace.
+
+{datetime_context}
 
 Answer only using the supplied company data, conversation history, resolved entities, database context, and extracted uploaded-file contents.
 If the requested information is unavailable, state that clearly.
@@ -191,9 +218,10 @@ const buildDataContext = ({ intent, data }) => {
   return contextParts.join('\n')
 }
 
-export const buildMessages = ({ intent, message, data, messages = [], attachmentContext = '', entityContext = '', warningContext = '' }) => {
+export const buildMessages = ({ intent, message, data, messages = [], attachmentContext = '', entityContext = '', warningContext = '', recentContext = null }) => {
   const databaseContext = buildDataContext({ intent, data }) || 'No relevant database records were loaded.'
   const conversationContext = compactMessages(messages)
+  const dateTimeContext = buildDateTimeContext()
   const sections = [
     'Conversation',
     conversationContext || 'No prior conversation supplied.',
@@ -214,26 +242,43 @@ export const buildMessages = ({ intent, message, data, messages = [], attachment
     sections.push('', 'Uploaded Files', attachmentContext)
   }
 
+  if (recentContext && Object.keys(recentContext).length > 0) {
+    const recentContextLines = Object.entries(recentContext)
+      .map(([type, value]) => `Recent ${type}: ${value}`)
+      .join('\n')
+    sections.push('', 'Recent Conversation Context', recentContextLines)
+  }
+
   sections.push('', 'Question', message)
 
+  const systemPrompt = SYSTEM_PROMPT.replace('{datetime_context}', dateTimeContext)
+
   return [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     { role: 'user', content: sections.join('\n') },
   ]
 }
 
-export const buildSystemContext = ({ intent, data, attachmentContext = '', messages = [], entityContext = '', warningContext = '' }) => {
+export const buildSystemContext = ({ intent, data, attachmentContext = '', messages = [], entityContext = '', warningContext = '', recentContext = null }) => {
   const context = buildDataContext({ intent, data })
   const conversationContext = compactMessages(messages)
+  const dateTimeContext = buildDateTimeContext()
+  const recentContextSection = recentContext && Object.keys(recentContext).length > 0
+    ? `Recent Conversation Context\n${Object.entries(recentContext)
+        .map(([type, value]) => `Recent ${type}: ${value}`)
+        .join('\n')}`
+    : null
   const fullContext = [
     conversationContext ? `Conversation Memory\n${conversationContext}` : null,
     `Database Context\n${context || 'No relevant database records were loaded.'}`,
     entityContext ? `Resolved Entities\n${entityContext}` : null,
     warningContext ? `Processing Notes\n${warningContext}` : null,
     attachmentContext ? `Uploaded Files\n${attachmentContext}` : null,
+    recentContextSection,
   ].filter(Boolean).join('\n\n')
 
-  return `${SYSTEM_PROMPT}\n\n${fullContext}`
+  const systemPrompt = SYSTEM_PROMPT.replace('{datetime_context}', dateTimeContext)
+  return `${systemPrompt}\n\n${fullContext}`
 }
 
 export { SYSTEM_PROMPT }

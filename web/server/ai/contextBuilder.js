@@ -1,9 +1,10 @@
 import { processAttachments } from './attachmentProcessor.js'
 import { extractDocumentContent } from './contentExtractor.js'
 import { loadDataForIntent } from './dataLoader.js'
-import { detectReference, isCapabilityQuestion, isPureGreeting, shouldResolveEntities, resolveEntities, formatResolvedEntities, getLowConfidenceEntities } from './entityResolver.js'
+import { detectReference, isCapabilityQuestion, isPureGreeting, isGeneralKnowledgeQuestion, shouldResolveEntities, resolveEntities, formatResolvedEntities, getLowConfidenceEntities } from './entityResolver.js'
 import { timedStage, withTimeout } from './pipeline.js'
 import { getSupabaseServerClient } from './supabaseClient.js'
+import { resolveRecentContext, hasCurrentEntityReference } from './recentContextResolver.js'
 
 const DATABASE_TIMEOUT_MS = 12000
 
@@ -80,15 +81,33 @@ export const buildAIContext = async ({ viewer, intent, message, messages = [], a
   const referenceDetected = detectReference(trimmedMessage)
   const capabilityQuestion = isCapabilityQuestion(trimmedMessage)
   const greeting = isPureGreeting(trimmedMessage)
+  const generalKnowledge = isGeneralKnowledgeQuestion(trimmedMessage)
+  const currentEntityReference = hasCurrentEntityReference(trimmedMessage)
+  const recentContext = currentEntityReference ? resolveRecentContext({ message: trimmedMessage, messages }) : {}
   const shouldResolve = shouldResolveEntities(trimmedMessage, intent, attachments)
 
   requestContext?.log?.('intent:detected', { intent })
   requestContext?.log?.('reference:detected', { detected: referenceDetected })
-  requestContext?.log?.('entity:resolution:planned', {
-    executed: shouldResolve,
+  requestContext?.log?.('routing:classification', {
+    intent,
     capabilityQuestion,
     greeting,
+    generalKnowledge,
+    currentEntityReference,
+    recentContext,
     attachmentsCount: attachments.length,
+  })
+  requestContext?.log?.('entity:resolution:planned', {
+    executed: shouldResolve,
+    reason: generalKnowledge
+      ? 'general_knowledge_skipped'
+      : currentEntityReference
+        ? 'current_entity_reference'
+        : capabilityQuestion
+          ? 'capability_question'
+          : greeting
+            ? 'greeting_with_reference'
+            : 'standard',
   })
 
   if (shouldResolve) {
@@ -107,22 +126,48 @@ export const buildAIContext = async ({ viewer, intent, message, messages = [], a
       warnings.push('Entity resolution failed, so follow-up references may need to be stated explicitly.')
       requestContext?.fail?.('entities:degraded', error)
     }
-  } else {
-    const skipReason = capabilityQuestion
-      ? 'capability_question_without_data_request'
-      : greeting
-        ? 'pure_greeting_without_entity_reference'
-        : intent === 'general'
-          ? 'general_intent_no_reference'
-          : 'no_reference_detected'
-
+  } else if (capabilityQuestion) {
     requestContext?.log?.('entity:resolution:skipped', {
-      reason: skipReason,
+      reason: 'capability_question_without_data_request',
       intent,
       referenceDetected,
       capabilityQuestion,
       greeting,
     })
+  } else if (greeting) {
+    requestContext?.log?.('entity:resolution:skipped', {
+      reason: 'pure_greeting_without_entity_reference',
+      intent,
+      referenceDetected,
+      capabilityQuestion,
+      greeting,
+    })
+  } else if (generalKnowledge) {
+    requestContext?.log?.('entity:resolution:skipped', {
+      reason: 'general_knowledge_question',
+      intent,
+      referenceDetected,
+      generalKnowledge,
+    })
+  } else if (intent === 'general') {
+    requestContext?.log?.('entity:resolution:skipped', {
+      reason: 'general_intent_no_reference',
+      intent,
+      referenceDetected,
+    })
+  } else {
+    requestContext?.log?.('entity:resolution:skipped', {
+      reason: 'no_reference_detected',
+      intent,
+      referenceDetected,
+    })
+  }
+
+  if (currentEntityReference && !entities.document) {
+    const documentFromContext = recentContext.document
+    if (documentFromContext) {
+      requestContext?.log?.('recent:context:document', { documentFromContext })
+    }
   }
 
   try {
@@ -142,8 +187,11 @@ export const buildAIContext = async ({ viewer, intent, message, messages = [], a
   }
 
   let attachmentContext = await buildAttachmentContext(attachments, requestContext)
-  if (!attachmentContext) {
-    attachmentContext = await buildReferencedDocumentContext({ client, entities, requestContext })
+  const referencedDocumentContext = await buildReferencedDocumentContext({ client, entities, requestContext })
+  if (attachmentContext && referencedDocumentContext) {
+    attachmentContext = `${attachmentContext}\n\n${referencedDocumentContext}`
+  } else if (referencedDocumentContext) {
+    attachmentContext = referencedDocumentContext
   }
 
   const lowConfidenceEntities = getLowConfidenceEntities(entities)
@@ -158,5 +206,6 @@ export const buildAIContext = async ({ viewer, intent, message, messages = [], a
     entities,
     warnings,
     lowConfidenceEntities,
+    recentContext,
   }
 }

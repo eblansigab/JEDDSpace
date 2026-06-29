@@ -1,4 +1,5 @@
 import { resolveDocumentReference } from './documentResolver.js'
+import { isGeneralKnowledgeQuestion } from './intentDetector.js'
 
 const normalize = (value) =>
   String(value || '')
@@ -264,6 +265,8 @@ export const isCapabilityQuestion = (message) => {
   return CAPABILITY_PATTERNS.some((pattern) => pattern.test(text))
 }
 
+export { isGeneralKnowledgeQuestion } from './intentDetector.js'
+
 export const isPureGreeting = (message) => {
   const text = normalize(message).trim()
   return GREETINGS.has(text)
@@ -273,6 +276,17 @@ export const shouldResolveEntities = (message, intent, attachments = []) => {
   if (attachments.length > 0) {
     logEntity('Reference check', { referenceDetected: true, reason: 'attachments_present' })
     return true
+  }
+
+  const generalKnowledge = isGeneralKnowledgeQuestion(message)
+  if (generalKnowledge) {
+    logEntity('Reference check', {
+      referenceDetected: false,
+      intent: 'general',
+      resolve: false,
+      reason: 'general_knowledge_question',
+    })
+    return false
   }
 
   const hasReference = detectReference(message)
@@ -331,13 +345,27 @@ export const shouldResolveEntities = (message, intent, attachments = []) => {
 }
 
 export const resolveEntities = async ({ client, viewer, message, messages = [], attachments = [] }) => {
+  const text = normalize(message)
+  const hasAttachment = (attachments || []).length > 0
+  const needsDocument = hasAttachment || [
+    'document', 'file', 'upload', 'uploaded', 'latest', 'screenshot', 'image',
+    'picture', 'photo', 'pdf', 'docx', 'xlsx', 'csv', 'txt', 'handbook',
+    'tell me more', 'summarize it', 'explain it', 'that', 'this', 'it',
+    'summarize', 'explain',
+  ].some((keyword) => text.includes(keyword))
+  const needsEmployee = ['employee', 'worker', 'staff'].some((keyword) => text.includes(keyword))
+  const needsContract = ['contract', 'agreement'].some((keyword) => text.includes(keyword))
+  const needsJob = ['job', 'assignment', 'schedule'].some((keyword) => text.includes(keyword))
+  const needsLeave = ['leave', 'absence', 'vacation'].some((keyword) => text.includes(keyword))
+  const needsRecommendation = text.includes('recommend')
+
   const [document, employee, contract, job, leave, recommendation] = await Promise.all([
-    resolveDocumentReference({ client, viewer, message, messages, attachments }),
-    resolveEmployee({ client, viewer, message, messages }),
-    resolveContract({ client, viewer, message, messages }),
-    resolveJob({ client, viewer, message, messages }),
-    resolveLeave({ client, viewer, message, messages }),
-    resolveRecommendation({ message, messages }),
+    needsDocument ? resolveDocumentReference({ client, viewer, message, messages, attachments }) : Promise.resolve(null),
+    needsEmployee ? resolveEmployee({ client, viewer, message, messages }) : Promise.resolve(null),
+    needsContract ? resolveContract({ client, viewer, message, messages }) : Promise.resolve(null),
+    needsJob ? resolveJob({ client, viewer, message, messages }) : Promise.resolve(null),
+    needsLeave ? resolveLeave({ client, viewer, message, messages }) : Promise.resolve(null),
+    needsRecommendation ? resolveRecommendation({ message, messages }) : Promise.resolve(null),
   ])
 
   return {

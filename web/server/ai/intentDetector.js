@@ -19,7 +19,7 @@ export const detectIntent = (message) => {
       'why was',
       'why is this person',
       'assignment window',
-      ])
+    ])
   ) {
     return 'recommendation'
   }
@@ -40,7 +40,7 @@ export const detectIntent = (message) => {
       'tell me more',
       'summarize it',
       'explain it',
-      ])
+    ])
   ) {
     return 'document'
   }
@@ -95,7 +95,7 @@ export const detectIntent = (message) => {
       'who can',
       'who is available',
       'available workers',
-      ])
+    ])
   ) {
     return 'employee'
   }
@@ -109,7 +109,7 @@ export const detectIntent = (message) => {
       'announcement',
       'alerts',
       'alert',
-      ])
+    ])
   ) {
     return 'notification'
   }
@@ -119,4 +119,31 @@ export const detectIntent = (message) => {
   }
 
   return 'general'
+}
+
+export const isGeneralKnowledgeQuestion = (message) => {
+  const text = String(message || '').trim().toLowerCase()
+
+  const hasCompanyKeyword = [
+    'employee', 'worker', 'staff', 'contract', 'agreement', 'job', 'assignment',
+    'leave', 'absence', 'vacation', 'document', 'file', 'upload', 'pdf',
+    'notification', 'alert', 'recommendation', 'operation', 'status', 'overview',
+    'dashboard', 'today', 'schedule', 'department', 'position',
+  ].some((keyword) => text.includes(keyword))
+
+  if (hasCompanyKeyword) return false
+
+  const questionPatterns = [
+    /^(what is|what are|what was|what were)\s/i,
+    /^(who is|who are|who was|who were)\s/i,
+    /^(how does|how do|how did|how is|how are)\s/i,
+    /^(why does|why do|why did|why is|why are)\s/i,
+    /^(when did|when does|when do|when is|when are)\s/i,
+    /^(where is|where are|where was|where were)\s/i,
+    /^(define|explain|describe|tell me about)\s/i,
+    /^(can you explain|do you know|do you know about)\s/i,
+    /\b(?:what|who|how|why|when|where)\s+(?:is|are|was|were|does|do|did)\s/i,
+  ]
+
+  return questionPatterns.some((pattern) => pattern.test(text))
 }

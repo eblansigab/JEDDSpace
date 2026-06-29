@@ -1,4 +1,4 @@
-import { detectIntent } from './intentDetector.js'
+import { detectIntent, isGeneralKnowledgeQuestion } from './intentDetector.js'
 import { buildAIContext } from './contextBuilder.js'
 import { buildMessages } from './promptBuilder.js'
 import { groqClient } from './groqClient.js'
@@ -55,7 +55,8 @@ const prepareChat = async ({ viewer, payload = {} }) => {
   }
 
   const intent = detectIntent(message)
-  requestContext.log('intent:detected', { intent, sessionId })
+  const generalKnowledge = isGeneralKnowledgeQuestion(message)
+  requestContext.log('intent:detected', { intent, sessionId, generalKnowledge })
 
   const context = await buildAIContext({ viewer, intent, message, messages, attachments, requestContext })
 
@@ -103,6 +104,7 @@ const prepareChat = async ({ viewer, payload = {} }) => {
     attachmentContext: context.attachmentContext,
     entityContext: context.entityContext,
     warningContext: context.warnings?.join('\n') || '',
+    recentContext: context.recentContext,
   })
   requestContext.log('prompt:build:complete')
 
