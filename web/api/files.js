@@ -1,9 +1,9 @@
-import { handleExtract } from './files/extractHandler.js'
-import { handleImage } from './files/imageHandler.js'
-import { handleSpeech } from './files/speechHandler.js'
-import { handleUpload } from './files/uploadHandler.js'
-import { getRequestUserContext } from './ai/supabaseClient.js'
-import { fail, ok } from './_shared/response.js'
+import { handleExtract } from '../server/files/extractHandler.js'
+import { handleImage } from '../server/files/imageHandler.js'
+import { handleSpeech } from '../server/files/speechHandler.js'
+import { handleUpload } from '../server/files/uploadHandler.js'
+import { getRequestUserContext } from '../server/ai/supabaseClient.js'
+import { fail, ok } from '../server/_shared/response.js'
 
 const runAction = async ({ action, viewer, payload }) => {
   switch (action) {

@@ -1,8 +1,8 @@
-import { handleAnalytics } from './admin/analyticsHandler.js'
-import { handleLogs } from './admin/logsHandler.js'
-import { handleHealth } from './admin/systemHandler.js'
-import { getRequestUserContext } from './ai/supabaseClient.js'
-import { fail, ok } from './_shared/response.js'
+import { handleAnalytics } from '../server/admin/analyticsHandler.js'
+import { handleLogs } from '../server/admin/logsHandler.js'
+import { handleHealth } from '../server/admin/systemHandler.js'
+import { getRequestUserContext } from '../server/ai/supabaseClient.js'
+import { fail, ok } from '../server/_shared/response.js'
 
 const runAction = async ({ action, viewer, payload }) => {
   switch (action) {

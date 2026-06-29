@@ -1,10 +1,10 @@
-import { handleChat } from './ai/chatHandler.js'
-import { handleDocumentSummary } from './ai/documentHandler.js'
-import { handleHistory, handleChatLogs } from './ai/historyHandler.js'
-import { handleOperations } from './ai/operationsHandler.js'
-import { handleRecommendation } from './ai/recommendationHandler.js'
-import { getRequestUserContext } from './ai/supabaseClient.js'
-import { fail, ok } from './_shared/response.js'
+import { handleChat } from '../server/ai/chatHandler.js'
+import { handleDocumentSummary } from '../server/ai/documentHandler.js'
+import { handleHistory, handleChatLogs } from '../server/ai/historyHandler.js'
+import { handleOperations } from '../server/ai/operationsHandler.js'
+import { handleRecommendation } from '../server/ai/recommendationHandler.js'
+import { getRequestUserContext } from '../server/ai/supabaseClient.js'
+import { fail, ok } from '../server/_shared/response.js'
 
 const logAI = (action, stage) => {
   console.log('[AI]', 'Action', action, stage)
