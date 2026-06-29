@@ -15,12 +15,18 @@ export default function AiAnalyticsPage() {
           data: { session }
         } = await supabaseClient.auth.getSession()
 
-        const response = await fetch('/api/aiAnalytics', {
+        const response = await fetch('/api/admin', {
+          method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
-          }
+          },
+          body: JSON.stringify({
+            action: 'analytics'
+          })
         })
-        const data = await response.json()
+        const result = await response.json()
+        const data = result?.data || result
         setAnalytics(data)
       } catch (err) {
         console.error('[AiAnalyticsPage] Failed to load:', err)

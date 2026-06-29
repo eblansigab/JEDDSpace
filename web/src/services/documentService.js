@@ -61,10 +61,13 @@ async getUploadHistory(userId) {
   },
 
   async getDocumentSummary(documentId) {
-    const response = await fetch('/api/summarizeDocument', {
+    const response = await fetch('/api/chat', {
       method: 'POST',
       headers: await getAuthHeaders(),
-      body: JSON.stringify({ documentId })
+      body: JSON.stringify({
+        action: 'document',
+        payload: { documentId }
+      })
     })
 
     if (!response.ok) {
@@ -72,8 +75,11 @@ async getUploadHistory(userId) {
       throw new Error(error?.error || 'Unable to get document summary')
     }
 
-    const { summary, cached } = await response.json()
-    return { summary, cached }
+    const result = await response.json()
+    return {
+      summary: result?.data?.summary || result?.summary,
+      cached: Boolean(result?.data?.cached ?? result?.cached)
+    }
   },
 
   async recordUpload(file, userId) {

@@ -17,8 +17,11 @@ export const aiService = {
       method: 'POST',
       headers: await getAuthHeaders(),
       body: JSON.stringify({
-        message,
-        messages
+        action: 'chat',
+        payload: {
+          message,
+          messages
+        }
       })
     })
 
@@ -48,9 +51,12 @@ export const aiService = {
       method: 'POST',
       headers: await getAuthHeaders(),
       body: JSON.stringify({
-        message: messages[messages.length - 1]?.content || '',
-        messages,
-        attachments
+        action: 'chat',
+        payload: {
+          message: messages[messages.length - 1]?.content || '',
+          messages,
+          attachments
+        }
       })
     })
 
@@ -110,8 +116,12 @@ export const aiService = {
   },
 
   async loadAllChatLogs() {
-    const response = await fetch('/api/chatHistory?admin=true', {
-      headers: await getAuthHeaders()
+    const response = await fetch('/api/admin', {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({
+        action: 'logs'
+      })
     })
     if (!response.ok) return []
     const { logs } = await response.json()
@@ -123,10 +133,17 @@ export const aiService = {
   },
 
   async saveChatHistory(userId, messages) {
-    const response = await fetch('/api/chatHistory', {
+    const response = await fetch('/api/chat', {
       method: 'POST',
       headers: await getAuthHeaders(),
-      body: JSON.stringify({ userId, messages })
+      body: JSON.stringify({
+        action: 'history',
+        payload: {
+          mode: 'save',
+          userId,
+          messages
+        }
+      })
     })
 
     if (!response.ok) throw new Error('Failed to save chat history')
@@ -134,8 +151,16 @@ export const aiService = {
   },
 
   async loadChatHistory(userId) {
-    const response = await fetch(`/api/chatHistory?userId=${encodeURIComponent(userId)}`, {
-      headers: await getAuthHeaders()
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({
+        action: 'history',
+        payload: {
+          mode: 'load',
+          userId
+        }
+      })
     })
     if (!response.ok) return []
     const { messages } = await response.json()
