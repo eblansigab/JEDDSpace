@@ -57,6 +57,85 @@ const ContractsPage = () => {
         {!contracts.length && (
           <p style={{ color: '#64748b' }}>No contracts found.</p>
         )}
+
+        <div className='contract-box'>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            Untitled Contract (Contractor)
+            <span className='status ongoing'></span>
+          </h3>
+          <div style={{display:'flex',justifyContent:'space-between'}}>
+            <div style={{width:'45%'}}>
+              <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                <p style={{fontWeight:'bold'}}>Destination</p>
+                <p>City, State, Country</p>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <p style={{fontWeight:'bold'}}>Location</p>
+                <p>123 Main St., City, State</p>
+              </div>
+            </div>
+            <div style={{width:'45%'}}>
+              <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                <p style={{fontWeight:'bold'}}>Start Date</p>
+                <p>June 29, 2026</p>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <p style={{fontWeight:'bold'}}>End Date</p>
+                <p>July 02, 2026</p>
+              </div>
+            </div>
+          </div>
+          <hr style={{border:0, borderTop:'1px solid #6B7280'}}/>
+          <p style={{fontWeight:'bold'}}>Assigned Employees (2) (expansion thing starts here)</p> 
+          <div style={{display:'flex', gap:'32px'}}>
+            <div style={{gap:"16px"}}>
+            <div style={{display:'flex', gap:"8px"}}>
+              <span style={{
+                display:'flex',
+                width: '100px',
+                height: '100px',
+                borderRadius: '50%',
+                backgroundColor: 'gray',
+                justifyContent: "center",
+                alignItems: 'center', 
+                fontSize: "32px",
+                color:'#fff'
+                }}>JS</span>
+              <div>
+                <p style={{fontWeight:'bold'}}>Jane Smith</p>
+                <p>EMP-002</p>
+              </div>
+              </div>
+              <div style={{display:'flex',gap:'8px'}}>
+                <div style={{borderRadius:'15%',backgroundColor:"lightblue",padding:'8px'}}>Project Manager</div>
+                <div style={{borderRadius:'15%',backgroundColor:"lightgray",padding:'8px'}}>Operations</div>
+              </div>
+            </div>
+            <div style={{gap:"16px"}}>
+            <div style={{display:'flex', gap:"8px"}}>
+              <span style={{
+                display:'flex',
+                width: '100px',
+                height: '100px',
+                borderRadius: '50%',
+                backgroundColor: 'gray',
+                justifyContent: "center",
+                alignItems: 'center', 
+                fontSize: "32px",
+                color:'#fff'
+                }}>MB</span>
+              <div>
+                <p style={{fontWeight:'bold'}}>Michael Brown</p>
+                <p>EMP-003</p>
+              </div>
+              </div>
+              <div style={{display:'flex',gap:'8px'}}>
+                <div style={{borderRadius:'15%',backgroundColor:"lightblue",padding:'8px'}}>Data Analyst</div>
+                <div style={{borderRadius:'15%',backgroundColor:"lightgray",padding:'8px'}}>Analytics</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
     </DashboardLayout>
   )
