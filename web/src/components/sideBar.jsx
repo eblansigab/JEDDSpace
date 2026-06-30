@@ -32,7 +32,7 @@ const Sidebar = () => {
         if (!error && data && mounted) {
           setRole(String(data.role || '').trim().toLowerCase())
         }
-      } catch (err) {
+      } catch {
         // silent
       }
     }
@@ -244,7 +244,7 @@ const Sidebar = () => {
         </li>
 
         <li>
-          <Link to="/ai" onClick={closeMobileSidebar} title="AI Assistant">
+          <Link to="/ai-assistant" onClick={closeMobileSidebar} title="AI Assistant">
             {/* Sparkles icon */}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"></path><path d="M19 3l.8 2.2L22 6l-2.2.8L19 9l-.8-2.2L16 6l2.2-.8L19 3z"></path><path d="M5 14l.9 2.6L8 17.5l-2.1.9L5 21l-.9-2.6L2 17.5l2.1-.9L5 14z"></path></svg>
             <span className="sidebar-link-text">AI Assistant</span>

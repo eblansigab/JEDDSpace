@@ -1,10 +1,9 @@
-import React, { lazy, Suspense, useState, useEffect, useRef } from "react";
+import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import LoadingOverlay from "../components/LoadingOverlay";
 
 const LoginPage = lazy(() => import("../pages/loginPage"));
 const SignupPage = lazy(() => import("../pages/signupPage"));
-const AuthCallbackPage = lazy(() => import("../pages/authCallbackPage"));
 const Verify2FAPage = lazy(() => import("../pages/verify2faPage"));
 const CommonDashboardPage = lazy(() => import("../pages/commonDashboardPage"));
 const AnnouncementsPage = lazy(() => import("../pages/announcementsPage"));
@@ -64,7 +63,7 @@ const InnerRoutes = () => {
           <Route path="/assign-jobs" element={<ProtectedRoute><AssignJobsPage /></ProtectedRoute>} />
           <Route path="/audit-blockchain" element={<ProtectedRoute><AuditBlockchainPage /></ProtectedRoute>} />
           <Route path="/leave-form" element={<ProtectedRoute><LeaveFormPage /></ProtectedRoute>} />
-          <Route path="/ai" element={<ProtectedRoute><AiAssistantPage /></ProtectedRoute>} />
+          <Route path="/ai-assistant" element={<ProtectedRoute><AiAssistantPage /></ProtectedRoute>} />
           <Route path="/ai-chat-logs" element={<ProtectedRoute><AdminRoute><AiChatLogsPage /></AdminRoute></ProtectedRoute>} />
           <Route path="/ai-analytics" element={<ProtectedRoute><AdminRoute><AiAnalyticsPage /></AdminRoute></ProtectedRoute>} />
         </Routes>

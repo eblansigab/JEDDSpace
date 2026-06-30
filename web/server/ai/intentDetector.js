@@ -118,6 +118,16 @@ export const detectIntent = (message) => {
     return 'operations'
   }
 
+  if (
+    includesAny(text, [
+      'inbox', 'messages', 'message', 'conversation', 'conversations',
+      'email', 'emails', 'mail', 'received', 'sent mail', 'check my messages',
+      'unread message', 'urgent message', 'latest message', 'contacted me'
+    ])
+  ) {
+    return 'inbox'
+  }
+
   return 'general'
 }
 

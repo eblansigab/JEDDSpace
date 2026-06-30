@@ -105,6 +105,8 @@ const prepareChat = async ({ viewer, payload = {} }) => {
     entityContext: context.entityContext,
     warningContext: context.warnings?.join('\n') || '',
     recentContext: context.recentContext,
+    generalKnowledge,
+    viewer,
   })
   requestContext.log('prompt:build:complete')
 

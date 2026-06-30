@@ -19,7 +19,8 @@ const DocumentsPage = () => {
   }
 
   useEffect(() => {
-    loadFiles()
+    const timer = setTimeout(loadFiles, 0)
+    return () => clearTimeout(timer)
   }, [])
 
   const handleFileSelected = async (event) => {
@@ -141,7 +142,10 @@ const DocumentsPage = () => {
 
                       <Link
                         to="/ai-assistant"
-                        state={{ prefilledPrompt: `Summarize the document "${fileName}"` }}
+                        state={({ 
+                          prefilledPrompt: `Summarize the document "${fileName}"`,
+                          document: file
+                        })}
                         className="primary-btn"
                         style={{ padding: '8px 12px', textDecoration: 'none' }}
                       >

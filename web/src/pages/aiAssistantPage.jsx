@@ -158,11 +158,6 @@ export default function AiAssistantPage() {
         description: 'Compare uploaded contract with database.',
         message: 'Check for conflicts between an uploaded contract and our existing contracts.',
       },
-      {
-        label: 'Voice Transcript',
-        description: 'Transcribe audio recording.',
-        message: 'Transcribe this meeting recording.',
-      },
     ],
     []
   )
@@ -185,75 +180,103 @@ export default function AiAssistantPage() {
     })
   }
 
-  const runPrompt = async (rawPrompt, attachContext = false) => {
-    const trimmed = String(rawPrompt || '').trim()
-    if (!trimmed || loading) return
+   const runPrompt = async (rawPrompt, attachContext = false, attachmentsOverride) => {
+     const trimmed = String(rawPrompt || '').trim()
+     if (!trimmed || loading) return
+ 
+     setLoading(true)
+     setLoadingStatus(attachContext || /document|file|upload|screenshot|pdf|image|handbook/i.test(trimmed)
+       ? 'Retrieving document...'
+       : 'Thinking...')
+     setPrompt('')
+     const userMessage = { role: 'user', content: trimmed }
+     let statusTimer = null
+ 
+     try {
+       const historyMessages = messages.map((m) => ({ role: m.role, content: m.content }))
+       const allMessages = [...historyMessages, userMessage]
+       setMessages((current) => [...current, userMessage])
+ 
+       statusTimer = setTimeout(() => {
+         setLoadingStatus(attachContext || /document|file|upload|screenshot|pdf|image|handbook/i.test(trimmed)
+           ? 'Reading document...'
+           : 'Generating response...')
+       }, 900)
+ 
+       const assistantMessage = { role: 'assistant', content: '' }
+       setMessages((current) => [...current, assistantMessage])
+ 
+       const result = await aiService.chatWithContextStream(allMessages, user?.id, attachContext ? (attachmentsOverride || attachments) : [], {
+         sessionId,
+         onProgress: (message) => setLoadingStatus(message),
+         onToken: (_token, fullText) => {
+           setMessages((current) => {
+             const updated = [...current]
+             updated[updated.length - 1] = { role: 'assistant', content: fullText }
+             return updated
+           })
+         }
+       })
+ 
+       const reply = result.response || 'I could not generate a response.'
+       setMessages((current) => {
+         const updated = [...current]
+         updated[updated.length - 1] = { role: 'assistant', content: reply }
+         return updated
+       })
+       if (user?.id) {
+         const updated = [...allMessages, { role: 'assistant', content: reply || '' }]
+         const payload = JSON.stringify(updated)
+         logSaveCall(saveCallCountRef, lastSaveTimestampRef, sessionId, updated.length, payload.length)
+         aiService.saveChatHistory(user.id, updated, sessionId).catch((error) => {
+           logAssistantError('Save chat history failed after runPrompt', error, {
+             sessionId,
+             messageCount: updated.length,
+             payloadSize: payload.length,
+           })
+         })
+       }
+     } catch (error) {
+       logAssistantError('AI request failed', error, {
+         sessionId,
+         messageCount: messages.length,
+         prompt: trimmed,
+       })
+       setMessages((current) => [...current, { role: 'assistant', content: 'AI service is currently unavailable.' }])
+     } finally {
+       if (statusTimer) clearTimeout(statusTimer)
+       setLoading(false)
+       setLoadingStatus('')
+     }
+   }
 
-    setLoading(true)
-    setLoadingStatus(attachContext || /document|file|upload|screenshot|pdf|image|handbook/i.test(trimmed)
-      ? 'Retrieving document...'
-      : 'Thinking...')
-    setPrompt('')
-    const userMessage = { role: 'user', content: trimmed }
-    let statusTimer = null
-
-    try {
-      const historyMessages = messages.map((m) => ({ role: m.role, content: m.content }))
-      const allMessages = [...historyMessages, userMessage]
-      setMessages((current) => [...current, userMessage])
-
-      statusTimer = setTimeout(() => {
-        setLoadingStatus(attachContext || /document|file|upload|screenshot|pdf|image|handbook/i.test(trimmed)
-          ? 'Reading document...'
-          : 'Generating response...')
-      }, 900)
-
-      const assistantMessage = { role: 'assistant', content: '' }
-      setMessages((current) => [...current, assistantMessage])
-
-      const result = await aiService.chatWithContextStream(allMessages, user?.id, attachContext ? attachments : [], {
-        sessionId,
-        onProgress: (message) => setLoadingStatus(message),
-        onToken: (_token, fullText) => {
-          setMessages((current) => {
-            const updated = [...current]
-            updated[updated.length - 1] = { role: 'assistant', content: fullText }
-            return updated
-          })
-        }
-      })
-
-      const reply = result.response || 'I could not generate a response.'
-      setMessages((current) => {
-        const updated = [...current]
-        updated[updated.length - 1] = { role: 'assistant', content: reply }
-        return updated
-      })
-      if (user?.id) {
-        const updated = [...allMessages, { role: 'assistant', content: reply || '' }]
-        const payload = JSON.stringify(updated)
-        logSaveCall(saveCallCountRef, lastSaveTimestampRef, sessionId, updated.length, payload.length)
-        aiService.saveChatHistory(user.id, updated, sessionId).catch((error) => {
-          logAssistantError('Save chat history failed after runPrompt', error, {
-            sessionId,
-            messageCount: updated.length,
-            payloadSize: payload.length,
-          })
-        })
+   /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    if (location.state?.document) {
+      const doc = location.state.document
+      const attachment = {
+        document_id: doc.document_id || doc.id,
+        id: doc.id,
+        title: doc.title || doc.file_name || doc.name,
+        file_name: doc.file_name || doc.name,
+        file_path: doc.file_path || doc.file_url,
+        file_type: doc.file_type,
+        file_size: doc.file_size || doc.size
       }
-    } catch (error) {
-      logAssistantError('AI request failed', error, {
-        sessionId,
-        messageCount: messages.length,
-        prompt: trimmed,
-      })
-      setMessages((current) => [...current, { role: 'assistant', content: 'AI service is currently unavailable.' }])
-    } finally {
-      if (statusTimer) clearTimeout(statusTimer)
-      setLoading(false)
-      setLoadingStatus('')
+      const timer1 = setTimeout(() => setAttachments([attachment]), 0)
+      if (location.state?.prefilledPrompt) {
+        const timer2 = setTimeout(() => setPrompt(location.state.prefilledPrompt), 0)
+        const timer3 = setTimeout(() => runPrompt(location.state.prefilledPrompt, true, [attachment]), 0)
+        return () => {
+          clearTimeout(timer1)
+          clearTimeout(timer2)
+          clearTimeout(timer3)
+        }
+      }
+      return () => clearTimeout(timer1)
     }
-  }
+  }, [location.state?.document, location.state?.prefilledPrompt])
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const handleSuggestedPrompt = async (item) => {
     if (item.label === 'Recommendation Explanation') {

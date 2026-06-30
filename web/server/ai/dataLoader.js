@@ -66,6 +66,7 @@ const DOCUMENT_SELECT = `
     position
   )
 `
+const EMAIL_SELECT = 'email_id, sender_id, recipient_email, subject, message_body, is_read, created_at'
 
 const hasDateOverlap = (start1, end1, start2, end2) => {
   return new Date(start1) <= new Date(end2) && new Date(end1) >= new Date(start2)
@@ -154,8 +155,25 @@ const loadNotifications = async (limit = 25, unreadOnly = false, viewer = null) 
 }
 
 const loadDocuments = async (limit = 25, viewer = null) => {
-  const query = getClient().from('document').select(DOCUMENT_SELECT).order('created_at', orderByCreatedAtDesc).limit(limit)
+  const query = getClient().from('document').select(DOCUMENT_SELECT).order('created_at', { ascending: false }).limit(limit)
   return await queryOrThrow(scopeUserQuery(query, viewer, 'uploaded_by'))
+}
+
+const loadInboxMessages = async (limit = 25, viewer = null) => {
+  const query = getClient().from('email').select(EMAIL_SELECT).order('created_at', { ascending: false }).limit(limit)
+
+  if (!isAdmin(viewer)) {
+    const myEmail = viewer?.user?.email
+    const employeeId = viewerEmployeeId(viewer)
+    if (myEmail) {
+      query.or(`recipient_email.eq.${myEmail},recipient_email.eq.all`)
+    }
+    if (employeeId) {
+      query.neq('sender_id', employeeId)
+    }
+  }
+
+  return await queryOrThrow(query)
 }
 
 const loadDocumentSummary = async (documentId) => {
@@ -362,6 +380,10 @@ export const loadDataForIntent = async (intent, message, viewer = null) => {
       })
     )
     return { documents: documentsWithSummaries }
+  }
+
+  if (intent === 'inbox') {
+    return { messages: await loadInboxMessages(25, viewer) }
   }
 
   const [employees, jobs, leaves, contracts, notifications, documents] = await Promise.all([

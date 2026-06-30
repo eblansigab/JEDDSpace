@@ -22,15 +22,15 @@ export default function ChatWindow({ messages = [], isLoading = false, loadingLa
         border: '1px solid #dbe3ef',
         borderRadius: 8,
         padding: 16,
-        minHeight: 420,
-        maxHeight: '64vh',
+        minHeight: 300,
+        maxHeight: '55vh',
         overflowY: 'auto',
         display: 'grid',
         gap: 10
       }}
     >
       {messages.length === 0 ? (
-        <div style={{ minHeight: 320, display: 'grid', placeItems: 'center', color: '#475569', textAlign: 'center', padding: 24 }}>
+        <div style={{ minHeight: 220, display: 'grid', placeItems: 'center', color: '#475569', textAlign: 'center', padding: 24 }}>
           <div>
             <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: '#1E0977' }}>Start a conversation</div>
             <div style={{ maxWidth: 520, margin: '0 auto', lineHeight: 1.6 }}>

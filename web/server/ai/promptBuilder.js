@@ -27,8 +27,8 @@ const SYSTEM_PROMPT = `You are the official AI Assistant for JEDDSpace.
 
 {datetime_context}
 
-Answer only using the supplied company data, conversation history, resolved entities, database context, and extracted uploaded-file contents.
-If the requested information is unavailable, state that clearly.
+For JEDDSpace-specific information (employees, contracts, jobs, leave requests, notifications, uploaded documents, company records), answer only from the provided context. If the information is unavailable, state that clearly.
+For general knowledge, mathematics, programming, writing, explanations, translations, education, or other non-JEDDSpace topics, answer using your general knowledge.
 Do not invent employees, contracts, jobs, leave requests, notifications, or documents.
 Respect user authorization boundaries. If data is not present in the supplied context, say it is not available to you.
 Do not claim to have read documents, images, or audio that were not processed into the prompt.
@@ -124,6 +124,21 @@ const formatDocument = (document) => {
   return parts.join(' | ')
 }
 
+const formatMessage = (msg) => {
+  const senderName = msg.employee
+    ? `${msg.employee.first_name || ''} ${msg.employee.last_name || ''}`.trim()
+    : `Sender ID: ${msg.sender_id}`
+
+  return [
+    `From: ${senderName}`,
+    `To: ${msg.recipient_email || 'Unknown'}`,
+    `Subject: ${msg.subject || 'No Subject'}`,
+    `Date: ${msg.created_at ? new Date(msg.created_at).toLocaleString() : 'Unknown'}`,
+    `Read: ${msg.is_read ? 'Yes' : 'No'}`,
+    msg.message_body ? `Body: ${msg.message_body}` : null,
+  ].filter(Boolean).join(' | ')
+}
+
 const formatRecommendation = (recommendation) => {
   return [
     `Employee: ${recommendation.full_name || 'Unknown employee'}`,
@@ -208,6 +223,9 @@ const buildDataContext = ({ intent, data }) => {
   } else if (intent === 'document') {
     contextParts.push('Documents')
     contextParts.push(...(data.documents || []).map(formatDocument))
+  } else if (intent === 'inbox') {
+    contextParts.push('Your Messages')
+    contextParts.push(...(data.messages || []).map(formatMessage))
   } else {
     contextParts.push('Business Context')
     contextParts.push('Employees')
@@ -229,17 +247,28 @@ const buildDataContext = ({ intent, data }) => {
   return contextParts.join('\n')
 }
 
-export const buildMessages = ({ intent, message, data, messages = [], attachmentContext = '', entityContext = '', warningContext = '', recentContext = null }) => {
-  const databaseContext = buildDataContext({ intent, data }) || 'No relevant database records were loaded.'
-  const conversationContext = compactMessages(messages)
+export const buildMessages = ({ intent, message, data, messages = [], attachmentContext = '', entityContext = '', warningContext = '', recentContext = null, generalKnowledge = false, viewer = null }) => {
   const dateTimeContext = buildDateTimeContext()
+  const conversationContext = compactMessages(messages)
+
+  let systemPrompt = SYSTEM_PROMPT.replace('{datetime_context}', dateTimeContext)
+  if (generalKnowledge) {
+    systemPrompt = `You are the official AI Assistant for JEDDSpace.\n\n${dateTimeContext}\n\nAnswer this question using your general knowledge. For JEDDSpace-specific information (employees, contracts, jobs, leave requests, notifications, uploaded documents), answer only from the provided context. If the information is unavailable, state that clearly.`
+  }
+
+  if (viewer?.employee?.first_name || viewer?.employee?.last_name) {
+    const userName = `${viewer.employee.first_name || ''} ${viewer.employee.last_name || ''}`.trim()
+    systemPrompt += `\n\nYou are speaking with ${userName}.`
+  }
+
+  const databaseContext = generalKnowledge ? '' : (buildDataContext({ intent, data }) || 'No relevant database records were loaded.')
   const sections = [
-    'Conversation',
     conversationContext || 'No prior conversation supplied.',
-    '',
-    'Database Context',
-    databaseContext,
   ]
+
+  if (!generalKnowledge) {
+    sections.push('', 'Database Context', databaseContext)
+  }
 
   if (entityContext) {
     sections.push('', 'Resolved Entities', entityContext)
@@ -262,33 +291,40 @@ export const buildMessages = ({ intent, message, data, messages = [], attachment
 
   sections.push('', 'Question', message)
 
-  const systemPrompt = SYSTEM_PROMPT.replace('{datetime_context}', dateTimeContext)
-
   return [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: sections.join('\n') },
   ]
 }
 
-export const buildSystemContext = ({ intent, data, attachmentContext = '', messages = [], entityContext = '', warningContext = '', recentContext = null }) => {
-  const context = buildDataContext({ intent, data })
-  const conversationContext = compactMessages(messages)
+export const buildSystemContext = ({ intent, data, attachmentContext = '', messages = [], entityContext = '', warningContext = '', recentContext = null, generalKnowledge = false, viewer = null }) => {
   const dateTimeContext = buildDateTimeContext()
+  let systemPrompt = SYSTEM_PROMPT.replace('{datetime_context}', dateTimeContext)
+  if (generalKnowledge) {
+    systemPrompt = `You are the official AI Assistant for JEDDSpace.\n\n${dateTimeContext}\n\nAnswer this question using your general knowledge. For JEDDSpace-specific information (employees, contracts, jobs, leave requests, notifications, uploaded documents), answer only from the provided context. If the information is unavailable, state that clearly.`
+  }
+
+  if (viewer?.employee?.first_name || viewer?.employee?.last_name) {
+    const userName = `${viewer.employee.first_name || ''} ${viewer.employee.last_name || ''}`.trim()
+    systemPrompt += `\n\nYou are speaking with ${userName}.`
+  }
+
+  const conversationContext = compactMessages(messages)
   const recentContextSection = recentContext && Object.keys(recentContext).length > 0
     ? `Recent Conversation Context\n${Object.entries(recentContext)
         .map(([type, value]) => `Recent ${type}: ${value}`)
         .join('\n')}`
     : null
+  const context = generalKnowledge ? '' : (buildDataContext({ intent, data }) || 'No relevant database records were loaded.')
   const fullContext = [
     conversationContext ? `Conversation Memory\n${conversationContext}` : null,
-    `Database Context\n${context || 'No relevant database records were loaded.'}`,
+    generalKnowledge ? null : `Database Context\n${context}`,
     entityContext ? `Resolved Entities\n${entityContext}` : null,
     warningContext ? `Processing Notes\n${warningContext}` : null,
     attachmentContext ? `Uploaded Files\n${attachmentContext}` : null,
     recentContextSection,
   ].filter(Boolean).join('\n\n')
 
-  const systemPrompt = SYSTEM_PROMPT.replace('{datetime_context}', dateTimeContext)
   return `${systemPrompt}\n\n${fullContext}`
 }
 
