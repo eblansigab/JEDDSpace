@@ -65,7 +65,7 @@ export default function ChatInput({ value, onChange, onSend, loading = false, pl
   }
 
   return (
-    <div
+    <div className='chat-input-box'
       style={{
         marginTop: 16,
         padding: 16,

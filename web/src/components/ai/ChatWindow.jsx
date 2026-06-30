@@ -16,7 +16,7 @@ export default function ChatWindow({ messages = [], isLoading = false, loadingLa
   }, [messages, isLoading])
 
   return (
-    <div
+    <div className="chat-window-bg"
       style={{
         background: '#fff',
         border: '1px solid #dbe3ef',
