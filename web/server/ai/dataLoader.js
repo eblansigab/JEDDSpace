@@ -1,4 +1,5 @@
 import { getSupabaseServerClient } from './supabaseClient.js'
+import { detectInboxScope } from './intentDetector.js'
 
 const EMPLOYEE_SELECT = 'employee_id, first_name, last_name, position, department, employee_type, employment_status, is_archived, role'
 const JOB_SELECT = `
@@ -66,7 +67,22 @@ const DOCUMENT_SELECT = `
     position
   )
 `
-const EMAIL_SELECT = 'email_id, sender_id, recipient_email, subject, message_body, is_read, created_at'
+const EMAIL_SELECT = `
+  email_id,
+  sender_id,
+  recipient_email,
+  subject,
+  message_body,
+  is_read,
+  created_at,
+  sender:sender_id (
+    employee_id,
+    first_name,
+    last_name,
+    position,
+    department
+  )
+`
 
 const hasDateOverlap = (start1, end1, start2, end2) => {
   return new Date(start1) <= new Date(end2) && new Date(end1) >= new Date(start2)
@@ -79,6 +95,7 @@ const getClient = () => getSupabaseServerClient()
 const isAdmin = (viewer) => Boolean(viewer?.isAdmin)
 const viewerEmployeeId = (viewer) => viewer?.employee?.employee_id ?? null
 const viewerUserId = (viewer) => viewer?.employee?.user_id || viewer?.user?.id || null
+const viewerEmail = (viewer) => viewer?.user?.email || viewer?.employee?.email || null
 
 const queryOrThrow = async (query) => {
   const { data, error } = await query
@@ -96,6 +113,60 @@ const scopeUserQuery = (query, viewer, column) => {
   if (isAdmin(viewer)) return query
   const userId = viewerUserId(viewer)
   return userId ? query.eq(column, userId) : query.limit(0)
+}
+
+const resolveEmployeeByName = async (name, viewer) => {
+  if (!isAdmin(viewer)) return null
+  const { data, error } = await getClient()
+    .from('employee')
+    .select('employee_id, email, first_name, last_name')
+    .ilike('first_name', `%${name}%`)
+    .limit(5)
+
+  if (error || !data?.length) return null
+  const exact = data.find(e => `${e.first_name} ${e.last_name}`.toLowerCase() === name.toLowerCase())
+  return exact || data[0]
+}
+
+const loadInboxMessages = async (options = {}) => {
+  const { viewer, scope = 'mine', targetEmployee = null, limit = 25 } = options
+  const query = getClient().from('email').select(EMAIL_SELECT).order('created_at', { ascending: false }).limit(limit)
+
+  if (scope === 'mine') {
+    const myEmail = viewerEmail(viewer)
+    const employeeId = viewerEmployeeId(viewer)
+    if (myEmail) {
+      query.or(`recipient_email.eq.${myEmail},recipient_email.eq.all`)
+    }
+    if (employeeId) {
+      query.neq('sender_id', employeeId)
+    }
+  } else if (scope === 'employee') {
+    if (!isAdmin(viewer)) return []
+    const targetEmail = targetEmployee?.email
+    const targetId = targetEmployee?.employee_id
+    if (targetEmail) {
+      query.or(`recipient_email.eq.${targetEmail},recipient_email.eq.all`)
+    } else {
+      return []
+    }
+    if (targetId) {
+      query.neq('sender_id', targetId)
+    }
+  } else if (scope === 'all') {
+    if (!isAdmin(viewer)) {
+      const myEmail = viewerEmail(viewer)
+      const employeeId = viewerEmployeeId(viewer)
+      if (myEmail) {
+        query.or(`recipient_email.eq.${myEmail},recipient_email.eq.all`)
+      }
+      if (employeeId) {
+        query.neq('sender_id', employeeId)
+      }
+    }
+  }
+
+  return await queryOrThrow(query)
 }
 
 const loadEmployees = async (options = {}) => {
@@ -157,23 +228,6 @@ const loadNotifications = async (limit = 25, unreadOnly = false, viewer = null) 
 const loadDocuments = async (limit = 25, viewer = null) => {
   const query = getClient().from('document').select(DOCUMENT_SELECT).order('created_at', { ascending: false }).limit(limit)
   return await queryOrThrow(scopeUserQuery(query, viewer, 'uploaded_by'))
-}
-
-const loadInboxMessages = async (limit = 25, viewer = null) => {
-  const query = getClient().from('email').select(EMAIL_SELECT).order('created_at', { ascending: false }).limit(limit)
-
-  if (!isAdmin(viewer)) {
-    const myEmail = viewer?.user?.email
-    const employeeId = viewerEmployeeId(viewer)
-    if (myEmail) {
-      query.or(`recipient_email.eq.${myEmail},recipient_email.eq.all`)
-    }
-    if (employeeId) {
-      query.neq('sender_id', employeeId)
-    }
-  }
-
-  return await queryOrThrow(query)
 }
 
 const loadDocumentSummary = async (documentId) => {
@@ -383,7 +437,33 @@ export const loadDataForIntent = async (intent, message, viewer = null) => {
   }
 
   if (intent === 'inbox') {
-    return { messages: await loadInboxMessages(25, viewer) }
+    const inboxScope = detectInboxScope(message, viewer)
+    let targetEmployeeObj = null
+
+    if (inboxScope.scope === 'employee' && inboxScope.targetName) {
+      targetEmployeeObj = await resolveEmployeeByName(inboxScope.targetName, viewer)
+    }
+
+    const messages = await loadInboxMessages({
+      viewer,
+      scope: inboxScope.scope,
+      targetEmployee: targetEmployeeObj,
+      limit: 25,
+    })
+
+    console.log('[InboxLoader]', JSON.stringify({
+      viewer: { employee_id: viewerEmployeeId(viewer), user_id: viewerUserId(viewer), email: viewerEmail(viewer), role: viewer?.role },
+      scope: inboxScope.scope,
+      targetEmployee: targetEmployeeObj ? { employee_id: targetEmployeeObj.employee_id, name: `${targetEmployeeObj.first_name} ${targetEmployeeObj.last_name}` } : null,
+      returnedCount: messages.length,
+    }))
+
+    return {
+      messages,
+      inboxScope: inboxScope.scope,
+      targetEmployee: targetEmployeeObj,
+      viewerEmail: viewerEmail(viewer),
+    }
   }
 
   const [employees, jobs, leaves, contracts, notifications, documents] = await Promise.all([

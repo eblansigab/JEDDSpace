@@ -11,6 +11,7 @@ const CURRENT_PATTERNS = [
   { type: 'job', patterns: [/current\s+job/i, /current\s+assignment/i, /current\s+schedule/i] },
   { type: 'leave', patterns: [/current\s+leave/i, /current\s+absence/i, /current\s+vacation/i] },
   { type: 'document', patterns: [/current\s+document/i, /current\s+file/i, /current\s+pdf/i] },
+  { type: 'inbox', patterns: [/current\s+inbox/i, /current\s+message/i, /latest\s+message/i, /latest\s+conversation/i] },
 ]
 
 const extractRecentEntity = (messages = [], entityType) => {
@@ -42,6 +43,13 @@ const extractRecentEntity = (messages = [], entityType) => {
     if (entityType === 'leave') {
       const leaveMatch = content.match(/(?:leave|absence|vacation)\s+(?:for|by|of)\s+["']?([^"'\n.]+)["']?/i)
       if (leaveMatch) return leaveMatch[1].trim()
+    }
+
+    if (entityType === 'inbox') {
+      const senderMatch = content.match(/(?:from|sent by)\s+([a-z]+(?:\s+[a-z]+)?)/i)
+      if (senderMatch) return senderMatch[1].trim()
+      const whoMatch = content.match(/who\s+(?:messaged|emailed|sent)\s+(.+?)(?:\s+yesterday|\s+today|\s+this\s+week|\s+last\s+week)?$/i)
+      if (whoMatch) return whoMatch[1].trim()
     }
   }
 

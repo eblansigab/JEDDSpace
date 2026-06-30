@@ -2,6 +2,54 @@ const normalize = (value) => String(value || '').trim().toLowerCase()
 
 const includesAny = (text, keywords) => keywords.some((keyword) => text.includes(keyword))
 
+const isAdmin = (viewer) => Boolean(viewer?.isAdmin)
+
+const MINE_PATTERNS = [
+  'my inbox', 'my messages', 'my emails', 'who messaged me', 'who emailed me',
+  'latest message', 'latest conversation', 'summarize my inbox', 'summarize my messages',
+  'did hr send me anything', 'unread messages', 'latest email', 'recent conversation',
+  'who contacted me', 'what messages did i receive', 'summarize the latest message',
+  'my latest message', 'my unread', 'check my messages', 'my mail'
+]
+
+const ALL_PATTERNS = [
+  'all emails', 'company inbox', 'everyone\'s messages', 'all conversations',
+  'show every email', 'recent company emails', 'latest organization messages',
+  'show all emails', 'all mail', 'every email', 'company-wide inbox'
+]
+
+const EMPLOYEE_INBOX_PATTERNS = [
+  /(.+)'s\s+inbox/i,
+  /(.+)'s\s+messages/i,
+  /(.+)'s\s+emails/i,
+  /show\s+(.+?)(?:'s\s+inbox|'s\s+messages|'s\s+emails)/i,
+  /summarize\s+(.+?)(?:'s\s+inbox|'s\s+messages|'s\s+emails)/i,
+  /who\s+messaged\s+(.+?)(?:\s+yesterday|\s+today|\s+this\s+week)?$/i
+]
+
+export const detectInboxScope = (message, viewer) => {
+  const text = normalize(message)
+
+  if (includesAny(text, MINE_PATTERNS)) {
+    return { scope: 'mine' }
+  }
+
+  for (const pattern of EMPLOYEE_INBOX_PATTERNS) {
+    const match = text.match(pattern)
+    if (match && match[1]) {
+      if (!isAdmin(viewer)) return { scope: 'mine' }
+      return { scope: 'employee', targetName: match[1].trim() }
+    }
+  }
+
+  if (includesAny(text, ALL_PATTERNS)) {
+    if (!isAdmin(viewer)) return { scope: 'mine' }
+    return { scope: 'all' }
+  }
+
+  return { scope: 'mine' }
+}
+
 export const detectIntent = (message) => {
   const text = normalize(message)
 
@@ -139,6 +187,7 @@ export const isGeneralKnowledgeQuestion = (message) => {
     'leave', 'absence', 'vacation', 'document', 'file', 'upload', 'pdf',
     'notification', 'alert', 'recommendation', 'operation', 'status', 'overview',
     'dashboard', 'today', 'schedule', 'department', 'position',
+    'inbox', 'message', 'email', 'mail', 'conversation', 'emails'
   ].some((keyword) => text.includes(keyword))
 
   if (hasCompanyKeyword) return false

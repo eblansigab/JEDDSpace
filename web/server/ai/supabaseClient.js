@@ -45,7 +45,7 @@ export const getRequestUserContext = async (req) => {
 
   const { data: employee, error: employeeError } = await client
     .from('employee')
-    .select('employee_id, user_id, first_name, last_name, position, department, role, employment_status, is_archived')
+    .select('employee_id, user_id, first_name, last_name, position, department, employee_type, role, employment_status, is_archived')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -53,12 +53,32 @@ export const getRequestUserContext = async (req) => {
     throw employeeError
   }
 
-  return {
-    user,
-    employee,
+  const viewer = {
+    user: {
+      id: user.id,
+      email: user.email,
+    },
+    employee: employee
+      ? {
+          employee_id: employee.employee_id,
+          user_id: employee.user_id,
+          first_name: employee.first_name,
+          last_name: employee.last_name,
+          full_name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || null,
+          email: user.email || null,
+          position: employee.position,
+          department: employee.department,
+          employee_type: employee.employee_type,
+          role: employee.role,
+          employment_status: employee.employment_status,
+          is_archived: employee.is_archived,
+        }
+      : null,
     role: String(employee?.role || 'employee').toLowerCase(),
     isAdmin: String(employee?.role || '').toLowerCase() === 'admin',
   }
+
+  return viewer
 }
 
 export const saveSummary = async ({ referenceType, contentSummary, rawDataSnapshot }) => {

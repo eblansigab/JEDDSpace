@@ -127,16 +127,47 @@ const formatDocument = (document) => {
 const formatMessage = (msg) => {
   const senderName = msg.employee
     ? `${msg.employee.first_name || ''} ${msg.employee.last_name || ''}`.trim()
-    : `Sender ID: ${msg.sender_id}`
+    : 'Unknown sender'
 
   return [
     `From: ${senderName}`,
+    msg.employee?.position ? `Position: ${msg.employee.position}` : null,
+    msg.employee?.department ? `Department: ${msg.employee.department}` : null,
     `To: ${msg.recipient_email || 'Unknown'}`,
     `Subject: ${msg.subject || 'No Subject'}`,
     `Date: ${msg.created_at ? new Date(msg.created_at).toLocaleString() : 'Unknown'}`,
     `Read: ${msg.is_read ? 'Yes' : 'No'}`,
     msg.message_body ? `Body: ${msg.message_body}` : null,
   ].filter(Boolean).join(' | ')
+}
+
+const buildInboxSummary = (messages, scope, viewerEmail, targetEmployee = null) => {
+  const count = messages.length
+  const unreadCount = messages.filter((m) => !m.is_read).length
+  const latest = messages[0]
+
+  const lines = ['Inbox Summary']
+
+  if (scope === 'all') {
+    lines.push('Scope: All company emails (administrator view)')
+  } else if (scope === 'employee' && targetEmployee) {
+    lines.push(`Scope: ${targetEmployee.first_name} ${targetEmployee.last_name}'s inbox`)
+  } else {
+    lines.push(`Scope: Your inbox`)
+  }
+
+  lines.push(`Total messages: ${count}`)
+  lines.push(`Unread: ${unreadCount}`)
+
+  if (latest) {
+    const senderName = latest.employee
+      ? `${latest.employee.first_name || ''} ${latest.employee.last_name || ''}`.trim()
+      : 'Unknown sender'
+    lines.push(`Latest message: From ${senderName} on ${latest.created_at ? new Date(latest.created_at).toLocaleString() : 'Unknown'}`)
+    lines.push(`Subject: ${latest.subject || 'No Subject'}`)
+  }
+
+  return lines.join('\n')
 }
 
 const formatRecommendation = (recommendation) => {
@@ -224,7 +255,10 @@ const buildDataContext = ({ intent, data }) => {
     contextParts.push('Documents')
     contextParts.push(...(data.documents || []).map(formatDocument))
   } else if (intent === 'inbox') {
-    contextParts.push('Your Messages')
+    const summary = buildInboxSummary(data.messages, data.inboxScope, data.viewerEmail, data.targetEmployee)
+    contextParts.push(summary)
+    contextParts.push('')
+    contextParts.push('Messages')
     contextParts.push(...(data.messages || []).map(formatMessage))
   } else {
     contextParts.push('Business Context')
