@@ -764,7 +764,7 @@ body.sidebar-collapsed .content {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(25vw, 1fr));
   gap: 18px;
   margin-bottom: 18px;
 }
@@ -785,7 +785,6 @@ body.sidebar-collapsed .content {
   padding: 20px;
   margin-bottom: 20px;
   border-radius: 6px;
-  height: fit-content;
 }
 
 .dashboard-grid .dashboard-widget {
