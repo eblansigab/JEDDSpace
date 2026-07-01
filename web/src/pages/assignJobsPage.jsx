@@ -36,7 +36,7 @@ const AssignJobsPage = () => {
 
   const fetchFieldWorkers = async () => {
     try {
-      const data = await employeeService.getFieldWorkers()
+      const data = await employeeService.getAssignableEmployees()
       setFieldWorkers(data)
     } catch (error) {
       console.error(error)
