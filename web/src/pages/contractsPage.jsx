@@ -97,8 +97,8 @@ const ContractsPage = () => {
                           <p style={{fontWeight:'bold',marginTop:"0.5em",marginBottom:0}}>{contract.job.employee.first_name} {contract.job.employee.last_name}</p>
                           <p style={{margin:'0.5em 0'}}>EMP-{contract.job.employee.employee_id}</p>
                       <div style={{display:'flex',gap:'8px'}}>
-                        <div className='emp-position' style={{borderRadius:'15%',backgroundColor:"lightblue",padding:'8px'}}>{contract.job.employee.position || 'N/A'}</div>
-                        <div className='emp-department' style={{borderRadius:'15%',backgroundColor:"lightgray",padding:'8px'}}>{contract.job.employee.department || 'N/A'}</div>
+                        <div className='emp-position' style={{borderRadius:'15%',backgroundColor:"lightblue",padding:'8px',color:'#084298'}}>{contract.job.employee.position || 'N/A'}</div>
+                        <div className='emp-department' style={{borderRadius:'15%',backgroundColor:"lightgray",padding:'8px',color:'#475569'}}>{contract.job.employee.department || 'N/A'}</div>
                       </div>
                         </div>
                       </div>
