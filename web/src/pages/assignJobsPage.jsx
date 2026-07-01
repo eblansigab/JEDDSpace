@@ -377,7 +377,7 @@ const AssignJobsPage = () => {
               {fieldWorkers.map((worker) => (
                 <option key={worker.employee_id} value={worker.employee_id}>
                   {worker.first_name} {worker.last_name}
-                  {worker.position ? ` (${worker.position})` : ''}
+                  {worker.role ? ` (${worker.role})` : ''}
                 </option>
               ))}
             </select>
