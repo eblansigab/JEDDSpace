@@ -539,7 +539,7 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
               onChange={(e) => setCustomStatus(e.target.value)}
             />
 
-            <Button onClick={handleUpdateStatus}>Update Status</Button>
+            <Button onClick={handleUpdateStatus} style={{marginTop:16}}>Update Status</Button>
           </section>
 
           <section className="profile-section">
@@ -609,7 +609,7 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
               <>
                 <label>Display API Key (Supabase Synced)</label>
                 <input className="border p-2 rounded w-full mb-4" value={apiKey} readOnly />
-                <Button variant="outline" onClick={handleRotateApiKey}>Regenerate Key</Button>
+                <Button variant="outline" onClick={handleRotateApiKey} style={{marginTop:16}}>Regenerate Key</Button>
 
                 <div style={{ marginTop: 24 }}>
                   <h4>Key Audit Log (Persistent)</h4>
