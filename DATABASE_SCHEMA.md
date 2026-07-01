@@ -3,6 +3,7 @@
 -- Never invent columns.
 -- Only use columns that exist in DATABASE_SCHEMA.md.
 
+
 CREATE TABLE public.employee (
   employee_id integer NOT NULL DEFAULT nextval('employee_employee_id_seq'::regclass),
   first_name character varying NOT NULL,
@@ -161,7 +162,7 @@ CREATE TABLE public.audit_logs (
 );
 CREATE TABLE public.ai_summarization (
   summary_id integer NOT NULL DEFAULT nextval('ai_summarization_summary_id_seq'::regclass),
-  reference_type text,
+  reference_type text UNIQUE,
   content_summary text,
   raw_data_snapshot text,
   created_at timestamp with time zone DEFAULT now(),

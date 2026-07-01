@@ -20,6 +20,23 @@ export const contractService = {
           last_name,
           position,
           department
+        ),
+        job:job_id (
+          job_id,
+          employee_id,
+          department,
+          destination,
+          start_date,
+          end_date,
+          status,
+          notes,
+          employee:employee_id (
+            employee_id,
+            first_name,
+            last_name,
+            position,
+            department
+          )
         )
       `)
 
