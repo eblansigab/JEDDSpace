@@ -146,6 +146,7 @@ export default function AiAnalyticsPage() {
             {loading ? (
               <p>Loading...</p>
             ) : analytics?.performance ? (
+              <React.Fragment>
               <ul className="admin-list">
                 <li>Measured Requests: {analytics.performance.totalMeasuredRequests}</li>
                 <li>Average Response Time: {analytics.performance.averageResponseTimeMs} ms</li>
@@ -161,6 +162,65 @@ export default function AiAnalyticsPage() {
                 <li>Clarification Requests: {analytics.performance.clarificationRequests}</li>
                 <li>Timeouts: {analytics.performance.timeoutCount}</li>
               </ul>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <div style={{width:'45%'}}>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Measured Requests</p>
+                    <p>{analytics.performance.totalMeasuredRequests}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Average Response Time</p>
+                    <p>{analytics.performance.averageResponseTimeMs}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Average Groq Latency</p>
+                    <p>{analytics.performance.averageGroqLatencyMs}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Average Confidence</p>
+                    <p>{analytics.performance.averageConfidence}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Documents Processed</p>
+                    <p>{analytics.performance.documentsProcessed}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Extraction Successes</p>
+                    <p>{analytics.performance.extractionSuccesses}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:'0'}}>
+                    <p style={{fontWeight:'bold'}}>Cache Hit Rate</p>
+                    <p>{analytics.performance.cacheHitRate}</p>
+                  </div>
+                </div>
+                <div style={{width:'45%'}}>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Cache Hits</p>
+                    <p>{analytics.performance.cacheHits}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Cache Misses</p>
+                    <p>{analytics.performance.cacheMisses}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Entity Resolution Successes</p>
+                    <p>{analytics.performance.entityResolutionSuccesses}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Entity Resolution Success Rate</p>
+                    <p>{analytics.performance.entityResolutionSuccessRate}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Clarification Requests</p>
+                    <p>{analytics.performance.clarificationRequests}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:'0'}}>
+                    <p style={{fontWeight:'bold'}}>Timeouts</p>
+                    <p>{analytics.performance.timeoutCount}</p>
+                  </div>
+                </div>
+              </div>
+              </React.Fragment>
             ) : (
               <p>No performance metrics available.</p>
             )}
