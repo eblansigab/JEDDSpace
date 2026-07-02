@@ -52,7 +52,7 @@ export default function AiChatLogsPage() {
                 </thead>
                 <tbody>
                   {logs.map((log) => (
-                    <tr key={log.chat_id}>
+                    <tr key={log.chat_id} style={{margin:'auto .5em'}}>
                       <td>{log.created_at ? new Date(log.created_at).toLocaleString() : '-'}</td>
                       <td>
                         {log.employee
