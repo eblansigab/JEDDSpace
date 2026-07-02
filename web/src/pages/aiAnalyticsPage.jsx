@@ -94,6 +94,7 @@ export default function AiAnalyticsPage() {
               {loading ? (
                 <p>Loading...</p>
               ) : analytics?.topUsers?.length > 0 ? (
+                <React.Fragment>
                 <ul className="admin-list">
                   {analytics.topUsers.map((user) => (
                     <li key={user.userId}>
@@ -102,6 +103,10 @@ export default function AiAnalyticsPage() {
                     </li>
                   ))}
                 </ul>
+                {analytics.topUsers.map((user) => (
+                  <p key={user.userId}><strong>{user.name}:</strong> {user.count} prompts</p>
+                ))}
+                </React.Fragment>
               ) : (
                 <p>No data available.</p>
               )}
@@ -117,11 +122,16 @@ export default function AiAnalyticsPage() {
             {loading ? (
               <p>Loading...</p>
             ) : analytics?.usage ? (
+              <React.Fragment>
               <ul className="admin-list">
                 <li>Today: {analytics.usage.today} prompts</li>
                 <li>This Week: {analytics.usage.thisWeek} prompts</li>
                 <li>This Month: {analytics.usage.thisMonth} prompts</li>
               </ul>
+              <p><strong>Today:</strong> {analytics.usage.today} prompts</p>
+              <p><strong>This Week:</strong> {analytics.usage.thisWeek} prompts</p>
+              <p><strong>This Month:</strong> {analytics.usage.thisMonth} prompts</p>
+              </React.Fragment>
             ) : (
               <p>No data available.</p>
             )}
