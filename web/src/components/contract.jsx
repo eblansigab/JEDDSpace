@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import test from "../../../JEDDSpace w1.5.4/web/artifacts/test_metadata.json"
+import test from "../../artifacts/test_metadata.json"
 import { supabaseClient } from "../supabase/supabaseClient";
 
 const provider = new ethers.JsonRpcProvider(
