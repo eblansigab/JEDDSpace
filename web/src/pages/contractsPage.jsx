@@ -59,8 +59,6 @@ const ContractsPage = () => {
             </h3>
             <p><strong>Contractor:</strong> {contract.contractor ? `${contract.contractor.first_name} ${contract.contractor.last_name}` : 'Unknown'}</p>
             <p><strong>Department:</strong> {contract.contractor?.department || 'N/A'}</p>
-            <p><strong>Start Date:</strong> {contract.start_date || 'N/A'}</p>
-            <p><strong>End Date:</strong> {contract.end_date || 'Ongoing'}</p>
             <p><strong>Salary:</strong> {contract.salary ? `₱${contract.salary.toLocaleString()}` : 'N/A'}</p>
             {contract.contract_file_url && (
               <a href={contract.contract_file_url} target="_blank" rel="noreferrer" className="primary-btn">
@@ -74,18 +72,18 @@ const ContractsPage = () => {
                 <div style={{display:'flex',justifyContent:'space-between'}}>
                   <div style={{width:'45%'}}>
                     <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
-                      <p style={{fontWeight:'bold'}}>Destination</p>
-                      <p>{contract.job.destination || 'N/A'}</p>
+                      <p style={{fontWeight:'bold',marginBottom:'0'}}>Destination</p>
+                      <p style={{marginBottom:'0'}}>{contract.job.destination || 'N/A'}</p>
                     </div>
-                    <div style={{display:'flex',justifyContent:'space-between'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0'}}>
                       <p style={{fontWeight:'bold'}}>Location</p>
                       <p>{contract.job.destination || 'N/A'}</p>
                     </div>
                   </div>
                   <div style={{width:'45%'}}>
                     <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
-                      <p style={{fontWeight:'bold'}}>Start Date</p>
-                      <p>{contract.job.start_date ? new Date(contract.job.start_date).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}) : 'N/A'}</p>
+                      <p style={{fontWeight:'bold', marginBottom:'0'}}>Start Date</p>
+                      <p style={{marginBottom:'0'}}>{contract.job.start_date ? new Date(contract.job.start_date).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}) : 'N/A'}</p>
                     </div>
                     <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
                       <p style={{fontWeight:'bold'}}>End Date</p>
@@ -112,13 +110,13 @@ const ContractsPage = () => {
                           {contract.job.employee.first_name?.[0]}{contract.job.employee.last_name?.[0]}
                         </span>
                         <div>
-                          <p style={{fontWeight:'bold'}}>{contract.job.employee.first_name} {contract.job.employee.last_name}</p>
-                          <p>EMP-{contract.job.employee.employee_id}</p>
-                        </div>
-                      </div>
+                          <p style={{fontWeight:'bold',marginTop:"0.5em",marginBottom:0}}>{contract.job.employee.first_name} {contract.job.employee.last_name}</p>
+                          <p style={{margin:'0.5em 0'}}>EMP-{contract.job.employee.employee_id}</p>
                       <div style={{display:'flex',gap:'8px'}}>
-                        <div style={{borderRadius:'15%',backgroundColor:"lightblue",padding:'8px'}}>{contract.job.employee.position || 'N/A'}</div>
-                        <div style={{borderRadius:'15%',backgroundColor:"lightgray",padding:'8px'}}>{contract.job.employee.department || 'N/A'}</div>
+                        <div className='emp-position' style={{borderRadius:'15%',backgroundColor:"lightblue",padding:'8px',color:'#084298'}}>{contract.job.employee.position || 'N/A'}</div>
+                        <div className='emp-department' style={{borderRadius:'15%',backgroundColor:"lightgray",padding:'8px',color:'#475569'}}>{contract.job.employee.department || 'N/A'}</div>
+                      </div>
+                        </div>
                       </div>
                     </div>
                   </div>
