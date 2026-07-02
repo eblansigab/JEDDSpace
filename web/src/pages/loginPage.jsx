@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   beginTwoFactorSignIn,
@@ -7,12 +7,14 @@ import {
 } from '../services/authService';
 import { sessionService } from '../services/sessionService';
 import { alertService } from '../utils/alertService';
+import { useAuth } from '../services/authContext';
 import logo from '../assets/JEDDSpace Logo (Transparent).png';
 import '../styles/style.css'
 
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { user, loading, profile } = useAuth()
 
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,6 +22,17 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user && profile) {
+      const status = String(profile.registration_status || '').toLowerCase()
+      if (status === 'pending' || status === 'rejected') {
+        navigate('/awaiting-approval')
+      } else {
+        navigate('/dashboard')
+      }
+    }
+  }, [loading, user, profile, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,6 +68,14 @@ export function LoginPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (loading) {
+    return <div className="container"><div className="form-box">Loading...</div></div>
+  }
+
+  if (user) {
+    return null
+  }
 
   return (
     <div>

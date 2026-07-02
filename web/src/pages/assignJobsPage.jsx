@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { jobService } from '../services/jobsService'
+import { contractService } from '../services/contractService'
 import { employeeService } from '../services/employeeService'
 import { emailService } from '../services/emailService'
 import { notificationService } from '../services/notificationService'
@@ -95,7 +96,7 @@ const AssignJobsPage = () => {
         return
       }
 
-      await jobService.create({
+      const jobResult = await jobService.create({
         employee_id: selectedEmployee,
         department: employee.department,
         destination,
@@ -103,6 +104,22 @@ const AssignJobsPage = () => {
         end_date: endDate,
         notes: notes || null,
         status: 'open'
+      })
+
+      const job = jobResult
+
+      if (!job?.job_id) {
+        await alertService.error('Failed to create job')
+        return
+      }
+
+      await contractService.createContract({
+        contractor: selectedEmployee,
+        job_id: job.job_id,
+        start_date: startDate,
+        end_date: endDate,
+        contract_title: `Job Assignment: ${destination}`,
+        status: 'pending_signature'
       })
 
       const employeeName = `${employee.first_name} ${employee.last_name}`

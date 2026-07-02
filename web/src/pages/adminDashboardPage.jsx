@@ -32,6 +32,24 @@ const AdminDashboardPage = () => {
 
             </div>
 
+            {/* Registration Requests */}
+            <div className="admin-box">
+
+              <h3>Registration Requests</h3>
+
+              <p>
+                Approve or reject new account registrations.
+              </p>
+
+              <Link
+                to="/registration-requests"
+                className="primary-btn"
+              >
+                Go
+              </Link>
+
+            </div>
+
             {/* Manage Employees */}
             <div className="admin-box">
 

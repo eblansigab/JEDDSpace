@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logo from '../assets/JEDDSpace Logo (Transparent).png'
 import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, ROLE_OPTIONS } from '../constants/formOptions'
@@ -34,7 +34,7 @@ const SignUp = () => {
 
     setIsSubmitting(true)
     try {
-      const result = await registerUser(
+      await registerUser(
         email,
         password,
         confirmPassword,
@@ -45,9 +45,9 @@ const SignUp = () => {
         department
       )
 
-      const successMessage = result?.employeeCreated
-        ? 'Account created successfully.\n\nPlease check your email and click the verification link before logging in.'
-        : 'Account created successfully.\n\nA verification email has been sent. The employee record will be created automatically once the user verifies their email.'
+      const successMessage =
+        'Account created successfully.\n\nPlease check your email and click the verification link. ' +
+        'An administrator must approve your account before you can access JEDDSpace.'
 
       await alertService.success(successMessage)
 

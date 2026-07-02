@@ -1,18 +1,24 @@
 import { useState, useEffect } from 'react'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { contractService } from '../services/contractService'
+import { jobService } from '../services/jobsService'
 import { LoadingOverlay } from '../components'
 import { alertService } from '../utils/alertService'
 
 const ContractsPage = () => {
   const [contracts, setContracts] = useState([])
+  const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadContracts = async () => {
       try {
-        const data = await contractService.getAllContracts()
-        setContracts(data)
+        const [contractsData, jobsData] = await Promise.all([
+          contractService.getAllContracts(),
+          jobService.getAll()
+        ])
+        setContracts(contractsData || [])
+        setJobs(jobsData || [])
       } catch (error) {
         await alertService.error(error.message || 'Failed to load contracts')
       } finally {
@@ -30,12 +36,22 @@ const ContractsPage = () => {
     )
   }
 
+  const jobsMap = (jobs || []).reduce((map, job) => {
+    map[job.job_id] = job
+    return map
+  }, {})
+
+  const enrichedContracts = (contracts || []).map(contract => ({
+    ...contract,
+    job: jobsMap[contract.job_id] || null
+  }))
+
   return (
     <DashboardLayout>
       <main className="content">
         <h3>Contracts</h3>
 
-        {(contracts || []).map((contract) => (
+        {enrichedContracts.map((contract) => (
           <div key={contract.contracts_id} className="contract-box">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {contract.contract_title || 'Untitled Contract'}
@@ -112,7 +128,7 @@ const ContractsPage = () => {
           </div>
         ))}
 
-        {!contracts.length && (
+        {!enrichedContracts.length && (
           <p style={{ color: '#64748b' }}>No contracts found.</p>
         )}
       </main>

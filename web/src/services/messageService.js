@@ -68,3 +68,55 @@ export const getThreadMessages = async (rootEmailId) => {
 
   return data || []
 }
+
+export const createLeaveForm = async ({ employeeId, startDate, endDate, type, reason, createdBy }) => {
+  const payload = {
+    employee_id: employeeId,
+    start_date: startDate,
+    end_date: endDate,
+    type,
+    reason,
+    status: 'pending',
+    created_by: createdBy,
+  }
+
+  const { data, error } = await supabaseClient
+    .from('leaveform')
+    .insert([payload])
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[messageService] Error creating leave form:', error)
+    throw error
+  }
+
+  return data
+}
+
+export const createBusinessForm = async ({ employeeId, startDate, endDate, location, companyCar, driverName, phoneNum, createdBy, projectId = null }) => {
+  const payload = {
+    employee_id: employeeId,
+    start_date: startDate,
+    end_date: endDate,
+    location,
+    company_car: companyCar,
+    driver_name: driverName,
+    phone_num: phoneNum,
+    created_by: createdBy,
+    ...(projectId ? { project_id: projectId } : {}),
+  }
+
+  const { data, error } = await supabaseClient
+    .from('businessform')
+    .insert([payload])
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[messageService] Error creating business form:', error)
+    throw error
+  }
+
+  return data
+}

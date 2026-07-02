@@ -21,6 +21,8 @@ export const jobService = {
     const { data, error } = await supabaseClient
       .from('job')
       .insert([jobData])
+      .select()
+      .single()
 
     if (error) throw error
 

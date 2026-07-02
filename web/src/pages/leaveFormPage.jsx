@@ -2,19 +2,56 @@ import React, { useState } from 'react'
 import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { Button, PageHeader } from '../components'
+import { useAuth } from '../services/authContext'
+import { alertService } from '../utils/alertService'
+import { createLeaveForm } from '../services/messageService'
 
 const LeaveFormPage = () => {
+  const { profile } = useAuth()
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [leaveType, setLeaveType] = useState('VL')
   const [reason, setReason] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (isSubmitting) return
+
+    if (!startDate || !endDate || !reason) {
+      await alertService.error('Please fill in all required fields.')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await createLeaveForm({
+        employeeId: profile?.employee_id,
+        startDate,
+        endDate,
+        type: leaveType,
+        reason,
+        createdBy: profile?.user_id,
+      })
+
+      await alertService.success('Leave form submitted successfully.')
+      setStartDate('')
+      setEndDate('')
+      setLeaveType('VL')
+      setReason('')
+    } catch (error) {
+      await alertService.error(error.message || 'Failed to submit leave form.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <DashboardLayout>
         <main className="content">
           <PageHeader title="Leave Form" />
 
-          <form className="leave-form" onSubmit={(e) => e.preventDefault()}>
+          <form className="leave-form" onSubmit={handleSubmit}>
             <label>Duration</label>
             <div className="flex-initial gap-4" style={{ display: 'flex', alignItems: 'center' }}>
               <input type="date" className="border p-1 rounded" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -39,8 +76,8 @@ const LeaveFormPage = () => {
               onChange={(e) => setReason(e.target.value)}
             ></textarea>
 
-            <Button type="submit" variant="primary" style={{ marginTop: 24 }}>
-              Submit
+            <Button type="submit" variant="primary" disabled={isSubmitting} style={{ marginTop: 24 }}>
+              {isSubmitting ? 'Submitting...' : 'Submit'}
             </Button>
           </form>
                 </main>
@@ -48,4 +85,4 @@ const LeaveFormPage = () => {
   )
 }
 
-export default LeaveFormPage;
+export default LeaveFormPage

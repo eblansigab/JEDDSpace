@@ -24,6 +24,9 @@ const AiChatLogsPage = lazy(() => import("../pages/aiChatLogsPage"));
 const AiAnalyticsPage = lazy(() => import("../pages/aiAnalyticsPage"));
 const AdminRoute = lazy(() => import("../components/AdminRoute"));
 const ProtectedRoute = lazy(() => import('../components/ProtectedRoute'))
+const ApprovalGuard = lazy(() => import('../components/ApprovalGuard'))
+const AwaitingApprovalPage = lazy(() => import('../pages/awaitingApprovalPage'))
+const RegistrationRequestsPage = lazy(() => import('../pages/registrationRequestsPage'))
 
 const InnerRoutes = () => {
   const location = useLocation();
@@ -47,25 +50,27 @@ const InnerRoutes = () => {
       <Suspense fallback={<LoadingOverlay visible={true} message={'Loading...'} />}>
         <Routes>
           <Route path="/" element={<LoginPage />} />
+          <Route path="/awaiting-approval" element={<AwaitingApprovalPage />} />
           <Route path="/signup" element={<ProtectedRoute><AdminRoute><SignupPage /></AdminRoute></ProtectedRoute>} />
-          <Route path="/verify-2fa" element={<ProtectedRoute><Verify2FAPage /></ProtectedRoute>} />
-          <Route path="/dashboard" element={<ProtectedRoute><CommonDashboardPage /></ProtectedRoute>} />
-          <Route path="/admin-dashboard" element={<ProtectedRoute><AdminRoute><AdminDashboardPage /></AdminRoute></ProtectedRoute>}/>
-          <Route path="/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
-          <Route path="/announcements" element={<ProtectedRoute><AnnouncementsPage /></ProtectedRoute>} />
-          <Route path="/emails" element={<ProtectedRoute><EmailsPage /></ProtectedRoute>} />
-          <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-          <Route path="/contracts" element={<ProtectedRoute><ContractsPage /></ProtectedRoute>} />
-          <Route path="/official-business" element={<ProtectedRoute><OfficialBusinessFormPage /></ProtectedRoute>} />
-          <Route path="/post-announcements" element={<ProtectedRoute><AdminRoute><PostAnnouncement /></AdminRoute></ProtectedRoute>} />
-          <Route path="/manage-employees" element={<ProtectedRoute><ManageEmployeesPage /></ProtectedRoute>} />
-          <Route path="/assign-jobs" element={<ProtectedRoute><AssignJobsPage /></ProtectedRoute>} />
-          <Route path="/audit-blockchain" element={<ProtectedRoute><AuditBlockchainPage /></ProtectedRoute>} />
-          <Route path="/leave-form" element={<ProtectedRoute><LeaveFormPage /></ProtectedRoute>} />
-          <Route path="/ai-assistant" element={<ProtectedRoute><AiAssistantPage /></ProtectedRoute>} />
-          <Route path="/ai-chat-logs" element={<ProtectedRoute><AdminRoute><AiChatLogsPage /></AdminRoute></ProtectedRoute>} />
-          <Route path="/ai-analytics" element={<ProtectedRoute><AdminRoute><AiAnalyticsPage /></AdminRoute></ProtectedRoute>} />
+          <Route path="/verify-2fa" element={<ProtectedRoute><ApprovalGuard><Verify2FAPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><ApprovalGuard><CommonDashboardPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/admin-dashboard" element={<ProtectedRoute><AdminRoute><ApprovalGuard><AdminDashboardPage /></ApprovalGuard></AdminRoute></ProtectedRoute>}/>
+          <Route path="/employees" element={<ProtectedRoute><ApprovalGuard><EmployeesPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/announcements" element={<ProtectedRoute><ApprovalGuard><AnnouncementsPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/emails" element={<ProtectedRoute><ApprovalGuard><EmailsPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/documents" element={<ProtectedRoute><ApprovalGuard><DocumentsPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ApprovalGuard><ProfilePage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/contracts" element={<ProtectedRoute><ApprovalGuard><ContractsPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/official-business" element={<ProtectedRoute><ApprovalGuard><OfficialBusinessFormPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/post-announcements" element={<ProtectedRoute><AdminRoute><ApprovalGuard><PostAnnouncement /></ApprovalGuard></AdminRoute></ProtectedRoute>} />
+          <Route path="/manage-employees" element={<ProtectedRoute><ApprovalGuard><ManageEmployeesPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/assign-jobs" element={<ProtectedRoute><ApprovalGuard><AssignJobsPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/audit-blockchain" element={<ProtectedRoute><ApprovalGuard><AuditBlockchainPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/leave-form" element={<ProtectedRoute><ApprovalGuard><LeaveFormPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/ai-assistant" element={<ProtectedRoute><ApprovalGuard><AiAssistantPage /></ApprovalGuard></ProtectedRoute>} />
+          <Route path="/ai-chat-logs" element={<ProtectedRoute><AdminRoute><ApprovalGuard><AiChatLogsPage /></ApprovalGuard></AdminRoute></ProtectedRoute>} />
+          <Route path="/ai-analytics" element={<ProtectedRoute><AdminRoute><ApprovalGuard><AiAnalyticsPage /></ApprovalGuard></AdminRoute></ProtectedRoute>} />
+          <Route path="/registration-requests" element={<ProtectedRoute><AdminRoute><ApprovalGuard><RegistrationRequestsPage /></ApprovalGuard></AdminRoute></ProtectedRoute>} />
         </Routes>
       </Suspense>
     </>

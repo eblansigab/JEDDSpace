@@ -1,6 +1,9 @@
 import { supabaseClient } from '../supabase/supabaseClient'
+import { ethers } from "ethers"
+/*import {storeHash} from "../services/contract"*/
 
 const LOCAL_DOCUMENTS_KEY = 'jeddspace_uploaded_document'
+
 
 const getLocalDocuments = () => {
   try {
@@ -25,6 +28,13 @@ const getAuthHeaders = async () => {
     'Content-Type': 'application/json',
     ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
   }
+}
+
+const hashFile = async(file)=>{
+  const arrayBuffer = await file.arrayBuffer()
+  const bytes = new Uint8Array(arrayBuffer)
+  const hash = ethers.keccak256(bytes)
+  return hash
 }
 
 export const documentService = {
@@ -84,6 +94,7 @@ async getUploadHistory(userId) {
 
   async recordUpload(file, userId) {
     const fileName = `${Date.now()}-${file.name}`
+    const hash = await hashFile(file)
 
     const { error: uploadError } =
       await supabaseClient.storage
@@ -106,10 +117,17 @@ async getUploadHistory(userId) {
           file_name: file.name,
           file_path: publicUrlData.publicUrl,
           file_type: file.type,
-          file_size: file.size
+          file_size: file.size,
+          hash: hash
         })
         .select()
         .single()
+
+    console.log(hash)
+    storeHash(file,hash)
+
+
+    //const {error} = await supabaseClient.from('hash_file').insert({filename:file.name,hash:hash,})
 
     if (error) throw error
 

@@ -105,7 +105,6 @@ export const AuthProvider = ({ children }) => {
         } else if (data) {
           if (mounted) setProfile(data)
         } else {
-          // No employee row yet — try to auto-create one so the UI is not empty.
           const created = await ensureEmployeeRecord(currentUser)
           if (mounted) setProfile(created)
         }
@@ -156,7 +155,8 @@ export const AuthProvider = ({ children }) => {
         user,
         profile,
         loading,
-        isEmailVerified
+        isEmailVerified,
+        signOut: () => supabaseClient.auth.signOut()
       }}
     >
       {children}
