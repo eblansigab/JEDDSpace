@@ -139,7 +139,13 @@ export const profileService = {
       .from(AVATARS_BUCKET)
       .upload(path, processedFile, { upsert: true, contentType: 'image/png' })
 
-    if (uploadError) throw uploadError
+    if (uploadError) {
+      const message = String(uploadError.message || '')
+      if (message.includes('Bucket not found') || message.toLowerCase().includes('bucket')) {
+        throw new Error(`Storage bucket "${AVATARS_BUCKET}" not found. Create it in Supabase Storage and make it public, then try again.`)
+      }
+      throw uploadError
+    }
 
     const { data: publicUrlData } = supabaseClient.storage
       .from(AVATARS_BUCKET)
@@ -174,7 +180,13 @@ export const profileService = {
       .from(AVATARS_BUCKET)
       .remove([path])
 
-    if (removeError) throw removeError
+    if (removeError) {
+      const message = String(removeError.message || '')
+      if (message.includes('Bucket not found') || message.toLowerCase().includes('bucket')) {
+        throw new Error(`Storage bucket "${AVATARS_BUCKET}" not found. Create it in Supabase Storage and make it public, then try again.`)
+      }
+      throw removeError
+    }
 
     const { data, error } = await supabaseClient
       .from('employee')
