@@ -5,6 +5,9 @@ import { supabaseClient } from '../supabase/supabaseClient'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Pie } from 'react-chartjs-2'
 
+
+ChartJS.register(ArcElement, Tooltip, Legend)
+
 export default function AiAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -69,7 +72,7 @@ export default function AiAnalyticsPage() {
               {loading ? (
                 <p>Loading...</p>
               ) : analytics?.topics?.length > 0 ? (
-                <React.Fragment>
+                <>
                 <ul className="admin-list">
                   {analytics.topics.map((topic) => (
                     <li key={topic.name}>
@@ -79,7 +82,7 @@ export default function AiAnalyticsPage() {
                   ))}
                 </ul>
                 <Pie data={topicData} />
-                </React.Fragment>
+                </>
               ) : (
                 <p>No data available.</p>
               )}
@@ -94,7 +97,7 @@ export default function AiAnalyticsPage() {
               {loading ? (
                 <p>Loading...</p>
               ) : analytics?.topUsers?.length > 0 ? (
-                <React.Fragment>
+                <>
                 <ul className="admin-list">
                   {analytics.topUsers.map((user) => (
                     <li key={user.userId}>
@@ -106,7 +109,7 @@ export default function AiAnalyticsPage() {
                 {analytics.topUsers.map((user) => (
                   <p key={user.userId}><strong>{user.name}:</strong> {user.count} prompts</p>
                 ))}
-                </React.Fragment>
+                </>
               ) : (
                 <p>No data available.</p>
               )}
@@ -122,7 +125,7 @@ export default function AiAnalyticsPage() {
             {loading ? (
               <p>Loading...</p>
             ) : analytics?.usage ? (
-              <React.Fragment>
+              <>
               <ul className="admin-list">
                 <li>Today: {analytics.usage.today} prompts</li>
                 <li>This Week: {analytics.usage.thisWeek} prompts</li>
@@ -131,7 +134,7 @@ export default function AiAnalyticsPage() {
               <p><strong>Today:</strong> {analytics.usage.today} prompts</p>
               <p><strong>This Week:</strong> {analytics.usage.thisWeek} prompts</p>
               <p><strong>This Month:</strong> {analytics.usage.thisMonth} prompts</p>
-              </React.Fragment>
+              </>
             ) : (
               <p>No data available.</p>
             )}
@@ -146,7 +149,7 @@ export default function AiAnalyticsPage() {
             {loading ? (
               <p>Loading...</p>
             ) : analytics?.performance ? (
-              <React.Fragment>
+              <>
               <ul className="admin-list">
                 <li>Measured Requests: {analytics.performance.totalMeasuredRequests}</li>
                 <li>Average Response Time: {analytics.performance.averageResponseTimeMs} ms</li>
@@ -218,9 +221,9 @@ export default function AiAnalyticsPage() {
                     <p style={{fontWeight:'bold'}}>Timeouts</p>
                     <p>{analytics.performance.timeoutCount}</p>
                   </div>
+                  </div>
                 </div>
-              </div>
-              </React.Fragment>
+              </>
             ) : (
               <p>No performance metrics available.</p>
             )}

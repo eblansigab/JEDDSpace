@@ -1,6 +1,6 @@
 import { supabaseClient } from '../supabase/supabaseClient'
 import { ethers } from "ethers"
-/*import {storeHash} from "../services/contract"*/
+import {storeHash} from "../components/contract"
 
 const LOCAL_DOCUMENTS_KEY = 'jeddspace_uploaded_document'
 

@@ -34,7 +34,8 @@ const DocumentsPage = () => {
       await alertService.success(`${file.name} has been added to documents.`, 'File Uploaded')
       await loadFiles()
     } catch (error) {
-      await alertService.error(error.message || 'Unable to upload file.', 'Upload Failed')
+      await alertService.error('Unable to upload file.', 'Upload Failed')
+      console.error(error.message)
     } finally {
       setIsUploading(false)
       event.target.value = ''
