@@ -94,6 +94,7 @@ export default function AiAnalyticsPage() {
               {loading ? (
                 <p>Loading...</p>
               ) : analytics?.topUsers?.length > 0 ? (
+                <React.Fragment>
                 <ul className="admin-list">
                   {analytics.topUsers.map((user) => (
                     <li key={user.userId}>
@@ -102,6 +103,10 @@ export default function AiAnalyticsPage() {
                     </li>
                   ))}
                 </ul>
+                {analytics.topUsers.map((user) => (
+                  <p key={user.userId}><strong>{user.name}:</strong> {user.count} prompts</p>
+                ))}
+                </React.Fragment>
               ) : (
                 <p>No data available.</p>
               )}
@@ -117,11 +122,16 @@ export default function AiAnalyticsPage() {
             {loading ? (
               <p>Loading...</p>
             ) : analytics?.usage ? (
+              <React.Fragment>
               <ul className="admin-list">
                 <li>Today: {analytics.usage.today} prompts</li>
                 <li>This Week: {analytics.usage.thisWeek} prompts</li>
                 <li>This Month: {analytics.usage.thisMonth} prompts</li>
               </ul>
+              <p><strong>Today:</strong> {analytics.usage.today} prompts</p>
+              <p><strong>This Week:</strong> {analytics.usage.thisWeek} prompts</p>
+              <p><strong>This Month:</strong> {analytics.usage.thisMonth} prompts</p>
+              </React.Fragment>
             ) : (
               <p>No data available.</p>
             )}
@@ -136,6 +146,7 @@ export default function AiAnalyticsPage() {
             {loading ? (
               <p>Loading...</p>
             ) : analytics?.performance ? (
+              <React.Fragment>
               <ul className="admin-list">
                 <li>Measured Requests: {analytics.performance.totalMeasuredRequests}</li>
                 <li>Average Response Time: {analytics.performance.averageResponseTimeMs} ms</li>
@@ -151,6 +162,65 @@ export default function AiAnalyticsPage() {
                 <li>Clarification Requests: {analytics.performance.clarificationRequests}</li>
                 <li>Timeouts: {analytics.performance.timeoutCount}</li>
               </ul>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <div style={{width:'45%'}}>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Measured Requests</p>
+                    <p>{analytics.performance.totalMeasuredRequests}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Average Response Time</p>
+                    <p>{analytics.performance.averageResponseTimeMs}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Average Groq Latency</p>
+                    <p>{analytics.performance.averageGroqLatencyMs}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Average Confidence</p>
+                    <p>{analytics.performance.averageConfidence}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Documents Processed</p>
+                    <p>{analytics.performance.documentsProcessed}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Extraction Successes</p>
+                    <p>{analytics.performance.extractionSuccesses}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:'0'}}>
+                    <p style={{fontWeight:'bold'}}>Cache Hit Rate</p>
+                    <p>{analytics.performance.cacheHitRate}</p>
+                  </div>
+                </div>
+                <div style={{width:'45%'}}>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Cache Hits</p>
+                    <p>{analytics.performance.cacheHits}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Cache Misses</p>
+                    <p>{analytics.performance.cacheMisses}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Entity Resolution Successes</p>
+                    <p>{analytics.performance.entityResolutionSuccesses}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Entity Resolution Success Rate</p>
+                    <p>{analytics.performance.entityResolutionSuccessRate}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
+                    <p style={{fontWeight:'bold'}}>Clarification Requests</p>
+                    <p>{analytics.performance.clarificationRequests}</p>
+                  </div>
+                  <div style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:'0'}}>
+                    <p style={{fontWeight:'bold'}}>Timeouts</p>
+                    <p>{analytics.performance.timeoutCount}</p>
+                  </div>
+                </div>
+              </div>
+              </React.Fragment>
             ) : (
               <p>No performance metrics available.</p>
             )}
