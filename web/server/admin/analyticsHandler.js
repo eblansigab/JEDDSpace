@@ -52,26 +52,30 @@ export const handleAnalytics = async ({ viewer }) => {
 
   const topUsersData = await client
     .from('ai_chat_logs')
-    .select(`
-      user_id,
-      employee: user_id (
-        first_name,
-        last_name
-      )
-    `)
+    .select('user_id')
     .order('created_at', { ascending: false })
     .limit(200)
+
+  const userIds = [...new Set((topUsersData.data || []).map((row) => row.user_id).filter(Boolean))]
+
+  let employeeNameMap = {}
+  if (userIds.length > 0) {
+    const { data: employees } = await client
+      .from('employee')
+      .select('user_id, first_name, last_name')
+      .in('user_id', userIds)
+
+    employeeNameMap = new Map((employees || []).map((emp) => [String(emp.user_id), `${emp.first_name || ''} ${emp.last_name || ''}`.trim()]))
+  }
 
   const userPromptCounts = {}
   topUsersData.data?.forEach((row) => {
     const uid = row.user_id
     if (!userPromptCounts[uid]) {
-      const fullName = row.employee
-        ? `${row.employee.first_name || ''} ${row.employee.last_name || ''}`.trim()
-        : ''
+      const fullName = employeeNameMap[String(uid)] || String(uid)
       userPromptCounts[uid] = {
         userId: uid,
-        name: fullName || uid,
+        name: fullName,
         count: 0,
       }
     }

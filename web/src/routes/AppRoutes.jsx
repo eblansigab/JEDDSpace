@@ -27,6 +27,7 @@ const ProtectedRoute = lazy(() => import('../components/ProtectedRoute'))
 const ApprovalGuard = lazy(() => import('../components/ApprovalGuard'))
 const AwaitingApprovalPage = lazy(() => import('../pages/awaitingApprovalPage'))
 const RegistrationRequestsPage = lazy(() => import('../pages/registrationRequestsPage'))
+const FormsOutletPage = lazy(() => import('../pages/formsOutletPage'))
 
 const InnerRoutes = () => {
   const location = useLocation();
@@ -71,6 +72,7 @@ const InnerRoutes = () => {
           <Route path="/ai-chat-logs" element={<ProtectedRoute><AdminRoute><ApprovalGuard><AiChatLogsPage /></ApprovalGuard></AdminRoute></ProtectedRoute>} />
           <Route path="/ai-analytics" element={<ProtectedRoute><AdminRoute><ApprovalGuard><AiAnalyticsPage /></ApprovalGuard></AdminRoute></ProtectedRoute>} />
           <Route path="/registration-requests" element={<ProtectedRoute><AdminRoute><ApprovalGuard><RegistrationRequestsPage /></ApprovalGuard></AdminRoute></ProtectedRoute>} />
+          <Route path="/forms-outlet" element={<ProtectedRoute><AdminRoute><ApprovalGuard><FormsOutletPage /></ApprovalGuard></AdminRoute></ProtectedRoute>} />
         </Routes>
       </Suspense>
     </>

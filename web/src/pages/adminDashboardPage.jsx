@@ -140,6 +140,24 @@ const AdminDashboardPage = () => {
 
             </div>
 
+            {/* Forms Outlet */}
+            <div className="admin-box">
+
+              <h3>Manage Forms</h3>
+
+              <p>
+                Leave forms and official business submissions.
+              </p>
+
+              <Link
+                to="/forms-outlet"
+                className="primary-btn"
+              >
+                Go
+              </Link>
+
+            </div>
+
           </div>
 
         </main>

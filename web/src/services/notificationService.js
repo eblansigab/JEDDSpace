@@ -7,6 +7,8 @@ export const NOTIFICATION_TYPES = [
   'announcement',
   'job_assignment',
   'employee_update',
+  'leave_form',
+  'business_form',
 ]
 
 export const getNotificationId = (item) =>

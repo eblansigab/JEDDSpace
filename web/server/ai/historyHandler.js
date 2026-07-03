@@ -178,13 +178,7 @@ export const handleChatLogs = async ({ viewer }) => {
       prompt,
       response,
       intent,
-      created_at,
-      employee:user_id (
-        first_name,
-        last_name,
-        position,
-        department
-      )
+      created_at
     `)
     .order('created_at', { ascending: false })
     .limit(200)
@@ -194,6 +188,26 @@ export const handleChatLogs = async ({ viewer }) => {
     throw error
   }
 
-  logHistory('Chat logs loaded', { table: 'ai_chat_logs', count: data?.length ?? 0 })
-  return { data: { logs: data || [] } }
+  const userIds = [...new Set((data || []).map((row) => row.user_id).filter(Boolean))]
+
+  let employeeNameMap = {}
+  if (userIds.length > 0) {
+    const { data: employees } = await client
+      .from('employee')
+      .select('user_id, first_name, last_name')
+      .in('user_id', userIds)
+
+    employeeNameMap = new Map((employees || []).map((emp) => [String(emp.user_id), {
+      first_name: emp.first_name,
+      last_name: emp.last_name,
+    }]))
+  }
+
+  const logsWithEmployee = (data || []).map((row) => {
+    const emp = employeeNameMap.get(String(row.user_id)) || null
+    return { ...row, employee: emp }
+  })
+
+  logHistory('Chat logs loaded', { table: 'ai_chat_logs', count: logsWithEmployee.length })
+  return { data: { logs: logsWithEmployee } }
 }

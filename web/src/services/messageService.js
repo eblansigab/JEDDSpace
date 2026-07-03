@@ -121,3 +121,65 @@ export const createBusinessForm = async ({ employeeId, startDate, endDate, locat
 
   return data
 }
+
+export const getLeaveForms = async () => {
+  const { data, error } = await supabaseClient
+    .from('leaveform')
+    .select(`
+      leaveform_id,
+      employee_id,
+      start_date,
+      end_date,
+      type,
+      reason,
+      status,
+      created_at,
+      employee:employee_id (
+        employee_id,
+        first_name,
+        last_name,
+        department,
+        position
+      )
+    `)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('[messageService] Error fetching leave forms:', error)
+    throw error
+  }
+
+  return data || []
+}
+
+export const getBusinessForms = async () => {
+  const { data, error } = await supabaseClient
+    .from('businessform')
+    .select(`
+      businessform_id,
+      employee_id,
+      start_date,
+      end_date,
+      location,
+      company_car,
+      driver_name,
+      phone_num,
+      status,
+      created_at,
+      employee:employee_id (
+        employee_id,
+        first_name,
+        last_name,
+        department,
+        position
+      )
+    `)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('[messageService] Error fetching business forms:', error)
+    throw error
+  }
+
+  return data || []
+}

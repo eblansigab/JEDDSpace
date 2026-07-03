@@ -27,7 +27,7 @@ const SignUp = () => {
       return
     }
 
-    if (password !== confirmPassword) {
+    if (password.trim() !== confirmPassword.trim()) {
       await alertService.warning('Passwords do not match')
       return
     }

@@ -106,8 +106,8 @@ export const registerUser = async (
   department
 ) => {
 
-  if (password !== confirmPassword) {
-    throw new Error('Passwords do not match.');
+  if (password.trim() !== confirmPassword.trim()) {
+    throw new Error('Passwords do not match.')
   }
 
   const { data, error } = await signupClient.auth.signUp({
