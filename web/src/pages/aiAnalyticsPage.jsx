@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { PageHeader } from '../components'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { supabaseClient } from '../supabase/supabaseClient'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
+import { Pie } from 'react-chartjs-2'
 
 export default function AiAnalyticsPage() {
   const [analytics, setAnalytics] = useState(null)
@@ -37,6 +39,19 @@ export default function AiAnalyticsPage() {
     loadAnalytics()
   }, [])
 
+  const topicData = {
+    labels: analytics?.topics.name,
+    datasets: [{
+      label: "No. of Prompts:",
+      data: analytics?.topics.count,
+      backgroundColor: [
+        "#1e0977","#47007b","#650077","#7c0070","#91006a","#a50064",
+        "#b9005d","#cc0053","#e00045","#f3002e","#ff0000"
+      ],
+      borderWidth: 0,
+    }]
+  }
+
   return (
     <DashboardLayout>
       <main className="content">
@@ -54,6 +69,7 @@ export default function AiAnalyticsPage() {
               {loading ? (
                 <p>Loading...</p>
               ) : analytics?.topics?.length > 0 ? (
+                <React.Fragment>
                 <ul className="admin-list">
                   {analytics.topics.map((topic) => (
                     <li key={topic.name}>
@@ -62,6 +78,8 @@ export default function AiAnalyticsPage() {
                     </li>
                   ))}
                 </ul>
+                <Pie data={topicData} />
+                </React.Fragment>
               ) : (
                 <p>No data available.</p>
               )}

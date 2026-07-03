@@ -68,10 +68,13 @@ const Sidebar = () => {
     }
   }
 
-  const getInitials = () => {
-    const first = profile?.first_name?.[0] || user?.email?.[0] || ''
-    const last = profile?.last_name?.[0] || ''
-    return `${first}${last}`.toUpperCase()
+  const getInitials = (first, last) => profileService.getInitials(first, last)
+
+  const getAvatarSrc = () => {
+    const first = profile?.first_name || ''
+    const last = profile?.last_name || ''
+    const url = profile?.avatar_url || ''
+    return profileService.getAvatarUrl(url, first, last)
   }
 
   const getStatusClass = () => {
@@ -143,7 +146,17 @@ const Sidebar = () => {
         <div className="sidebar-profile-card">
           <div className="sidebar-profile-header-row">
             <div className="sidebar-avatar-wrapper">
-              <div className="sidebar-avatar">{getInitials()}</div>
+              <img
+                src={getAvatarSrc()}
+                alt="Profile avatar"
+                className="sidebar-avatar-img"
+                onError={(event) => {
+                  event.target.style.display = 'none'
+                  const fallback = event.target.nextElementSibling
+                  if (fallback) fallback.style.display = 'flex'
+                }}
+              />
+              <div className="sidebar-avatar">{getInitials(profile?.first_name, profile?.last_name)}</div>
               <span className={`sidebar-status-badge ${getStatusClass()}`} />
             </div>
             <div className="sidebar-profile-info">
@@ -178,9 +191,9 @@ const Sidebar = () => {
           color: '#9a3412',
           fontSize: '13px'
         }}>
-          <p style={{ marginBottom: '6px' }}>Your email is not verified yet.</p>
+          <p style={{ marginBottom: '6px' }}>Your account email is not verified yet.</p>
           <Link to="/profile" onClick={closeMobileSidebar}>
-            Verify Email
+            Verify Account Email
           </Link>
         </div>
       )}
@@ -204,10 +217,10 @@ const Sidebar = () => {
         </li>
 
         <li>
-          <Link to="/emails" onClick={closeMobileSidebar} title="Emails">
+          <Link to="/emails" onClick={closeMobileSidebar} title="Messages">
             {/* Envelope icon */}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-            <span className="sidebar-link-text">Inbox</span>
+            <span className="sidebar-link-text">Messages</span>
             {unreadEmailCount > 0 && (
               <span
                 style={{

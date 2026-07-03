@@ -166,7 +166,24 @@ const loadInboxMessages = async (options = {}) => {
     }
   }
 
-  return await queryOrThrow(query)
+  const messages = await queryOrThrow(query)
+
+  const recipientEmails = [...new Set(messages.map((m) => m.recipient_email).filter(Boolean))]
+  if (recipientEmails.length > 0) {
+    const { data: recipients } = await getClient()
+      .from('employee')
+      .select('email, first_name, last_name')
+      .in('email', recipientEmails)
+
+    const recipientMap = new Map((recipients || []).map((r) => [String(r.email || '').toLowerCase(), r]))
+
+    return messages.map((msg) => ({
+      ...msg,
+      recipient: recipientMap.get(String(msg.recipient_email || '').toLowerCase()) || null,
+    }))
+  }
+
+  return messages
 }
 
 const loadEmployees = async (options = {}) => {

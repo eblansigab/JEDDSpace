@@ -96,7 +96,7 @@ const EmailsPage = () => {
     if (!email) return 'All Employees'
     if (email === 'all') return 'All Employees'
     const emp = directory.find((e) => String(e.email || '').trim().toLowerCase() === String(email).trim().toLowerCase())
-    return emp ? `${emp.first_name} ${emp.last_name}` : email
+    return emp ? `${emp.first_name} ${emp.last_name}` : 'Unknown Recipient'
   }
 
   // Filter messages based on active tab and search term
@@ -217,7 +217,7 @@ const EmailsPage = () => {
                 title: 'New Broadcast Message',
                 message: `${profile?.first_name} ${profile?.last_name} sent a message to all employees: "${subject}"`,
                 type: 'message',
-                userId: user?.id,
+                userId: emp.user_id || user?.id,
                 notifyTo: emp.employee_id
               })
             )
@@ -231,7 +231,7 @@ const EmailsPage = () => {
             title: 'New Message',
             message: `${profile?.first_name} ${profile?.last_name} sent you a message: "${subject}"`,
             type: 'message',
-            userId: user?.id,
+            userId: recipientEmployee.user_id || user?.id,
             notifyTo: recipientEmployee.employee_id
           })
         }
@@ -288,7 +288,7 @@ const EmailsPage = () => {
     <DashboardLayout>
       <main className="content emails-page">
         <PageHeader
-          title="Messages"
+          title="Internal Messages"
           actions={[
             <SearchBar
               key="search"
@@ -346,7 +346,7 @@ const EmailsPage = () => {
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
-                📥 Inbox
+                📥 Received
               </span>
               <span style={{
                 backgroundColor: activeTab === 'inbox' ? '#2563eb' : 'rgba(148, 163, 184, 0.15)',
@@ -422,7 +422,7 @@ const EmailsPage = () => {
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
-                📤 Sent
+                📤 Dispatched
               </span>
               <span style={{
                 backgroundColor: activeTab === 'sent' ? '#2563eb' : 'rgba(148, 163, 184, 0.15)',
@@ -495,7 +495,7 @@ const EmailsPage = () => {
                            textOverflow: 'ellipsis',
                            whiteSpace: 'nowrap'
                          }} className="email-text-primary">
-                           {activeTab === 'sent' ? `To: ${getRecipientName(msg.recipient_email)}` : getSenderName(msg.sender_id)}
+                            {activeTab === 'sent' ? `Recipient: ${getRecipientName(msg.recipient_email)}` : getSenderName(msg.sender_id)}
                          </span>
                          <span style={{ fontSize: '11px', color: 'var(--text-secondary, #64748b)', flexShrink: 0 }} className="email-text-secondary">
                            {msg.created_at ? new Date(msg.created_at).toLocaleDateString() : ''}
@@ -540,11 +540,11 @@ const EmailsPage = () => {
                               <h2 style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: '700', marginBottom: '8px' }}>
                                 {selectedMessage.subject || 'No Subject'}
                               </h2>
-                              <div style={{ fontSize: isMobile ? '13px' : '14px', color: 'var(--text-secondary, #64748b)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                <span><strong>From:</strong> {getSenderName(selectedMessage.sender_id)}</span>
-                                <span><strong>To:</strong> {getRecipientName(selectedMessage.recipient_email)}</span>
-                                <span><strong>Date:</strong> {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : 'N/A'}</span>
-                              </div>
+                               <div style={{ fontSize: isMobile ? '13px' : '14px', color: 'var(--text-secondary, #64748b)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                 <span><strong>Sender:</strong> {getSenderName(selectedMessage.sender_id)}</span>
+                                 <span><strong>Recipient:</strong> {getRecipientName(selectedMessage.recipient_email)}</span>
+                                 <span><strong>Date:</strong> {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : 'N/A'}</span>
+                               </div>
                             </div>
 
                             <div style={{ display: 'flex', gap: '8px' }}>
@@ -581,9 +581,9 @@ const EmailsPage = () => {
                           minHeight: isOriginal ? '200px' : 'auto'
                         }} className="email-bg-subtle">
                           {!isOriginal && (
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary, #64748b)', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }} className="email-text-muted">
-                              <strong>From:</strong> {getSenderName(threadMsg.sender_id)} &nbsp;|&nbsp; <strong>To:</strong> {getRecipientName(threadMsg.recipient_email)} &nbsp;|&nbsp; {threadMsg.created_at ? new Date(threadMsg.created_at).toLocaleString() : ''}
-                            </div>
+                             <div style={{ fontSize: '12px', color: 'var(--text-secondary, #64748b)', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }} className="email-text-muted">
+                               <strong>Sender:</strong> {getSenderName(threadMsg.sender_id)} &nbsp;|&nbsp; <strong>Recipient:</strong> {getRecipientName(threadMsg.recipient_email)} &nbsp;|&nbsp; {threadMsg.created_at ? new Date(threadMsg.created_at).toLocaleString() : ''}
+                             </div>
                           )}  
                           {threadMsg.message_body || threadMsg.body || 'No message body.'}
                         </div>
@@ -593,10 +593,6 @@ const EmailsPage = () => {
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', color: 'var(--text-secondary, #64748b)' }}>
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: '12px', opacity: 0.5 }}>
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                    <polyline points="22,6 12,13 2,6"></polyline>
-                  </svg>
                   <p style={{ fontSize: '14px', fontWeight: '500' }}>Select a message to read</p>
                 </div>
               )}

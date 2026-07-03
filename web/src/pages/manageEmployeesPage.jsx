@@ -14,7 +14,6 @@ const ManageEmployeesPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
@@ -39,9 +38,9 @@ const ManageEmployeesPage = () => {
   const handleAddEmployee = async () => {
     const trimmedFirstName = firstName.trim()
     const trimmedLastName = lastName.trim()
-    const fallbackLastName = trimmedLastName || email.trim().split('@')[0] || 'User'
+    const fallbackLastName = trimmedLastName || 'User'
 
-    if (!trimmedFirstName || !fallbackLastName || !email || !password || !confirmPassword) {
+    if (!trimmedFirstName || !fallbackLastName || !password || !confirmPassword) {
       await alertService.warning('Please fill all fields')
       return
     }
@@ -53,7 +52,6 @@ const ManageEmployeesPage = () => {
 
     try {
       await registerUser(
-        email.trim(),
         password,
         confirmPassword,
         trimmedFirstName,
@@ -76,7 +74,6 @@ const ManageEmployeesPage = () => {
       await alertService.success('Employee added and registered successfully')
       setFirstName('')
       setLastName('')
-      setEmail('')
       setPassword('')
       setConfirmPassword('')
       setIsAddOpen(false)
@@ -246,12 +243,7 @@ const ManageEmployeesPage = () => {
             onChange={(e) => setLastName(e.target.value)}
           />
           
-          <input
-            type="email"
-            placeholder="Email Address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+        
           <input
             type="password"
             placeholder="Password"

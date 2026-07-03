@@ -17,7 +17,7 @@ const RegistrationRequestsPage = () => {
     try {
       const { data, error } = await supabaseClient
         .from('employee')
-        .select('employee_id, first_name, last_name, email, department, position, registration_status, created_at')
+        .select('employee_id, first_name, last_name, department, position, registration_status, created_at')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -54,7 +54,6 @@ const RegistrationRequestsPage = () => {
     const name = `${req.first_name || ''} ${req.last_name || ''}`.toLowerCase()
     return (
       name.includes(query) ||
-      String(req.email || '').toLowerCase().includes(query) ||
       String(req.department || '').toLowerCase().includes(query)
     )
   })
@@ -101,7 +100,6 @@ const RegistrationRequestsPage = () => {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Email</th>
                 <th>Department</th>
                 <th>Position</th>
                 <th>Status</th>
@@ -112,7 +110,6 @@ const RegistrationRequestsPage = () => {
               {filteredRequests.map((req) => (
                 <tr key={req.employee_id}>
                   <td>{req.first_name} {req.last_name}</td>
-                  <td>{req.email}</td>
                   <td>{req.department || 'N/A'}</td>
                   <td>{req.position || 'N/A'}</td>
                   <td>

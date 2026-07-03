@@ -74,11 +74,17 @@ export const notificationService = {
     return data
   },
 
-  async getNotifications() {
-    const { data, error } = await supabaseClient
+  async getNotifications(employeeId) {
+    let query = supabaseClient
       .from('notification')
       .select('*')
       .order('created_at', { ascending: false })
+
+    if (employeeId) {
+      query = query.or(`notify_to.eq.${employeeId},notify_to.is.null`)
+    }
+
+    const { data, error } = await query
 
     if (error) throw error
 

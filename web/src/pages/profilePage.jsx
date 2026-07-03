@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Sidebar from '../components/sideBar'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { Button, PageHeader, StatusBadge, Table, Modal } from '../components'
 import { logoutAllDevices, logoutUser, updateUserPassword, resendVerficationEmail } from '../services/authService'
@@ -53,6 +52,7 @@ const ProfileSettings = () => {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [role, setRole] = useState('')
+  const [department, setDepartment] = useState('')
   const [accountStatus, setAccountStatus] = useState('Active')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -64,9 +64,8 @@ const ProfileSettings = () => {
   const [apiKey, setApiKey] = useState('')
   const [auditLogs, setAuditLogs] = useState([])
   const [currentSession, setCurrentSession] = useState(null)
-const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState(false)
+  const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState(false)
 
-  // Step 4: Active sessions are now real data from the user_sessions table.
   const [activeSessions, setActiveSessions] = useState([])
   const [sessionsLoading, setSessionsLoading] = useState(false)
   const [selectedSession, setSelectedSession] = useState(null)
@@ -76,6 +75,9 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
   const [isVerifying, setIsVerifying] = useState(false)
   const [presenceStatus, setPresenceStatus] = useState(user?.user_metadata?.presence_status || 'Available')
   const [customStatus, setCustomStatus] = useState(user?.user_metadata?.custom_status || '')
+  const [avatarPreview, setAvatarPreview] = useState(null)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [avatarLocalUrl, setAvatarLocalUrl] = useState('')
 
   useEffect(() => {
     if (user?.user_metadata) {
@@ -94,6 +96,7 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
     setFirstName(profile.first_name || '')
     setLastName(profile.last_name || '')
     setRole(profile.role || '')
+    setDepartment(profile.department || '')
     setAccountStatus(resolveAccountStatus(profile))
   }, [profile])
 
@@ -123,7 +126,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
     loadSession()
   }, [])
 
-  // Step 4: Load real active sessions from the user_sessions table.
   const loadActiveSessions = async () => {
     if (!user?.id) return
     setSessionsLoading(true)
@@ -141,7 +143,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
     if (user) loadActiveSessions()
   }, [user])
 
-  // Sync API Keys, Key Audit Logs with Supabase Auth Metadata (Backend)
   useEffect(() => {
     if (!user) return
 
@@ -154,7 +155,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
     if (metaApiKey) localStorage.setItem(API_KEY_STORAGE, metaApiKey)
     if (metaAuditLogs.length) saveAuditLogs(metaAuditLogs)
 
-    // Automatically initialize database-backed API Key if Admin doesn't have one
     if (isAdmin && !metaApiKey) {
       const initialKey = generateApiKey()
       const initialAudit = {
@@ -187,7 +187,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
 
     try {
       await logoutUser()
-      // Clear any sidebar state before navigating
       document.body.classList.remove('sidebar-collapsed', 'mobile-sidebar-open')
       navigate('/')
     } catch (error) {
@@ -211,6 +210,49 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
       await alertService.success('Account details updated successfully.')
     } catch (error) {
       await alertService.error(error.message || 'Failed to update account details.')
+    }
+  }
+
+  const handleAvatarChange = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file || !user?.id) return
+
+    const preview = URL.createObjectURL(file)
+    setAvatarPreview(preview)
+
+    setIsUploadingAvatar(true)
+    try {
+      const result = await profileService.uploadAvatar(file, user.id)
+      setAvatarLocalUrl(result.publicUrl)
+      await alertService.success('Profile picture updated successfully.')
+    } catch (error) {
+      await alertService.error(error.message || 'Failed to upload profile picture.')
+      setAvatarPreview(null)
+    } finally {
+      setIsUploadingAvatar(false)
+      event.target.value = ''
+    }
+  }
+
+  const handleRemoveAvatar = async () => {
+    if (!user?.id) return
+
+    const confirmation = await alertService.confirm({
+      title: 'Remove profile picture?',
+      text: 'This will revert your avatar to the default initials.',
+      confirmButtonText: 'Remove',
+      cancelButtonText: 'Cancel'
+    })
+
+    if (!confirmation.isConfirmed) return
+
+    try {
+      await profileService.removeAvatar(user.id)
+      setAvatarLocalUrl('')
+      setAvatarPreview(null)
+      await alertService.success('Profile picture removed.')
+    } catch (error) {
+      await alertService.error(error.message || 'Failed to remove profile picture.')
     }
   }
 
@@ -273,8 +315,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
     }
   }
 
-  // Step 5 (also): Log out ALL devices = end Supabase auth sessions AND
-  // delete every user_sessions row for this user.
   const handleLogoutAllDevices = async () => {
     const confirmation = await alertService.confirm({
       title: 'Logout all devices?',
@@ -286,7 +326,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
     if (!confirmation.isConfirmed) return
 
     try {
-      // Clear all rows from user_sessions for this user
       if (user?.id) {
         await sessionService.revokeAllSessions(user.id)
       }
@@ -302,7 +341,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
     setIsInspectModalOpen(true)
   }
 
-  // Step 5: Revoke a session by deleting its row in user_sessions.
   const handleRevokeSession = async (sessionId) => {
     const sessionToRevoke = activeSessions.find(s => s.session_id === sessionId)
     const deviceName = sessionToRevoke?.device_name || 'Device'
@@ -320,11 +358,9 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
     if (!confirmation.isConfirmed) return
 
     try {
-      // Step 5: Delete the row from user_sessions
       await sessionService.revokeSession(sessionId)
 
       if (isCurrent) {
-        // Revoking the current session logs the user out
         await logoutUser()
         document.body.classList.remove('sidebar-collapsed', 'mobile-sidebar-open')
         navigate('/')
@@ -332,7 +368,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
         return
       }
 
-      // Refresh the visible list
       setActiveSessions(prev => prev.filter(s => s.session_id !== sessionId))
       await alertService.success(`Access for ${deviceName} has been revoked successfully.`)
     } catch (error) {
@@ -387,7 +422,6 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
     }
   ]
 
-  // Step 4: Real session columns, driven by the user_sessions table.
   const sessionColumns = [
     {
       key: 'device_name',
@@ -434,23 +468,24 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
       )
     }
   ]
+
   const handleResendVerificationEmail = async () => {
-  if (!user?.email) {
-    await alertService.warning('No email address is associated with this account.')
-    return
-  }
+    if (!user?.email) {
+      await alertService.warning('No email address is associated with this account.')
+      return
+    }
 
-  setIsResendingVerificationEmail(true)
+    setIsResendingVerificationEmail(true)
 
-  try {
-    await resendVerificationEmail(user.email)
-    await alertService.success('Verification email sent. Please check your inbox.')
-  } catch (error) {
-    await alertService.error(error.message || 'Failed to resend verification email.')
-  } finally {
-    setIsResendingVerificationEmail(false)
+    try {
+      await resendVerficationEmail(user.email)
+      await alertService.success('Verification email sent. Please check your inbox.')
+    } catch (error) {
+      await alertService.error(error.message || 'Failed to resend verification email.')
+    } finally {
+      setIsResendingVerificationEmail(false)
+    }
   }
-}
 
   return (
     <DashboardLayout>
@@ -460,168 +495,155 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
             actions={[<Button key="save" onClick={handleSaveDetails}>Save Changes</Button>]}
           />
 
-          <section className="profile-section">
-            <h3>Identity Information</h3>
-            <p><strong>Name:</strong> {`${firstName} ${lastName}`.trim() || 'No name set'}</p>
-            <p><strong>Email:</strong> {user?.email || 'No email set'}</p>
-            <p><strong>Role:</strong> {role || 'No role set'}</p>
-            <p><strong>Employment Status:</strong> {profile?.employment_status || 'No employment status set'}</p>
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
-              <strong>Account Status:</strong> <StatusBadge status={accountStatus} />
-              <Button size="sm" variant="outline" onClick={handleVerifyAccountStatus}>
-                Verify Status with Server
-              </Button>
-            </div>
-          </section>
-               
-          <section className="profile-section">
-        <h3>Email Verification</h3>
-
-        <p><strong>Email Address:</strong> {user?.email || 'No email address associated with this account.'}</p>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-          <strong>Verification Status:</strong>
-          <StatusBadge status={isEmailVerified ? 'Verified' : 'Unverified'} />
-        </div>
-
-        {isEmailVerified && (
-          <p style={{ marginTop: '12px', color: '#15803d', fontSize: '14px' }}>
-            Your email is verified.
-          </p>
-        )}
-
-        {!isEmailVerified && user?.email && (
-          <div style={{
-            marginTop: '16px',
-            padding: '12px',
-            borderRadius: '8px',
-            background: '#fff7ed',
-            border: '1px solid #fed7aa'
-          }}>
-            <p style={{
-              margin: '0 0 10px',
-              color: '#9a3412',
-              fontSize: '14px'
-            }}>
-              Your email is not verified yet. Please check your inbox or request a new verification email.
-            </p>
-
-            <Button
-              variant="outline"
-              onClick={handleResendVerificationEmail}
-              disabled={isResendingVerificationEmail}
-            >
-              {isResendingVerificationEmail ? 'Sending...' : 'Resend Verification Email'}
-            </Button>
-          </div>
-        )}
-        </section>
-          <section className="profile-section">
-            <h3>Presence & Custom Status</h3>
-            <label>Presence Status</label>
-            <select
-              className="border p-2 rounded w-full mb-4"
-              value={presenceStatus}
-              onChange={(e) => setPresenceStatus(e.target.value)}
-            >
-              <option value="Available">🟢 Available</option>
-              <option value="Busy">🟠 Busy</option>
-              <option value="Do Not Disturb">🔴 Do Not Disturb</option>
-              <option value="Away">⚫ Away</option>
-            </select>
-
-            <label>Custom Status Message</label>
-            <input
-              type="text"
-              className="border p-2 rounded w-full mb-4"
-              placeholder="What's on your mind?"
-              value={customStatus}
-              onChange={(e) => setCustomStatus(e.target.value)}
-            />
-
-            <Button onClick={handleUpdateStatus} style={{marginTop:16}}>Update Status</Button>
-          </section>
-
-          <section className="profile-section">
-            <h3>Account Details</h3>
-            <label>First Name</label>
-            <input className="border p-2 rounded w-full mb-4" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
-
-            <label>Last Name</label>
-            <input className="border p-2 rounded w-full mb-4" value={lastName} onChange={(event) => setLastName(event.target.value)} />
-
-            <Button onClick={handleSaveDetails} style={{marginTop:16}}>Update Account Details</Button>
-          </section>
-
-          <section className="profile-section">
-            <h3>Change Password</h3>
-            <label>Current Password</label>
-            <div style={{ position: 'relative' }} className="mb-4">
-              <input
-                type={showCurrentPassword ? 'text' : 'password'}
-                className="border p-2 rounded w-full"
-                placeholder="Enter current password"
-                value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
-                style={{ paddingRight: '40px' }}
+          <section className="profile-section profile-identity-card">
+            <div className="profile-avatar-wrapper">
+              <img
+                src={avatarPreview || profileService.getAvatarUrl(avatarLocalUrl || profile?.avatar_url, firstName, lastName)}
+                alt="Profile avatar"
+                className="profile-avatar-img"
+                onError={(event) => {
+                  event.target.style.display = 'none'
+                  const fallback = event.target.nextElementSibling
+                  if (fallback) fallback.style.display = 'flex'
+                }}
               />
-              <button type="button" className="password-toggle" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
-                {showCurrentPassword ? 'Hide' : 'Show'}
-              </button>
-            </div>
-
-            <label>New Password</label>
-            <div style={{ position: 'relative' }} className="mb-4">
+              <div className="profile-avatar" style={{ display: 'none' }}>
+                {profileService.getInitials(firstName, lastName)}
+              </div>
+              <label className="profile-avatar-upload-label" htmlFor="avatar-upload-input" title="Change Picture">
+                📷
+              </label>
               <input
-                type={showNewPassword ? 'text' : 'password'}
-                className="border p-2 rounded w-full"
-                placeholder="Enter new password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                style={{ paddingRight: '56px' }}
+                id="avatar-upload-input"
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                onChange={handleAvatarChange}
+                style={{ display: 'none' }}
+                disabled={isUploadingAvatar}
               />
-              <button type="button" className="password-toggle" onClick={() => setShowNewPassword(!showNewPassword)}>
-                {showNewPassword ? 'Hide' : 'Show'}
-              </button>
+            </div>
+            <div className="profile-identity-info">
+              <h2>{`${firstName} ${lastName}`.trim() || 'No name set'}</h2>
+              <p>{role || 'No role set'}</p>
+              <p>{department || 'No department set'}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                <StatusBadge status={accountStatus} />
+              </div>
+            </div>
+            <div className="profile-identity-actions">
+              <Button size="sm" variant="outline" onClick={handleVerifyAccountStatus}>Verify Status</Button>
+              <Button size="sm" variant="danger" onClick={handleRemoveAvatar} style={{ marginTop: 8 }}>Remove Picture</Button>
+            </div>
+          </section>
+
+          <section className="profile-section">
+            <h3>Account Information</h3>
+            <div className="profile-form-grid">
+              <label>First Name</label>
+              <input className="border p-2 rounded w-full" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+
+              <label>Last Name</label>
+              <input className="border p-2 rounded w-full" value={lastName} onChange={(event) => setLastName(event.target.value)} />
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <Button onClick={handleSaveDetails}>Update Account Details</Button>
+            </div>
+          </section>
+
+          <section className="profile-section">
+            <h3>Settings</h3>
+
+            <div className="profile-form-grid">
+              <label>Presence Status</label>
+              <select
+                className="border p-2 rounded w-full"
+                value={presenceStatus}
+                onChange={(e) => setPresenceStatus(e.target.value)}
+              >
+                <option value="Available">🟢 Available</option>
+                <option value="Busy">🟠 Busy</option>
+                <option value="Do Not Disturb">🔴 Do Not Disturb</option>
+                <option value="Away">⚫ Away</option>
+              </select>
+
+              <label>Theme</label>
+              <select value={theme} onChange={(event) => setTheme(event.target.value)} className="border p-2 rounded w-full">
+                <option value="light">Light Theme</option>
+                <option value="dark">Dark Theme</option>
+              </select>
             </div>
 
-            <Button onClick={handleUpdatePassword} style={{marginTop:16}}>Update Password</Button>
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label>Custom Status Message</label>
+                <input
+                  type="text"
+                  className="border p-2 rounded w-full"
+                  placeholder="What's on your mind?"
+                  value={customStatus}
+                  onChange={(e) => setCustomStatus(e.target.value)}
+                />
+              </div>
+              <Button onClick={handleUpdateStatus}>Update Status</Button>
+            </div>
           </section>
 
           <section className="profile-section">
-            <h3>Upload History</h3>
-            <Table columns={uploadColumns} data={uploadHistory} />
-          </section>
+            <h3>Security</h3>
 
-          <section className="profile-section">
-            <h3>System Theme</h3>
-            <label>Theme</label>
-            <select value={theme} onChange={(event) => setTheme(event.target.value)} className="border p-2 rounded w-full mb-4">
-              <option value="light">Light Theme</option>
-              <option value="dark">Dark Theme</option>
-            </select>
-          </section>
+            <div className="profile-form-grid">
+              <label>New Password</label>
+              <div style={{ position: 'relative' }} className="mb-4">
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  className="border p-2 rounded w-full"
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  style={{ paddingRight: '56px' }}
+                />
+                <button type="button" className="password-toggle" onClick={() => setShowNewPassword(!showNewPassword)}>
+                  {showNewPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
 
-          <section className="profile-section">
-            <h3>Security Settings</h3>
+            <div style={{ marginTop: 16 }}>
+              <Button onClick={handleUpdatePassword}>Update Password</Button>
+            </div>
+
+            <div style={{ marginTop: 24 }}>
+              <h4>Two-Factor Authentication</h4>
+              <p className="mb-4">Enable two-factor authentication for extra security.</p>
+              <label>Authenticator Code</label>
+              <input
+                type="text"
+                className="border p-2 rounded w-full mb-4"
+                placeholder="Enter code"
+                value={authCode}
+                onChange={(event) => setAuthCode(event.target.value)}
+              />
+              <Button>Add Authenticator</Button>
+            </div>
 
             {isAdmin && (
-              <>
+              <div style={{ marginTop: 24 }}>
+                <h4>API Key</h4>
                 <label>Display API Key (Supabase Synced)</label>
                 <input className="border p-2 rounded w-full mb-4" value={apiKey} readOnly />
-                <Button variant="outline" onClick={handleRotateApiKey} style={{marginTop:16}}>Regenerate Key</Button>
+                <Button variant="outline" onClick={handleRotateApiKey}>Regenerate Key</Button>
 
                 <div style={{ marginTop: 24 }}>
                   <h4>Key Audit Log (Persistent)</h4>
                   <Table columns={auditColumns} data={auditLogs} />
                 </div>
-              </>
+              </div>
             )}
 
             <div style={{ marginTop: 24 }}>
               <h4>Active Session Tokens</h4>
               <p style={{ marginBottom: '12px' }}>
-                <strong>Email:</strong> {user?.email || 'No active session'}
+                <strong>Account Email:</strong> {user?.email || 'No active session'}
                 {activeSessions.length > 0 && (
                   <span style={{ marginLeft: 12, color: '#64748b', fontSize: 13 }}>
                     ({activeSessions.length} device{activeSessions.length === 1 ? '' : 's'})
@@ -643,24 +665,17 @@ const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState
             </div>
           </section>
 
-          <section className="profile-section">
-            <h3>Two-Factor Authentication</h3>
-            <p className="mb-4">Enable two-factor authentication for extra security.</p>
-            <label>Authenticator Code</label>
-            <input
-              type="text"
-              className="border p-2 rounded w-full mb-4"
-              placeholder="Enter code"
-              value={authCode}
-              onChange={(event) => setAuthCode(event.target.value)}
-            />
-            <Button style={{marginTop:16}}>Add Authenticator</Button>
+          <section className="profile-section profile-danger-zone">
+            <h3>Danger Zone</h3>
+            <p className="mb-4">Irreversible account actions.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
+              <Button variant="danger" onClick={handleLogout}>Log Out</Button>
+            </div>
           </section>
 
           <section className="profile-section">
-            <h3>Account Actions</h3>
-            <p className="mb-4">Log out of your JEDDSpace account.</p>
-            <Button variant="danger" onClick={handleLogout}>Log Out</Button>
+            <h3>Upload History</h3>
+            <Table columns={uploadColumns} data={uploadHistory} />
           </section>
 
           {/* Session Inspection Modal */}

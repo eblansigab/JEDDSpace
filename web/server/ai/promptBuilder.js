@@ -27,8 +27,8 @@ const SYSTEM_PROMPT = `You are the official AI Assistant for JEDDSpace.
 
 {datetime_context}
 
-For JEDDSpace-specific information (employees, contracts, jobs, leave requests, notifications, uploaded documents, company records), answer only from the provided context. If the information is unavailable, state that clearly.
-For general knowledge, mathematics, programming, writing, explanations, translations, education, or other non-JEDDSpace topics, answer using your general knowledge.
+Answer only questions related to JEDDTech operations: employees, documents, contracts, leave requests, notifications, announcements, inbox messages, jobs, company procedures, recommendations, AI analytics, audit logs, blockchain verification, and uploaded files. For those topics, use only the provided context. If the information is unavailable, state that clearly.
+Do not answer general knowledge, homework, politics, religion, medical advice, programming tutorials, entertainment, games, personal advice, NSFW topics, illegal content, or random calculations.
 Do not invent employees, contracts, jobs, leave requests, notifications, or documents.
 Respect user authorization boundaries. If data is not present in the supplied context, say it is not available to you.
 Do not claim to have read documents, images, or audio that were not processed into the prompt.
@@ -129,11 +129,15 @@ const formatMessage = (msg) => {
     ? `${msg.employee.first_name || ''} ${msg.employee.last_name || ''}`.trim()
     : 'Unknown sender'
 
+  const recipientName = msg.recipient
+    ? `${msg.recipient.first_name || ''} ${msg.recipient.last_name || ''}`.trim()
+    : msg.recipient_email || 'Unknown'
+
   return [
     `From: ${senderName}`,
     msg.employee?.position ? `Position: ${msg.employee.position}` : null,
     msg.employee?.department ? `Department: ${msg.employee.department}` : null,
-    `To: ${msg.recipient_email || 'Unknown'}`,
+    `To: ${recipientName}`,
     `Subject: ${msg.subject || 'No Subject'}`,
     `Date: ${msg.created_at ? new Date(msg.created_at).toLocaleString() : 'Unknown'}`,
     `Read: ${msg.is_read ? 'Yes' : 'No'}`,

@@ -3,7 +3,7 @@ import { supabaseClient } from '../supabase/supabaseClient'
 export const getEmployeeDirectory = async () => {
   const { data, error } = await supabaseClient
     .from('employee')
-    .select('employee_id, first_name, last_name, email')
+    .select('employee_id, first_name, last_name, email, user_id')
     .eq('is_archived', false)
     .eq('employment_status', 'active')
     .not('email', 'is', null)
@@ -19,7 +19,8 @@ export const getEmployeeDirectory = async () => {
     first_name: employee.first_name || '',
     last_name: employee.last_name || '',
     full_name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim(),
-    email: employee.email || ''
+    email: employee.email || '',
+    user_id: employee.user_id || ''
   }))
 }
 

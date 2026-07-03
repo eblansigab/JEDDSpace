@@ -213,13 +213,13 @@ const CommonDashboardPage = () => {
             )}
           </section>
 
-          <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>
-            <div className="dashboard-widget-header">
-              <div>
-                <h3>Inbox Summary</h3>
-                <span>{emailCount} logged {emailCount === 1 ? 'email' : 'emails'}</span>
-              </div>
-              <button type="button" className="collapse-btn" onClick={() => toggleWidget('email')} title={collapsedWidgets.email ? 'Expand Email Summary' : 'Collapse Email Summary'}>
+            <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>
+              <div className="dashboard-widget-header">
+                <div>
+                  <h3>Message Center</h3>
+                  <span>{emailCount} logged {emailCount === 1 ? 'message' : 'messages'}</span>
+                </div>
+              <button type="button" className="collapse-btn" onClick={() => toggleWidget('email')} title={collapsedWidgets.email ? 'Expand Message Summary' : 'Collapse Message Summary'}>
                 {collapsedWidgets.email ? 'Expand' : 'Collapse'}
               </button>
             </div>
@@ -229,11 +229,11 @@ const CommonDashboardPage = () => {
                 {latestEmail && <p className="date">Latest: {latestEmail}</p>}
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                   <Button onClick={loadUnreadEmails} disabled={isLoadingUnread}>
-                    {isLoadingUnread ? 'Loading...' : 'Show Unread Emails'}
+                    {isLoadingUnread ? 'Loading...' : 'Show Unread Messages'}
                   </Button>
-                  <Link to="/emails" className="primary-btn">
-                    View Emails
-                  </Link>
+                   <Link to="/emails" className="primary-btn">
+                     View Messages
+                   </Link>
                 </div>
               </div>
             )}
@@ -303,7 +303,7 @@ const CommonDashboardPage = () => {
           <Modal
             visible={isSummaryOpen}
             onClose={() => setIsSummaryOpen(false)}
-            title="Unread Emails"
+            title="Unread Messages"
           >
             {unreadEmails.length === 0 ? (
               <p style={{ color: '#64748b', textAlign: 'center', padding: '20px 0' }}>No unread messages.</p>

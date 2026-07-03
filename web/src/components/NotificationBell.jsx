@@ -6,6 +6,7 @@ import {
 } from '../services/notificationService'
 import { pushNotificationService } from '../services/pushNotificationService'
 import { alertService } from '../utils/alertService'
+import { useAuth } from '../services/authContext'
 
 const POLL_INTERVAL_MS = 45000
 
@@ -33,6 +34,7 @@ const BellIcon = () => (
 )
 
 export default function NotificationBell() {
+  const { profile } = useAuth()
   const wrapperRef = useRef(null)
   const seenIdsRef = useRef(new Set())
   const initialLoadRef = useRef(true)
@@ -79,7 +81,14 @@ export default function NotificationBell() {
 
   const loadNotifications = useCallback(async () => {
     try {
-      const data = await notificationService.getNotifications()
+      const employeeId = profile?.employee_id
+      if (!employeeId) {
+        setNotifications([])
+        setLoading(false)
+        return
+      }
+
+      const data = await notificationService.getNotifications(employeeId)
 
       if (initialLoadRef.current) {
         data.forEach((item) => {
@@ -103,12 +112,20 @@ export default function NotificationBell() {
     } finally {
       setLoading(false)
     }
-  }, [handleIncomingNotification])
+  }, [handleIncomingNotification, profile])
 
   useEffect(() => {
     loadNotifications()
 
     const unsubscribeRealtime = notificationService.subscribeToInserts((item) => {
+      const employeeId = profile?.employee_id
+      if (!employeeId) return
+
+      const notifyTo = item?.notify_to ?? item?.notifyTo ?? null
+      if (notifyTo !== null && String(notifyTo) !== String(employeeId)) {
+        return
+      }
+
       handleIncomingNotification(item, true)
     })
 
@@ -118,7 +135,7 @@ export default function NotificationBell() {
       unsubscribeRealtime()
       clearInterval(pollTimer)
     }
-  }, [handleIncomingNotification, loadNotifications])
+  }, [handleIncomingNotification, loadNotifications, profile])
 
   useEffect(() => {
     const handleClickOutside = (event) => {

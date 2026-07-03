@@ -4,6 +4,7 @@ import { buildMessages } from './promptBuilder.js'
 import { groqClient } from './groqClient.js'
 import { getSupabaseServerClient } from './supabaseClient.js'
 import { createRequestContext, timedStage } from './pipeline.js'
+import { isAllowedJEDDSpaceIntent } from './entityResolver.js'
 
 const buildClarificationResponse = (lowConfidenceEntities = []) => {
   const entityTypes = lowConfidenceEntities
@@ -55,8 +56,22 @@ const prepareChat = async ({ viewer, payload = {} }) => {
   }
 
   const intent = detectIntent(message)
+  const allowedScope = isAllowedJEDDSpaceIntent(intent, message)
+  requestContext.log('intent:detected', { intent, sessionId, allowedScope })
+
+  if (!allowedScope) {
+    return {
+      requestContext,
+      intent,
+      message,
+      messages,
+      sessionId,
+      rejection:
+        "I'm designed specifically to assist with JEDDTech operations, employees, documents, contracts, leave requests, notifications, and other organizational information. Your question appears unrelated to those areas, so I'm unable to provide an answer.",
+    }
+  }
+
   const generalKnowledge = isGeneralKnowledgeQuestion(message)
-  requestContext.log('intent:detected', { intent, sessionId, generalKnowledge })
 
   const context = await buildAIContext({ viewer, intent, message, messages, attachments, requestContext })
 
@@ -132,6 +147,18 @@ export const handleChat = async ({ viewer, payload = {} }) => {
     return { data: prepared.clarification }
   }
 
+  if (prepared.rejection) {
+    return {
+      data: {
+        response: prepared.rejection,
+        intent: prepared.intent,
+        referencedEntities: {},
+        warnings: [],
+        metrics: {},
+      },
+    }
+  }
+
   const { requestContext, intent, message, messages = [], sessionId, context, groqMessages } = prepared
 
   const groqResult = await timedStage(
@@ -194,6 +221,19 @@ export const handleChatStream = async ({ viewer, payload = {}, sendEvent }) => {
     sendEvent('progress', { message: 'Clarifying reference...' })
     sendEvent('token', { token: prepared.clarification.response })
     sendEvent('done', prepared.clarification)
+    return
+  }
+
+  if (prepared.rejection) {
+    sendEvent('progress', { message: 'Out of scope' })
+    sendEvent('token', { token: prepared.rejection })
+    sendEvent('done', {
+      response: prepared.rejection,
+      intent: prepared.intent,
+      referencedEntities: {},
+      warnings: [],
+      metrics: {},
+    })
     return
   }
 

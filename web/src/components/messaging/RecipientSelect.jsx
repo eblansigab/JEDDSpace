@@ -41,7 +41,7 @@ export default function RecipientSelect({
           key={employee.employee_id}
           value={employee.email}
         >
-          {employee.first_name} {employee.last_name} ({employee.email})
+          {employee.first_name} {employee.last_name}
         </option>
       ))}
     </select>

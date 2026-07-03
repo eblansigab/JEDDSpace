@@ -272,6 +272,26 @@ export const isPureGreeting = (message) => {
   return GREETINGS.has(text)
 }
 
+const ALLOWED_JEDDSPACE_INTENTS = new Set([
+  'employee',
+  'job',
+  'leave',
+  'contract',
+  'document',
+  'notification',
+  'operations',
+  'recommendation',
+  'chat_logs',
+  'inbox',
+])
+
+export const isAllowedJEDDSpaceIntent = (intent, message) => {
+  if (ALLOWED_JEDDSPACE_INTENTS.has(intent)) return true
+  if (isPureGreeting(message)) return true
+  if (isCapabilityQuestion(message)) return true
+  return false
+}
+
 export const shouldResolveEntities = (message, intent, attachments = []) => {
   if (attachments.length > 0) {
     logEntity('Reference check', { referenceDetected: true, reason: 'attachments_present' })
