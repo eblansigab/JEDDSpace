@@ -5,6 +5,19 @@ import { alertService } from '../utils/alertService'
 import { useAuth } from '../services/authContext'
 import { Button, PageHeader } from '../components'
 
+const LoadingState = () => (
+  <div className="analytics-loading">
+    <div className="analytics-loading-pulse" />
+    <p>Loading registration requests...</p>
+  </div>
+)
+
+const EmptyState = () => (
+  <div className="analytics-empty">
+    <p>No registration requests found.</p>
+  </div>
+)
+
 const RegistrationRequestsPage = () => {
   const { profile } = useAuth()
   const [requests, setRequests] = useState([])
@@ -71,7 +84,9 @@ const RegistrationRequestsPage = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <main className="content">Loading...</main>
+        <main className="content">
+          <LoadingState />
+        </main>
       </DashboardLayout>
     )
   }
@@ -81,6 +96,7 @@ const RegistrationRequestsPage = () => {
       <main className="content">
         <PageHeader
           title="Registration Requests"
+          subtitle="Review and approve new account registrations."
           actions={[
             <input
               key="search"
@@ -94,58 +110,76 @@ const RegistrationRequestsPage = () => {
         />
 
         {filteredRequests.length === 0 ? (
-          <p style={{ color: '#64748b' }}>No registration requests found.</p>
+          <EmptyState />
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Department</th>
-                <th>Position</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRequests.map((req) => (
-                <tr key={req.employee_id}>
-                  <td>{req.first_name} {req.last_name}</td>
-                  <td>{req.department || 'N/A'}</td>
-                  <td>{req.position || 'N/A'}</td>
-                  <td>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filteredRequests.map((req) => {
+              const status = String(req.registration_status || '').toLowerCase()
+              const isPending = status === 'pending'
+              const name = `${req.first_name || ''} ${req.last_name || ''}`.trim() || 'Unknown'
+              return (
+                <div
+                  key={req.employee_id}
+                  className="registration-request-card"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 16,
+                    padding: '16px 18px',
+                    borderRadius: 10,
+                    border: '1px solid #e5e7eb',
+                    background: '#ffffff',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>{name}</div>
+                    <div className="registration-request-meta" style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+                      {req.department || 'N/A'} · {req.position || 'N/A'}
+                    </div>
+                    <div className="registration-request-meta" style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+                      Requested on {req.created_at ? new Date(req.created_at).toLocaleString() : 'Unknown date'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                     <span
-                      className={`status ${String(req.registration_status || '').toLowerCase()}`}
-                      style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%' }}
-                    ></span>
-                    {' '}
-                    {req.registration_status || 'pending'}
-                  </td>
-                  <td>
-                    {String(req.registration_status || '').toLowerCase() === 'pending' ? (
+                      className={`status ${status}`}
+                      style={{
+                        display: 'inline-block',
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%'
+                      }}
+                    />
+                    <span className="registration-request-status" style={{ fontSize: 13, color: '#475569', textTransform: 'capitalize' }}>
+                      {status || 'pending'}
+                    </span>
+                    {isPending && (
                       <div style={{ display: 'flex', gap: 8 }}>
                         <Button
+                          size="sm"
                           variant="primary"
-                          style={{ minWidth: 70 }}
+                          style={{ minWidth: 80 }}
                           onClick={() => updateStatus(req.employee_id, 'approved')}
                         >
                           Approve
                         </Button>
                         <Button
+                          size="sm"
                           variant="danger"
-                          style={{ minWidth: 70 }}
+                          style={{ minWidth: 80 }}
                           onClick={() => updateStatus(req.employee_id, 'rejected')}
                         >
                           Reject
                         </Button>
                       </div>
-                    ) : (
-                      <span style={{ color: '#64748b', fontSize: 12 }}>No actions</span>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         )}
       </main>
     </DashboardLayout>

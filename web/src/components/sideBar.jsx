@@ -8,6 +8,7 @@ import { emailService } from '../services/emailService'
 const Sidebar = () => {
   const [showHRDropdown, setShowHRDropdown] = useState(false)
   const [unreadEmailCount, setUnreadEmailCount] = useState(0)
+  const [avatarError, setAvatarError] = useState(false)
   const { profile, loading, user, isEmailVerified } = useAuth()
   const [role, setRole] = useState(String(profile?.role || '').trim().toLowerCase() || '')
 
@@ -69,13 +70,6 @@ const Sidebar = () => {
   }
 
   const getInitials = (first, last) => profileService.getInitials(first, last)
-
-  const getAvatarSrc = () => {
-    const first = profile?.first_name || ''
-    const last = profile?.last_name || ''
-    const url = profile?.avatar_url || ''
-    return profileService.getAvatarUrl(url, first, last)
-  }
 
   const getStatusClass = () => {
     const status = String(user?.user_metadata?.presence_status || 'Available').toLowerCase()
@@ -146,17 +140,16 @@ const Sidebar = () => {
         <div className="sidebar-profile-card">
           <div className="sidebar-profile-header-row">
             <div className="sidebar-avatar-wrapper">
-              <img
-                src={getAvatarSrc()}
-                alt="Profile avatar"
-                className="sidebar-avatar-img"
-                onError={(event) => {
-                  event.target.style.display = 'none'
-                  const fallback = event.target.nextElementSibling
-                  if (fallback) fallback.style.display = 'flex'
-                }}
-              />
-              <div className="sidebar-avatar">{getInitials(profile?.first_name, profile?.last_name)}</div>
+              {!avatarError && profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Profile avatar"
+                  className="sidebar-avatar-img"
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <div className="sidebar-avatar">{getInitials(profile?.first_name, profile?.last_name)}</div>
+              )}
               <span className={`sidebar-status-badge ${getStatusClass()}`} />
             </div>
             <div className="sidebar-profile-info">

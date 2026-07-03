@@ -19,7 +19,7 @@ const LoadingState = () => (
 
 const EmptyState = () => (
   <div className="analytics-empty">
-    <p>No chat logs found.</p>
+    <p>No AI conversation logs found yet.</p>
   </div>
 )
 
@@ -47,7 +47,7 @@ export default function AiChatLogsPage() {
       <main className="content">
         <PageHeader
           title="AI Chat History"
-          subtitle="All AI conversation logs for administrative oversight."
+          subtitle="Review AI conversations across JEDDSpace."
         />
 
         <section className="dashboard-widget">
@@ -60,36 +60,34 @@ export default function AiChatLogsPage() {
             ) : logs.length === 0 ? (
               <EmptyState />
             ) : (
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>User</th>
-                    <th>Intent</th>
-                    <th>Prompt</th>
-                    <th>Response</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((log) => (
-                    <tr key={log.chat_id} style={{margin:'auto .5em'}}>
-                      <td>{log.created_at ? new Date(log.created_at).toLocaleString() : '-'}</td>
-                      <td>
-                        {log.employee
-                          ? `${log.employee.first_name || ''} ${log.employee.last_name || ''}`.trim() || 'Unknown'
-                          : log.user_id || '-'}
-                      </td>
-                      <td>{log.intent || '-'}</td>
-                      <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {log.prompt || '-'}
-                      </td>
-                      <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {log.response || '-'}
-                      </td>
+              <div className="table-scroll-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>User</th>
+                      <th>Intent</th>
+                      <th>Prompt</th>
+                      <th>Response</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {logs.map((log) => (
+                      <tr key={log.chat_id}>
+                        <td>{formatTimestamp(log.created_at)}</td>
+                        <td>
+                          {log.employee
+                            ? `${log.employee.first_name || ''} ${log.employee.last_name || ''}`.trim() || 'Unknown'
+                            : log.user_id || '-'}
+                        </td>
+                        <td>{log.intent || '-'}</td>
+                        <td className="cell-wrap">{log.prompt || '-'}</td>
+                        <td className="cell-wrap">{log.response || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>

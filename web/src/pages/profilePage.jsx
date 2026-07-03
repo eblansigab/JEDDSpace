@@ -78,6 +78,8 @@ const ProfileSettings = () => {
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [avatarLocalUrl, setAvatarLocalUrl] = useState('')
+  const [avatarImgError, setAvatarImgError] = useState(false)
+  const [showUploadHistory, setShowUploadHistory] = useState(false)
 
   useEffect(() => {
     if (user?.user_metadata) {
@@ -402,16 +404,6 @@ const ProfileSettings = () => {
     }
   }
 
-  const uploadColumns = [
-    { key: 'document_id', title: 'File ID', render: (value, row) => value || row.id || 'N/A' },
-    { key: 'title', title: 'File Name', render: (value, row) => value || row.file_name || row.name || 'Untitled document' },
-    {
-      key: 'created_at',
-      title: 'Upload Date',
-      render: (value) => (value ? new Date(value).toLocaleDateString() : 'No date')
-    }
-  ]
-
   const auditColumns = [
     { key: 'action', title: 'Action' },
     { key: 'actor', title: 'Actor' },
@@ -497,19 +489,18 @@ const ProfileSettings = () => {
 
           <section className="profile-section profile-identity-card">
             <div className="profile-avatar-wrapper">
-              <img
-                src={avatarPreview || profileService.getAvatarUrl(avatarLocalUrl || profile?.avatar_url, firstName, lastName)}
-                alt="Profile avatar"
-                className="profile-avatar-img"
-                onError={(event) => {
-                  event.target.style.display = 'none'
-                  const fallback = event.target.nextElementSibling
-                  if (fallback) fallback.style.display = 'flex'
-                }}
-              />
-              <div className="profile-avatar" style={{ display: 'none' }}>
-                {profileService.getInitials(firstName, lastName)}
-              </div>
+              {!avatarImgError && (avatarPreview || avatarLocalUrl || profile?.avatar_url) ? (
+                <img
+                  src={avatarPreview || profileService.getAvatarUrl(avatarLocalUrl || profile?.avatar_url, firstName, lastName)}
+                  alt="Profile avatar"
+                  className="profile-avatar-img"
+                  onError={() => setAvatarImgError(true)}
+                />
+              ) : (
+                <div className="profile-avatar">
+                  {profileService.getInitials(firstName, lastName)}
+                </div>
+              )}
               <label className="profile-avatar-upload-label" htmlFor="avatar-upload-input" title="Change Picture">
                 📷
               </label>
@@ -531,8 +522,10 @@ const ProfileSettings = () => {
               </div>
             </div>
             <div className="profile-identity-actions">
-              <Button size="sm" variant="outline" onClick={handleVerifyAccountStatus}>Verify Status</Button>
-              <Button size="sm" variant="danger" onClick={handleRemoveAvatar} style={{ marginTop: 8 }}>Remove Picture</Button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Button size="sm" variant="outline" onClick={handleVerifyAccountStatus}>Verify Status</Button>
+                <Button size="sm" variant="danger" onClick={handleRemoveAvatar}>Remove Picture</Button>
+              </div>
             </div>
           </section>
 
@@ -674,8 +667,63 @@ const ProfileSettings = () => {
           </section>
 
           <section className="profile-section">
-            <h3>Upload History</h3>
-            <Table columns={uploadColumns} data={uploadHistory} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <h3 style={{ margin: 0 }}>Upload History</h3>
+              <button
+                type="button"
+                onClick={() => setShowUploadHistory((prev) => !prev)}
+                title={showUploadHistory ? 'Hide upload history' : 'Show upload history'}
+                style={{
+                  background: 'none',
+                  border: '1px solid #ddd',
+                  borderRadius: 6,
+                  padding: '4px 10px',
+                  cursor: 'pointer',
+                  color: '#1E0977',
+                  fontWeight: 600,
+                  fontSize: 13
+                }}
+              >
+                {showUploadHistory ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {showUploadHistory && (
+              <div style={{ marginTop: 12 }}>
+                {uploadHistory.length === 0 ? (
+                  <p style={{ color: '#64748b' }}>No uploads yet.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {uploadHistory.map((item) => (
+                      <div
+                        key={item.document_id || item.id || item.title}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 12,
+                          padding: '10px 12px',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: 8,
+                          background: '#f9fafb'
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>
+                            {item.title || item.file_name || item.name || 'Untitled document'}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#64748b' }}>
+                            {item.created_at ? new Date(item.created_at).toLocaleString() : 'No date'}
+                          </div>
+                        </div>
+                        <div style={{ color: '#64748b', fontSize: 12, whiteSpace: 'nowrap' }}>
+                          {item.document_id || item.id || '—'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Session Inspection Modal */}
