@@ -85,9 +85,24 @@ export const employeeService = {
   },
 
   async remove(employeeId) {
+    const { data: existing, error: fetchError } = await supabaseClient
+      .from('employee')
+      .select('employee_id, is_archived, employment_status')
+      .eq('employee_id', employeeId)
+      .maybeSingle()
+
+    if (fetchError) throw fetchError
+
+    if (!existing) {
+      return null
+    }
+
     const { data, error } = await supabaseClient
       .from('employee')
-      .delete()
+      .update({
+        is_archived: true,
+        employment_status: 'inactive'
+      })
       .eq('employee_id', employeeId)
 
     if (error) throw error

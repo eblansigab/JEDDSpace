@@ -122,7 +122,7 @@ export const registerUser = async (
     throw error;
   }
 
- 
+
 
   const authUserId = data?.user?.id;
 
@@ -285,6 +285,6 @@ export const updateUserPassword = async (newPassword) => {
 export const resendVerficationEmail = async (email) => {
   const { data, error } = await supabaseClient.auth.resend({type: 'signup', email, options:{emailRedirectTo: `${window.location.origin}/auth/callback`,},});
 
-  if (error) throw error;
-  return data;
+  if (error) throw error
+  return data
 };
