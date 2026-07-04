@@ -346,7 +346,7 @@ const EmailsPage = () => {
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
-                📥 Received
+                📥 Inbox
               </span>
               <span style={{
                 backgroundColor: activeTab === 'inbox' ? '#2563eb' : 'rgba(148, 163, 184, 0.15)',
@@ -422,7 +422,7 @@ const EmailsPage = () => {
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
-                📤 Dispatched
+                📤 Sent
               </span>
               <span style={{
                 backgroundColor: activeTab === 'sent' ? '#2563eb' : 'rgba(148, 163, 184, 0.15)',

@@ -388,7 +388,7 @@ export default function AiAssistantPage() {
       <main className="content">
         <PageHeader
           title="AI Assistant"
-          subtitle={`JEDDSpace AI is ready${profile?.first_name ? `, ${profile.first_name}` : ''}. Ask about jobs, employees, leave, contracts, notifications, documents, or upload files for analysis.`}
+          subtitle={`Ask about jobs, employees, leave, contracts, notifications, documents, or upload files for analysis.`}
           actions={[
             <select
               key="ai-session-select"
@@ -435,7 +435,6 @@ export default function AiAssistantPage() {
             <div className="dashboard-widget-header">
               <div>
                 <h3>Conversation</h3>
-                <span>Server-side AI runs through /api/chat and Groq.</span>
               </div>
             </div>
 

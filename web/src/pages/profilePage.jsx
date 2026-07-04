@@ -529,19 +529,6 @@ const ProfileSettings = () => {
             </div>
           </section>
 
-          <section className="profile-section">
-            <h3>Account Information</h3>
-            <div className="profile-form-grid">
-              <label>First Name</label>
-              <input className="border p-2 rounded w-full" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
-
-              <label>Last Name</label>
-              <input className="border p-2 rounded w-full" value={lastName} onChange={(event) => setLastName(event.target.value)} />
-            </div>
-            <div style={{ marginTop: 16 }}>
-              <Button onClick={handleSaveDetails}>Update Account Details</Button>
-            </div>
-          </section>
 
           <section className="profile-section">
             <h3>Settings</h3>
