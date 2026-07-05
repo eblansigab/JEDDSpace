@@ -8,7 +8,7 @@ import { notificationService } from '../services/notificationService'
 import { useAuth } from '../services/authContext'
 import { alertService } from '../utils/alertService'
 import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
-import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, ROLE_OPTIONS } from '../constants/formOptions'
+import { DEPARTMENT_OPTIONS, POSITION_OPTIONS } from '../constants/formOptions'
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
 
@@ -25,7 +25,6 @@ const createEmptyForm = () => ({
   confirmPassword: '',
   department: 'general',
   position: 'employee',
-  role: 'employee',
   registration_status: 'approved',
   employment_status: 'active',
 })
@@ -118,7 +117,7 @@ const ManageEmployeesPage = () => {
         trimmedFirstName,
         trimmedLastName,
         form.position,
-        form.role,
+        'employee',
         form.department,
         normalizedUsername
       )
@@ -151,7 +150,6 @@ const ManageEmployeesPage = () => {
       username: employee.username || '',
       department: employee.department || 'general',
       position: employee.position || 'employee',
-      role: employee.role || 'employee',
       registration_status: employee.registration_status || 'approved',
       employment_status: employee.employment_status || 'active',
     })
@@ -181,7 +179,6 @@ const ManageEmployeesPage = () => {
         last_name: form.last_name.trim(),
         department: form.department,
         position: form.position,
-        role: form.role,
         registration_status: form.registration_status,
         employment_status: form.employment_status,
       })
@@ -232,8 +229,7 @@ const ManageEmployeesPage = () => {
       name.includes(query) ||
       String(employee.username || '').toLowerCase().includes(query) ||
       String(employee.department || '').toLowerCase().includes(query) ||
-      String(employee.position || '').toLowerCase().includes(query) ||
-      String(employee.role || '').toLowerCase().includes(query)
+      String(employee.position || '').toLowerCase().includes(query)
     )
   })
 
@@ -242,7 +238,7 @@ const ManageEmployeesPage = () => {
       key: 'avatar',
       title: 'Avatar',
       render: (_, row) => (
-        <div className="profile-avatar" style={{ width: 38, height: 38, fontSize: 14 }}>
+        <div className="profile-avatar" style={{ width: 38, height: 38, fontSize: 14, borderRadius: '50%', background: '#1E0977', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {profileServiceInitials(row)}
         </div>
       )
@@ -258,13 +254,17 @@ const ManageEmployeesPage = () => {
       )
     },
     { key: 'username', title: 'Username', render: (value) => value || 'Not set' },
-    { key: 'department', title: 'Department' },
-    { key: 'position', title: 'Position' },
-    { key: 'role', title: 'Role' },
+    { key: 'department', title: 'Department', render: (value) => value || '—' },
+    { key: 'position', title: 'Position', render: (value) => value || '—' },
     {
       key: 'registration_status',
       title: 'Account Status',
       render: (value) => <StatusBadge status={value || 'pending'} />
+    },
+    {
+      key: 'employment_status',
+      title: 'Employment Status',
+      render: (value) => <StatusBadge status={value || 'active'} />
     },
     {
       key: 'actions',
@@ -402,9 +402,6 @@ const EmployeeModal = ({ visible, title, form, onChange, onClose, onSave, mode }
       </select>
       <select value={form.position} onChange={(event) => onChange('position', event.target.value)}>
         {POSITION_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
-      </select>
-      <select value={form.role} onChange={(event) => onChange('role', event.target.value)}>
-        {ROLE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
       </select>
       <select value={form.registration_status} onChange={(event) => onChange('registration_status', event.target.value)}>
         <option value="pending">pending</option>

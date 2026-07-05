@@ -198,6 +198,42 @@
   color: #e2e8f0 !important;
 }
 
+/* Dark mode fixes for profile field help */
+[data-theme="dark"] .profile-field-help {
+  color: #94a3b8 !important;
+}
+
+/* Dark mode fixes for Contracts page */
+[data-theme="dark"] .contract-box {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+}
+
+[data-theme="dark"] .contract-box h3 {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .contract-box strong {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .contract-box p {
+  color: #cbd5e1 !important;
+}
+
+/* Dark mode fixes for Employee Modal in Manage Employees */
+[data-theme="dark"] .manage-employees-modal input,
+[data-theme="dark"] .manage-employees-modal select {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+[data-theme="dark"] .manage-employees-modal option {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
 /* Dark mode fixes for Registration Requests page */
 [data-theme="dark"] .registration-request-card {
   background: #1e293b !important;

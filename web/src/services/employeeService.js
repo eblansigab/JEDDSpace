@@ -5,6 +5,8 @@ export const employeeService = {
     const { data, error } = await supabaseClient
       .from('employee')
       .select('*')
+      .eq('is_archived', false)
+      .order('first_name')
 
     if (error) throw error
 
