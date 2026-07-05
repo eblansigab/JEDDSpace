@@ -9,7 +9,7 @@ const Sidebar = () => {
   const [showHRDropdown, setShowHRDropdown] = useState(false)
   const [unreadEmailCount, setUnreadEmailCount] = useState(0)
   const [avatarError, setAvatarError] = useState(false)
-  const { profile, loading, user, isEmailVerified } = useAuth()
+  const { profile, loading, user } = useAuth()
   const [role, setRole] = useState(String(profile?.role || '').trim().toLowerCase() || '')
 
   useEffect(() => {
@@ -174,24 +174,6 @@ const Sidebar = () => {
         </div>
       )}
 
-      {profile && !isEmailVerified && (
-        <div style={{
-          padding: '10px',
-          marginBottom: '12px',
-          borderRadius: '8px',
-          background: '#fff7ed',
-          border: '1px solid #fed7aa',
-          color: '#9a3412',
-          fontSize: '13px'
-        }}>
-          <p style={{ marginBottom: '6px' }}>Your account email is not verified yet.</p>
-          <Link to="/profile" onClick={closeMobileSidebar}>
-            Verify Account Email
-          </Link>
-        </div>
-      )}
-
-
       <ul>
         <li>
           <Link to="/dashboard" onClick={closeMobileSidebar} title="Dashboard">
@@ -310,4 +292,3 @@ const Sidebar = () => {
 }
 
 export default Sidebar
-

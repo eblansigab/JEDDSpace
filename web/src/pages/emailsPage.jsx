@@ -543,7 +543,7 @@ const EmailsPage = () => {
                                <div style={{ fontSize: isMobile ? '13px' : '14px', color: 'var(--text-secondary, #64748b)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                  <span><strong>Sender:</strong> {getSenderName(selectedMessage.sender_id)}</span>
                                  <span><strong>Recipient:</strong> {getRecipientName(selectedMessage.recipient_email)}</span>
-                                 <span><strong>Date:</strong> {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : 'N/A'}</span>
+                                 <span><strong>Date:</strong> {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : 'No date'}</span>
                                </div>
                             </div>
 

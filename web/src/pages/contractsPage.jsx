@@ -1,9 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { contractService } from '../services/contractService'
 import { jobService } from '../services/jobsService'
-import { LoadingOverlay } from '../components'
+import { LoadingOverlay, StatusBadge } from '../components'
 import { alertService } from '../utils/alertService'
+
+const formatDate = (value) => (
+  value ? new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : ''
+)
+
+const getEmployeeName = (employee) => (
+  employee ? `${employee.first_name || ''} ${employee.last_name || ''}`.trim() : ''
+)
 
 const ContractsPage = () => {
   const [contracts, setContracts] = useState([])
@@ -51,79 +59,50 @@ const ContractsPage = () => {
       <main className="content">
         <h3>Contracts</h3>
 
-        {enrichedContracts.map((contract) => (
-          <div key={contract.contracts_id} className="contract-box">
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {contract.contract_title || 'Untitled Contract'}
-              <span className={`status ${contract.status}`}></span>
-            </h3>
-            <p><strong>Contractor:</strong> {contract.contractor ? `${contract.contractor.first_name} ${contract.contractor.last_name}` : 'Unknown'}</p>
-            <p><strong>Department:</strong> {contract.contractor?.department || 'N/A'}</p>
-            <p><strong>Salary:</strong> {contract.salary ? `₱${contract.salary.toLocaleString()}` : 'N/A'}</p>
-            {contract.contract_file_url && (
-              <a href={contract.contract_file_url} target="_blank" rel="noreferrer" className="primary-btn">
-                View Contract
-              </a>
-            )}
+        {enrichedContracts.map((contract) => {
+          const job = contract.job
+          const employeeName = getEmployeeName(contract.contractor) || getEmployeeName(job?.employee) || 'Unassigned'
 
-            {contract.job && (
-              <>
-                <hr style={{border:0, borderTop:'1px solid #6B7280'}}/>
-                <div style={{display:'flex',justifyContent:'space-between'}}>
-                  <div style={{width:'45%'}}>
-                    <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
-                      <p style={{fontWeight:'bold',marginBottom:'0'}}>Destination</p>
-                      <p style={{marginBottom:'0'}}>{contract.job.destination || 'N/A'}</p>
-                    </div>
-                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0'}}>
-                      <p style={{fontWeight:'bold'}}>Location</p>
-                      <p>{contract.job.destination || 'N/A'}</p>
-                    </div>
-                  </div>
-                  <div style={{width:'45%'}}>
-                    <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
-                      <p style={{fontWeight:'bold', marginBottom:'0'}}>Start Date</p>
-                      <p style={{marginBottom:'0'}}>{contract.job.start_date ? new Date(contract.job.start_date).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}) : 'N/A'}</p>
-                    </div>
-                    <div style={{display:'flex',width:'100%',justifyContent:'space-between'}}>
-                      <p style={{fontWeight:'bold'}}>End Date</p>
-                      <p>{contract.job.end_date ? new Date(contract.job.end_date).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}) : 'N/A'}</p>
-                    </div>
-                  </div>
+          return (
+            <div key={contract.contracts_id} className="contract-box">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+                <div>
+                  <h3 style={{ marginBottom: 8 }}>{contract.contract_title || 'Untitled Contract'}</h3>
+                  <p><strong>Employee:</strong> {employeeName}</p>
+                  {job && <p><strong>Job Assignment:</strong> Job #{job.job_id}</p>}
                 </div>
-                <hr style={{border:0, borderTop:'1px solid #6B7280'}}/>
-                {contract.job.employee && (
-                  <div style={{display:'flex', gap:'32px'}}>
-                    <div style={{gap:"16px"}}>
-                      <div style={{display:'flex', gap:"8px"}}>
-                        <span style={{
-                          display:'flex',
-                          width: '100px',
-                          height: '100px',
-                          borderRadius: '50%',
-                          backgroundColor: 'gray',
-                          justifyContent: "center",
-                          alignItems: 'center', 
-                          fontSize: "32px",
-                          color:'#fff'
-                          }}>
-                          {contract.job.employee.first_name?.[0]}{contract.job.employee.last_name?.[0]}
-                        </span>
-                        <div>
-                          <p style={{fontWeight:'bold',marginTop:"0.5em",marginBottom:0}}>{contract.job.employee.first_name} {contract.job.employee.last_name}</p>
-                      <div style={{display:'flex',gap:'8px'}}>
-                        <div className='emp-position' style={{borderRadius:'15%',backgroundColor:"lightblue",padding:'8px',color:'#084298'}}>{contract.job.employee.position || 'N/A'}</div>
-                        <div className='emp-department' style={{borderRadius:'15%',backgroundColor:"lightgray",padding:'8px',color:'#475569'}}>{contract.job.employee.department || 'N/A'}</div>
-                      </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        ))}
+                <StatusBadge status={contract.status || 'pending'} />
+              </div>
+
+              {job && (
+                <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                  {job.destination && (
+                    <p><strong>Destination:</strong> {job.destination}</p>
+                  )}
+                  {job.start_date && (
+                    <p><strong>Start Date:</strong> {formatDate(job.start_date)}</p>
+                  )}
+                  {job.end_date && (
+                    <p><strong>End Date:</strong> {formatDate(job.end_date)}</p>
+                  )}
+                  {job.status && (
+                    <p><strong>Job Status:</strong> {job.status}</p>
+                  )}
+                </div>
+              )}
+
+              {job?.notes && (
+                <p style={{ marginTop: 12 }}><strong>Notes:</strong> {job.notes}</p>
+              )}
+
+              {contract.contract_file_url && (
+                <a href={contract.contract_file_url} target="_blank" rel="noreferrer" className="primary-btn">
+                  View Contract
+                </a>
+              )}
+            </div>
+          )
+        })}
 
         {!enrichedContracts.length && (
           <p style={{ color: '#64748b' }}>No contracts found.</p>

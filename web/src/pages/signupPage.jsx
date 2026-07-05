@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logo from '../assets/JEDDSpace Logo (Transparent).png'
 import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, ROLE_OPTIONS } from '../constants/formOptions'
-import { registerUser } from '../services/authService'
+import { isUsernameAvailable, registerUser, validateUsername } from '../services/authService'
 import { alertService } from '../utils/alertService'
 
 const SignUp = () => {
@@ -16,13 +16,16 @@ const SignUp = () => {
   const [role, setRole] = useState('')
   const [position, setPosition] = useState('')
   const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleRegister = async (e) => {
     e.preventDefault()
-    if (!firstName || !lastName || !department || !role || !position || !email || !password || !confirmPassword) {
+    const normalizedUsername = username.trim().toLowerCase()
+
+    if (!firstName || !lastName || !department || !role || !position || !email || !normalizedUsername || !password || !confirmPassword) {
       await alertService.warning('Please fill all fields')
       return
     }
@@ -34,6 +37,14 @@ const SignUp = () => {
 
     setIsSubmitting(true)
     try {
+      validateUsername(normalizedUsername)
+
+      const available = await isUsernameAvailable(normalizedUsername)
+      if (!available) {
+        await alertService.warning('Username is already taken.')
+        return
+      }
+
       await registerUser(
         email,
         password,
@@ -42,7 +53,8 @@ const SignUp = () => {
         lastName,
         position,
         role,
-        department
+        department,
+        normalizedUsername
       )
 
       const successMessage =
@@ -57,6 +69,7 @@ const SignUp = () => {
       setRole('')
       setPosition('')
       setEmail('')
+      setUsername('')
       setPassword('')
       setConfirmPassword('')
 
@@ -126,6 +139,17 @@ const SignUp = () => {
 
           <label>Email</label>
           <input type="email" placeholder="Enter Email Address" value={email} onChange={(e) => setEmail(e.target.value)} />
+
+          <label>Username</label>
+          <input
+            type="text"
+            placeholder="letters, numbers, underscores"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.trim().toLowerCase())}
+          />
+          <p style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>
+            Lowercase letters, numbers, and underscores only. No spaces.
+          </p>
 
           <label>Password</label>
           <div style={{ position: 'relative' }}>

@@ -2462,13 +2462,50 @@ body.sidebar-collapsed .content {
 }
 .profile-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px 24px;
+  align-items: start;
 }
+
+.profile-field {
+  min-width: 0;
+}
+
+.profile-field label,
 .profile-form-grid label {
   font-weight: 600;
   margin-bottom: 6px;
+  margin-top: 0;
   display: block;
+}
+
+.profile-field input,
+.profile-field select {
+  min-height: 48px;
+  margin-top: 0;
+}
+
+.profile-field-help {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 6px 0 0;
+}
+
+.profile-field .mb-4 {
+  margin-bottom: 0;
+}
+
+@media (min-width: 1100px) {
+  .profile-form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .profile-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .profile-danger-zone {
   border-color: #fecaca;

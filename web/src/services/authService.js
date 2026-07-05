@@ -36,6 +36,78 @@ const loadPendingEmployee = () => {
 
 const clearPendingEmployee = () => localStorage.removeItem(PENDING_EMPLOYEE_KEY);
 
+const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/;
+
+const normalizeUsername = (username) => {
+  const trimmed = String(username || '').trim();
+
+  if (!trimmed) {
+    throw new Error('Username is required.');
+  }
+
+  if (trimmed.length < 3 || trimmed.length > 30) {
+    throw new Error('Username must be between 3 and 30 characters.');
+  }
+
+  if (!USERNAME_PATTERN.test(trimmed)) {
+    throw new Error('Username can only contain letters, numbers, and underscores.');
+  }
+
+  return trimmed.toLowerCase();
+};
+
+export const validateUsername = (username) => normalizeUsername(username);
+
+export const isUsernameAvailable = async (username) => {
+  const normalizedUsername = validateUsername(username);
+
+  const { data, error } = await supabaseClient
+    .from('employee')
+    .select('employee_id')
+    .eq('username', normalizedUsername)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return !data;
+};
+
+export const getEmployeeEmailByUsername = async (username) => {
+  const normalizedUsername = validateUsername(username);
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('employee')
+      .select('email, username')
+      .eq('username', normalizedUsername)
+      .maybeSingle();
+
+    if (!error && data?.email) {
+      return data.email;
+    }
+  } catch (error) {
+    console.warn('[authService] Browser username lookup failed; trying API fallback.', error);
+  }
+
+  const response = await fetch('/api/auth', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      action: 'resolve-username',
+      username: normalizedUsername,
+    }),
+  });
+
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result?.email) {
+    return null;
+  }
+
+  return result.email;
+};
+
 export const getPendingEmployee = () => loadPendingEmployee();
 
 export const clearPendingEmployeeData = () => clearPendingEmployee();
@@ -85,7 +157,8 @@ export const createEmployeeRecord = async (authUserId, employeeData) => {
             : 'employee',
         user_id: authUserId,
         auth_user_id: authUserId,
-        email: employeeData.email
+        email: employeeData.email,
+        username: employeeData.username || null,
       },
     ])
     .select()
@@ -103,11 +176,18 @@ export const registerUser = async (
   lastName,
   position,
   role,
-  department
+  department,
+  username
 ) => {
+  const normalizedUsername = validateUsername(username);
 
   if (password.trim() !== confirmPassword.trim()) {
     throw new Error('Passwords do not match.')
+  }
+
+  const available = await isUsernameAvailable(normalizedUsername);
+  if (!available) {
+    throw new Error('Username is already taken.');
   }
 
   const { data, error } = await signupClient.auth.signUp({
@@ -144,6 +224,7 @@ export const registerUser = async (
             user_id: authUserId,
             auth_user_id: authUserId,
             email,
+            username: normalizedUsername,
           },
         ])
         .select()
@@ -171,6 +252,7 @@ export const registerUser = async (
 
   savePendingEmployee({
     email,
+    username: normalizedUsername,
     firstName: firstName || email.split('@')[0] || 'Unknown',
     lastName: lastName || 'User',
     position: position || 'employee',
@@ -194,9 +276,35 @@ export const loginUser = async (email, password) => {
   return data;
 };
 
-export const beginTwoFactorSignIn = async (email, password) => {
-  if (!USE_TWO_FACTOR) {
+export const loginWithUsername = async (username, password) => {
+  try {
+    const normalizedUsername = validateUsername(username);
+    const email = await getEmployeeEmailByUsername(normalizedUsername);
+
+    if (!email) {
+      throw new Error('Invalid username or password.');
+    }
+
     return await loginUser(email, password);
+  } catch (error) {
+    throw new Error('Invalid username or password.', { cause: error });
+  }
+};
+
+export const beginTwoFactorSignIn = async (username, password) => {
+  if (!USE_TWO_FACTOR) {
+    return await loginWithUsername(username, password);
+  }
+
+  let email;
+  try {
+    email = await getEmployeeEmailByUsername(username);
+  } catch (error) {
+    throw new Error('Invalid username or password.', { cause: error });
+  }
+
+  if (!email) {
+    throw new Error('Invalid username or password.');
   }
 
   const { data, error } = await supabaseClient.auth.signInWithPassword({
@@ -204,7 +312,7 @@ export const beginTwoFactorSignIn = async (email, password) => {
     password,
   });
 
-  if (error) throw error;
+  if (error) throw new Error('Invalid username or password.');
 
   const code = generate2FACode();
   const pending = {
@@ -215,7 +323,7 @@ export const beginTwoFactorSignIn = async (email, password) => {
   };
 
   savePending2FA(pending);
-  return { data, code, email };
+  return { data, code };
 };
 
 export const getPendingTwoFactor = () => loadPending2FA();
@@ -282,8 +390,13 @@ export const updateUserPassword = async (newPassword) => {
   return data;
 };
 
-export const resendVerficationEmail = async (email) => {
-  const { data, error } = await supabaseClient.auth.resend({type: 'signup', email, options:{emailRedirectTo: `${window.location.origin}/auth/callback`,},});
+export const resendVerficationEmail = async () => {
+  const { data, error } = await supabaseClient.auth.resend({
+    type: 'signup',
+    options: {
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
+    },
+  });
 
   if (error) throw error
   return data

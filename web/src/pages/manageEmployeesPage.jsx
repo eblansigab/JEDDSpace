@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+/* eslint-disable react-hooks/set-state-in-effect */
+
+import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { employeeService } from '../services/employeeService'
 import { registerUser } from '../services/authService'
@@ -6,140 +8,44 @@ import { notificationService } from '../services/notificationService'
 import { useAuth } from '../services/authContext'
 import { alertService } from '../utils/alertService'
 import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
-import { POSITION_OPTIONS } from '../constants/formOptions'
+import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, ROLE_OPTIONS } from '../constants/formOptions'
+
+const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
+
+const normalizeUsername = (value) => String(value || '').trim().toLowerCase()
+
+const getEmployeeName = (employee) => `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unnamed Employee'
+
+const createEmptyForm = () => ({
+  first_name: '',
+  last_name: '',
+  email: '',
+  username: '',
+  password: '',
+  confirmPassword: '',
+  department: 'general',
+  position: 'employee',
+  role: 'employee',
+  registration_status: 'approved',
+  employment_status: 'active',
+})
 
 const ManageEmployeesPage = () => {
   const { user } = useAuth()
   const [employees, setEmployees] = useState([])
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editingEmployee, setEditingEmployee] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [form, setForm] = useState(createEmptyForm)
 
   const fetchEmployees = async () => {
     try {
       const data = await employeeService.getAll()
-      setEmployees(data)
+      setEmployees(data || [])
     } catch (error) {
-      console.error(JSON.stringify({
-        timestamp: new Date().toISOString(),
-        label: 'Fetch employees failed',
-        message: error?.message ?? String(error),
-        details: error?.details ?? null,
-        hint: error?.hint ?? null,
-        code: error?.code ?? null,
-        stack: error?.stack ?? null,
-        error,
-      }))
-    }
-  }
-
-  const handleAddEmployee = async () => {
-    const trimmedFirstName = firstName.trim()
-    const trimmedLastName = lastName.trim()
-    const fallbackLastName = trimmedLastName || email.trim().split('@')[0] || 'User'
-
-    if (!trimmedFirstName || !fallbackLastName || !email || !password || !confirmPassword) {
-      await alertService.warning('Please fill all fields')
-      return
-    }
-
-    if (password !== confirmPassword) {
-      await alertService.warning('Passwords do not match')
-      return
-    }
-
-    try {
-      await registerUser(
-        email.trim(),
-        password,
-        confirmPassword,
-        trimmedFirstName,
-        fallbackLastName,
-        'employee',
-        'employee',
-        'general',
-        )
-
-      await Promise.allSettled([
-        notificationService.createNotification({
-          title: 'Employee record created',
-          message: `${firstName} ${lastName} was added successfully!`,
-          type: 'employee_update',
-          priority: 'Normal',
-          userId: user?.id
-        })
-      ])
-
-      await alertService.success('Employee added and registered successfully')
-      setFirstName('')
-      setLastName('')
-      setEmail('')
-      setPassword('')
-      setConfirmPassword('')
-      setIsAddOpen(false)
-      fetchEmployees()
-    } catch (error) {
-      await alertService.error(error.message)
-    }
-  }
-
-  const handleDeleteEmployee = async (employee_id) => {
-    const confirmDelete = await alertService.confirm({
-      title: 'Delete employee?',
-      text: 'This action cannot be undone.',
-      confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel'
-    })
-
-    if (!confirmDelete.isConfirmed) return
-
-    try {
-      await employeeService.remove(employee_id)
-      await alertService.success('Employee deleted')
-      fetchEmployees()
-    } catch (error) {
-      await alertService.error(error.message)
-    }
-  }
-
-  const handleEditEmployee = async (employee_id, currentPosition) => {
-    const promptResult = await alertService.input({
-      title: 'Edit Position',
-      text: 'Choose the employee position.',
-      input: 'select',
-      inputValue: currentPosition || 'employee',
-      inputOptions: POSITION_OPTIONS.reduce((options, item) => ({ ...options, [item]: item }), {}),
-      confirmButtonText: 'Save'
-    })
-
-    if (!promptResult.isConfirmed) return
-
-    const newPosition = promptResult.value?.trim()
-    if (!newPosition) return
-
-    try {
-      await employeeService.update(employee_id, {
-        position: newPosition
-      })
-
-      await Promise.allSettled([
-        notificationService.createNotification({
-          title: 'Employee record updated',
-          message: `Employee #${employee_id} position changed to ${newPosition}.`,
-          type: 'employee_update',
-          priority: 'Normal',
-          userId: user?.id
-        })
-      ])
-
-      await alertService.success('Employee updated')
-      fetchEmployees()
-    } catch (error) {
-      await alertService.error(error.message)
+      console.error('[ManageEmployees] Fetch employees failed', error)
+      await alertService.error(error.message || 'Failed to load employees.')
     }
   }
 
@@ -147,40 +53,229 @@ const ManageEmployeesPage = () => {
     fetchEmployees()
   }, [])
 
-  const filteredEmployees = employees.filter((emp) => {
+  const updateForm = (field, value) => {
+    setForm((current) => ({
+      ...current,
+      [field]: field === 'username' ? normalizeUsername(value) : value,
+    }))
+  }
+
+  const resetForm = () => {
+    setForm(createEmptyForm())
+    setEditingEmployee(null)
+  }
+
+  const validateUsername = (username, currentEmployeeId = null) => {
+    const normalizedUsername = normalizeUsername(username)
+
+    if (!normalizedUsername) {
+      return 'Username is required.'
+    }
+
+    if (!USERNAME_PATTERN.test(normalizedUsername)) {
+      return 'Username must be 3-30 lowercase letters, numbers, or underscores with no spaces.'
+    }
+
+    const duplicate = employees.find((employee) =>
+      String(employee.username || '').trim().toLowerCase() === normalizedUsername &&
+      employee.employee_id !== currentEmployeeId
+    )
+
+    if (duplicate) {
+      return 'Username is already taken.'
+    }
+
+    return ''
+  }
+
+  const handleAddEmployee = async () => {
+    const trimmedFirstName = form.first_name.trim()
+    const trimmedLastName = form.last_name.trim()
+    const trimmedEmail = form.email.trim()
+    const normalizedUsername = normalizeUsername(form.username)
+
+    if (!trimmedFirstName || !trimmedLastName || !trimmedEmail || !normalizedUsername || !form.password || !form.confirmPassword) {
+      await alertService.warning('Please fill all required fields.')
+      return
+    }
+
+    const usernameError = validateUsername(normalizedUsername)
+    if (usernameError) {
+      await alertService.warning(usernameError)
+      return
+    }
+
+    if (form.password !== form.confirmPassword) {
+      await alertService.warning('Passwords do not match.')
+      return
+    }
+
+    try {
+      await registerUser(
+        trimmedEmail,
+        form.password,
+        form.confirmPassword,
+        trimmedFirstName,
+        trimmedLastName,
+        form.position,
+        form.role,
+        form.department,
+        normalizedUsername
+      )
+
+      await Promise.allSettled([
+        notificationService.createNotification({
+          title: 'Employee record created',
+          message: `${trimmedFirstName} ${trimmedLastName} was added successfully.`,
+          type: 'employee_update',
+          priority: 'Normal',
+          userId: user?.id
+        })
+      ])
+
+      await alertService.success('Employee added successfully.')
+      resetForm()
+      setIsAddOpen(false)
+      await fetchEmployees()
+    } catch (error) {
+      await alertService.error(error.message || 'Failed to add employee.')
+    }
+  }
+
+  const openEditEmployee = (employee) => {
+    setEditingEmployee(employee)
+    setForm({
+      ...createEmptyForm(),
+      first_name: employee.first_name || '',
+      last_name: employee.last_name || '',
+      username: employee.username || '',
+      department: employee.department || 'general',
+      position: employee.position || 'employee',
+      role: employee.role || 'employee',
+      registration_status: employee.registration_status || 'approved',
+      employment_status: employee.employment_status || 'active',
+    })
+    setIsEditOpen(true)
+  }
+
+  const handleUpdateEmployee = async () => {
+    if (!editingEmployee?.employee_id) return
+
+    const normalizedUsername = normalizeUsername(form.username)
+    const usernameError = validateUsername(normalizedUsername, editingEmployee.employee_id)
+
+    if (usernameError) {
+      await alertService.warning(usernameError)
+      return
+    }
+
+    if (!form.first_name.trim() || !form.last_name.trim()) {
+      await alertService.warning('First name and last name are required.')
+      return
+    }
+
+    try {
+      await employeeService.update(editingEmployee.employee_id, {
+        username: normalizedUsername,
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        department: form.department,
+        position: form.position,
+        role: form.role,
+        registration_status: form.registration_status,
+        employment_status: form.employment_status,
+      })
+
+      await Promise.allSettled([
+        notificationService.createNotification({
+          title: 'Employee record updated',
+          message: `${getEmployeeName(editingEmployee)} was updated.`,
+          type: 'employee_update',
+          priority: 'Normal',
+          userId: user?.id
+        })
+      ])
+
+      await alertService.success('Employee updated.')
+      resetForm()
+      setIsEditOpen(false)
+      await fetchEmployees()
+    } catch (error) {
+      await alertService.error(error.message || 'Failed to update employee.')
+    }
+  }
+
+  const handleDeleteEmployee = async (employeeId) => {
+    const confirmDelete = await alertService.confirm({
+      title: 'Archive employee?',
+      text: 'This will mark the employee as inactive and hide them from active workflows.',
+      confirmButtonText: 'Archive',
+      cancelButtonText: 'Cancel'
+    })
+
+    if (!confirmDelete.isConfirmed) return
+
+    try {
+      await employeeService.remove(employeeId)
+      await alertService.success('Employee archived.')
+      await fetchEmployees()
+    } catch (error) {
+      await alertService.error(error.message || 'Failed to archive employee.')
+    }
+  }
+
+  const filteredEmployees = employees.filter((employee) => {
     const query = searchTerm.toLowerCase()
-    const name = `${emp.first_name || ''} ${emp.last_name || ''}`.toLowerCase()
+    const name = getEmployeeName(employee).toLowerCase()
+
     return (
       name.includes(query) ||
-      String(emp.position || '').toLowerCase().includes(query) ||
-      String(emp.role || '').toLowerCase().includes(query)
+      String(employee.username || '').toLowerCase().includes(query) ||
+      String(employee.department || '').toLowerCase().includes(query) ||
+      String(employee.position || '').toLowerCase().includes(query) ||
+      String(employee.role || '').toLowerCase().includes(query)
     )
   })
 
   const columns = [
-    { key: 'employee_id', title: 'ID' },
     {
-      key: 'name',
-      title: 'Name',
-      render: (_, row) => `${row.first_name} ${row.last_name}`
+      key: 'avatar',
+      title: 'Avatar',
+      render: (_, row) => (
+        <div className="profile-avatar" style={{ width: 38, height: 38, fontSize: 14 }}>
+          {profileServiceInitials(row)}
+        </div>
+      )
     },
+    {
+      key: 'employee',
+      title: 'Employee',
+      render: (_, row) => (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <strong>{getEmployeeName(row)}</strong>
+          <span style={{ color: '#64748b', fontSize: 12 }}>{row.employee_type || 'staff'}</span>
+        </div>
+      )
+    },
+    { key: 'username', title: 'Username', render: (value) => value || 'Not set' },
+    { key: 'department', title: 'Department' },
     { key: 'position', title: 'Position' },
     { key: 'role', title: 'Role' },
     {
-      key: 'status',
-      title: 'Status',
-      render: () => <StatusBadge status="active" />
+      key: 'registration_status',
+      title: 'Account Status',
+      render: (value) => <StatusBadge status={value || 'pending'} />
     },
     {
       key: 'actions',
       title: 'Actions',
       render: (_, row) => (
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="outline" style={{ minWidth: 72 }} onClick={() => handleEditEmployee(row.employee_id, row.position)}>
+          <Button variant="outline" style={{ minWidth: 72 }} onClick={() => openEditEmployee(row)}>
             Edit
           </Button>
           <Button variant="danger" style={{ minWidth: 72 }} onClick={() => handleDeleteEmployee(row.employee_id)}>
-            Delete
+            Archive
           </Button>
         </div>
       )
@@ -188,88 +283,142 @@ const ManageEmployeesPage = () => {
   ]
 
   return (
-    <>
-      <DashboardLayout>
-        <main className="content">
-          <PageHeader
-            title="Manage Employees"
-            actions={[
-              <Button key="add-employee" onClick={() => setIsAddOpen(true)}>
-                Add Employee
-              </Button>
-            ]}
-          />
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 18 }}>
-            <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search employees..." />
-            <Button variant="outline" onClick={fetchEmployees}>
-              Refresh
+    <DashboardLayout>
+      <main className="content">
+        <PageHeader
+          title="Manage Employees"
+          actions={[
+            <Button key="add-employee" onClick={() => {
+              resetForm()
+              setIsAddOpen(true)
+            }}>
+              Add Employee
             </Button>
-          </div>
+          ]}
+        />
 
-          <Table columns={columns} data={filteredEmployees} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 18 }}>
+          <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search employees..." />
+          <Button variant="outline" onClick={fetchEmployees}>
+            Refresh
+          </Button>
+        </div>
 
-          <section style={{ marginTop: 28 }}>
-            <h3>Employee List</h3>
-            <ul>
-              {filteredEmployees.map((emp) => (
-                <li key={emp.employee_id}>
-                  {emp.first_name} {emp.last_name}
-                </li>
-              ))}
-            </ul>
-          </section>
-        </main>
-      <Modal
+        <Table columns={columns} data={filteredEmployees} />
+      </main>
+
+      <EmployeeModal
         visible={isAddOpen}
         title="Add Employee"
-        onClose={() => setIsAddOpen(false)}
-        footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-            <Button variant="outline" onClick={() => setIsAddOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddEmployee}>Save</Button>
-          </div>
-        }
-      >
-        <div style={{ display: 'grid', gap: 12 }}>
-          <input
-            type="text"
-            placeholder="First Name"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Last Name"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-          />
-          
+        form={form}
+        onChange={updateForm}
+        onClose={() => {
+          setIsAddOpen(false)
+          resetForm()
+        }}
+        onSave={handleAddEmployee}
+        mode="add"
+      />
+
+      <EmployeeModal
+        visible={isEditOpen}
+        title="Edit Employee"
+        form={form}
+        onChange={updateForm}
+        onClose={() => {
+          setIsEditOpen(false)
+          resetForm()
+        }}
+        onSave={handleUpdateEmployee}
+        mode="edit"
+      />
+    </DashboardLayout>
+  )
+}
+
+const profileServiceInitials = (employee) => {
+  const first = String(employee.first_name || '').trim()[0] || ''
+  const last = String(employee.last_name || '').trim()[0] || ''
+  return `${first}${last}`.toUpperCase() || 'U'
+}
+
+const EmployeeModal = ({ visible, title, form, onChange, onClose, onSave, mode }) => (
+  <Modal
+    visible={visible}
+    title={title}
+    onClose={onClose}
+    footer={
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={onSave}>Save</Button>
+      </div>
+    }
+  >
+    <div style={{ display: 'grid', gap: 12 }}>
+      <input
+        type="text"
+        placeholder="First Name"
+        value={form.first_name}
+        onChange={(event) => onChange('first_name', event.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Last Name"
+        value={form.last_name}
+        onChange={(event) => onChange('last_name', event.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Username"
+        value={form.username}
+        onChange={(event) => onChange('username', event.target.value)}
+      />
+      {mode === 'add' && (
+        <>
           <input
             type="email"
-            placeholder="Email Address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Account setup email"
+            value={form.email}
+            onChange={(event) => onChange('email', event.target.value)}
           />
           <input
             type="password"
             placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={form.password}
+            onChange={(event) => onChange('password', event.target.value)}
           />
           <input
             type="password"
             placeholder="Confirm Password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            value={form.confirmPassword}
+            onChange={(event) => onChange('confirmPassword', event.target.value)}
           />
-        </div>
-      </Modal>
-      </DashboardLayout>
-    </>
-  )
-}
+        </>
+      )}
+      <select value={form.department} onChange={(event) => onChange('department', event.target.value)}>
+        {DEPARTMENT_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+      </select>
+      <select value={form.position} onChange={(event) => onChange('position', event.target.value)}>
+        {POSITION_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+      </select>
+      <select value={form.role} onChange={(event) => onChange('role', event.target.value)}>
+        {ROLE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+      </select>
+      <select value={form.registration_status} onChange={(event) => onChange('registration_status', event.target.value)}>
+        <option value="pending">pending</option>
+        <option value="approved">approved</option>
+        <option value="rejected">rejected</option>
+      </select>
+      <select value={form.employment_status} onChange={(event) => onChange('employment_status', event.target.value)}>
+        <option value="active">active</option>
+        <option value="inactive">inactive</option>
+        <option value="resigned">resigned</option>
+        <option value="terminated">terminated</option>
+      </select>
+    </div>
+  </Modal>
+)
 
 export default ManageEmployeesPage

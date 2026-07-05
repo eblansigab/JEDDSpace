@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { supabaseClient } from '../supabase/supabaseClient'
@@ -60,10 +62,6 @@ const FormsOutletPage = () => {
       if (error) throw error
 
       const employeeId = form?.employee?.employee_id || form?.employee_id
-      const employeeName = form?.employee
-        ? `${form.employee.first_name || ''} ${form.employee.last_name || ''}`.trim()
-        : 'Employee'
-
       const adminName = profile
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
         : 'Admin'
@@ -73,7 +71,7 @@ const FormsOutletPage = () => {
         const actionLabel = status === 'approved' ? 'approved' : 'rejected'
         const summary = table === 'leaveform'
           ? `${form?.type || 'Leave'} | ${form?.start_date ? new Date(form.start_date).toLocaleDateString() : ''} → ${form?.end_date ? new Date(form.end_date).toLocaleDateString() : ''}`
-          : `${form?.location || 'N/A'} | ${form?.start_date ? new Date(form.start_date).toLocaleDateString() : ''} → ${form?.end_date ? new Date(form.end_date).toLocaleDateString() : ''}`
+          : `${form?.location || ''} | ${form?.start_date ? new Date(form.start_date).toLocaleDateString() : ''} → ${form?.end_date ? new Date(form.end_date).toLocaleDateString() : ''}`
 
         const message = reason
           ? `${adminName} ${actionLabel} your ${formTypeLabel.toLowerCase()}. Details: ${summary}. Reason: ${reason}`
@@ -227,7 +225,7 @@ const FormsOutletPage = () => {
                           <div style={{ minWidth: 0 }}>
                             <div className="form-card-title" style={{ fontWeight: 600, fontSize: 15 }}>{employeeName}</div>
                             <div className="form-card-meta" style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-                              {form.type || 'Leave'} · {form.employee?.department || 'N/A'}
+                              {form.type || 'Leave'}{form.employee?.department ? ` · ${form.employee.department}` : ''}
                             </div>
                             <div className="form-card-meta" style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
                               {form.start_date ? new Date(form.start_date).toLocaleDateString() : ''} → {form.end_date ? new Date(form.end_date).toLocaleDateString() : ''}
@@ -297,7 +295,7 @@ const FormsOutletPage = () => {
                           <div style={{ minWidth: 0 }}>
                             <div className="form-card-title" style={{ fontWeight: 600, fontSize: 15 }}>{employeeName}</div>
                             <div className="form-card-meta" style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-                              {form.location || 'N/A'} · {form.company_car || 'N/A'}
+                              {[form.location, form.company_car].filter(Boolean).join(' · ')}
                             </div>
                             <div className="form-card-meta" style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
                               {form.start_date ? new Date(form.start_date).toLocaleDateString() : ''} → {form.end_date ? new Date(form.end_date).toLocaleDateString() : ''}

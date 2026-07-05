@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+/* eslint-disable react-hooks/set-state-in-effect */
+
+import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { supabaseClient } from '../supabase/supabaseClient'
 import { alertService } from '../utils/alertService'
@@ -30,7 +32,7 @@ const RegistrationRequestsPage = () => {
     try {
       const { data, error } = await supabaseClient
         .from('employee')
-        .select('employee_id, first_name, last_name, department, position, registration_status, created_at')
+        .select('employee_id, first_name, last_name, username, department, position, registration_status, created_at')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -65,8 +67,10 @@ const RegistrationRequestsPage = () => {
   const filteredRequests = requests.filter((req) => {
     const query = searchTerm.toLowerCase()
     const name = `${req.first_name || ''} ${req.last_name || ''}`.toLowerCase()
+
     return (
       name.includes(query) ||
+      String(req.username || '').toLowerCase().includes(query) ||
       String(req.department || '').toLowerCase().includes(query)
     )
   })
@@ -102,7 +106,7 @@ const RegistrationRequestsPage = () => {
               key="search"
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Search requests..."
               style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd' }}
             />
@@ -114,9 +118,11 @@ const RegistrationRequestsPage = () => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filteredRequests.map((req) => {
-              const status = String(req.registration_status || '').toLowerCase()
+              const status = String(req.registration_status || 'pending').toLowerCase()
               const isPending = status === 'pending'
               const name = `${req.first_name || ''} ${req.last_name || ''}`.trim() || 'Unknown'
+              const details = [req.department, req.position].filter(Boolean).join(' · ')
+
               return (
                 <div
                   key={req.employee_id}
@@ -136,7 +142,7 @@ const RegistrationRequestsPage = () => {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 15 }}>{name}</div>
                     <div className="registration-request-meta" style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-                      {req.department || 'N/A'} · {req.position || 'N/A'}
+                      @{req.username || 'not_set'} {details ? `· ${details}` : ''}
                     </div>
                     <div className="registration-request-meta" style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
                       Requested on {req.created_at ? new Date(req.created_at).toLocaleString() : 'Unknown date'}
@@ -153,7 +159,7 @@ const RegistrationRequestsPage = () => {
                       }}
                     />
                     <span className="registration-request-status" style={{ fontSize: 13, color: '#475569', textTransform: 'capitalize' }}>
-                      {status || 'pending'}
+                      {status}
                     </span>
                     {isPending && (
                       <div style={{ display: 'flex', gap: 8 }}>
