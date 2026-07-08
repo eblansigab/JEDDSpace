@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "877768a2-149f-44c6-9781-ceefb84d182c"
+      }
+    },
+    "android": {
+      "package": "com.jeddspace.app"
+    }
+  }
+}
