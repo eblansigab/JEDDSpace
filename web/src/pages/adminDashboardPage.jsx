@@ -31,7 +31,7 @@ const AdminDashboardPage = () => {
                 to="/post-announcements"
                 className="primary-btn"
               >
-                Go
+                View
               </Link>
 
             </div>
@@ -53,7 +53,7 @@ const AdminDashboardPage = () => {
                 to="/registration-requests"
                 className="primary-btn"
               >
-                Go
+                View
               </Link>
 
             </div>
@@ -75,7 +75,7 @@ const AdminDashboardPage = () => {
                 to="/manage-employees"
                 className="primary-btn"
               >
-                Go
+                View
               </Link>
 
             </div>
@@ -97,7 +97,7 @@ const AdminDashboardPage = () => {
                 to="/assign-jobs"
                 className="primary-btn"
               >
-                Go
+                View
               </Link>
 
             </div>
@@ -119,7 +119,7 @@ const AdminDashboardPage = () => {
                 to="/audit-blockchain"
                 className="primary-btn"
               >
-                Go
+                View
               </Link>
 
             </div>
@@ -141,7 +141,7 @@ const AdminDashboardPage = () => {
                 to="/ai-analytics"
                 className="primary-btn"
               >
-                Go
+                View
               </Link>
 
             </div>
@@ -163,7 +163,7 @@ const AdminDashboardPage = () => {
                 to="/ai-chat-logs"
                 className="primary-btn"
               >
-                Go
+                View
               </Link>
 
             </div>
@@ -185,7 +185,7 @@ const AdminDashboardPage = () => {
                 to="/forms-outlet"
                 className="primary-btn"
               >
-                Go
+                View
               </Link>
 
             </div>

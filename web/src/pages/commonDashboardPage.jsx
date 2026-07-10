@@ -204,10 +204,8 @@ const CommonDashboardPage = () => {
               <div className="dashboard-widget-body">
                 <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
                   <div style={{ fontSize: 14 }}>
-                    <strong>{emailCount}</strong> messages logged
-                  </div>
-                  <div style={{ fontSize: 14 }}>
-                    <strong>{fileCount}</strong> files uploaded
+                    <p style={{margin:'auto 0'}}><strong>{emailCount}</strong> messages logged</p>
+                    <p style={{marginBottom:0}}><strong>{fileCount}</strong> files uploaded</p>
                   </div>
                 </div>
                 <Link to="/ai-assistant" className="primary-btn" style={{ padding: '8px 12px', textDecoration: 'none' }}>
