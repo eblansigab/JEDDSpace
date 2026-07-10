@@ -123,7 +123,7 @@
 }
 
 /* Dark mode fixes for Admin Dashboard and widgets */
-[data-theme="dark"] .admin-box {
+/*[data-theme="dark"] .admin-box {
   background: #0f172a !important;
   border-color: #334155 !important;
   color: #f8fafc !important;
@@ -150,6 +150,7 @@
 [data-theme="dark"] .dashboard-widget-body {
   color: #cbd5e1 !important;
 }
+*/
 
 [data-theme="dark"] .page-intro h1 {
   color: #f8fafc !important;
