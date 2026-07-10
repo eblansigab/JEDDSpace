@@ -813,6 +813,8 @@ body.sidebar-collapsed .content {
   /* Matches top bar color */
 }
 
+.dashboard-widget ul li span {color: #fff}
+
 .dashboard-widget-header span {
   display: block;
   color: #aba3cc;
@@ -2408,6 +2410,9 @@ body.sidebar-collapsed .content {
   color: #1E0977;
   font-weight: 600;
   white-space: nowrap;
+}
+.admin-table tbody tr {
+  background: #dbeafe;
 }
 .admin-table tbody tr:hover {
   background: #f8fafc;
