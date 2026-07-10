@@ -879,6 +879,10 @@ body.sidebar-collapsed .content {
   border: 1px solid #c7d2fe;
 }
 
+.chat-window-bg {
+  background-color: #8f84bb;
+}
+
 .calendar-box {
   background: #fff;
   border: 1px solid #ccc;
