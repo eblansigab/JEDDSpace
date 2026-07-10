@@ -70,8 +70,8 @@ export default function AiAnalyticsPage() {
             label: 'Prompts',
             data: analytics.topics.map((topic) => topic.count),
             backgroundColor: [
-              '#1e0977', '#47007b', '#650077', '#7c0070', '#91006a', '#a50064',
-              '#b9005d', '#cc0053', '#e00045', '#f3002e', '#ff0000'
+              '#E25668', '#E28956', '#E2CF56', '#AEE256', '#68E256', '#56E289',
+              '#56E2CF', '#56AEE2', '#5668E2', '#8A56E2', '#CF56E2'
             ],
             borderWidth: 0
           }
@@ -113,7 +113,7 @@ export default function AiAnalyticsPage() {
                       <ul className="admin-list">
                         {analytics.topics.map((topic) => (
                           <li key={topic.name}>
-                            <span>{topic.name}</span>
+                            <span>{topic.name} </span>
                             <span>{topic.percentage}% ({topic.count})</span>
                           </li>
                         ))}
