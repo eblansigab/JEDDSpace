@@ -122,8 +122,7 @@ export default function AiAnalyticsPage() {
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
                           <div style={{ width: '100%', maxWidth: 320 }}>
                             <Pie 
-                              data={topicData} 
-                              options={plugins={
+                              options={{
                                 legend: {
                                   display: true, 
                                   position: "left", 
@@ -131,6 +130,7 @@ export default function AiAnalyticsPage() {
                                   labels: {display: true, color: "white"}
                                 }
                               }}
+                              data={topicData} 
                             />
                           </div>
                         </div>
