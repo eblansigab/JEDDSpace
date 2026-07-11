@@ -812,6 +812,8 @@ body.sidebar-collapsed .content {
   color: #dbeafe;
 }
 
+.dashboard-widget ul li {color: #fff;}
+
 .dashboard-widget-header span {
   display: block;
   color: #aba3cc;
@@ -2617,6 +2619,7 @@ body.sidebar-collapsed .content {
   --border-color: #475569;
 }
 
+/*
 [data-theme="dark"] .analytics-stat-card {
   background: #1e293b !important;
   border-color: #475569 !important;
@@ -2634,6 +2637,7 @@ body.sidebar-collapsed .content {
 [data-theme="dark"] .analytics-stat-subtitle {
   color: #94a3b8 !important;
 }
+*/
 
 [data-theme="dark"] .analytics-section-title {
   color: #f8fafc !important;
