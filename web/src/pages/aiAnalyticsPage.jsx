@@ -64,6 +64,14 @@ export default function AiAnalyticsPage() {
 
   const topicData = analytics?.topics?.length
     ? {
+        options: {
+          plugins: {
+            legend: {
+              display: true,
+              labels: {color: '#fff'}
+            }
+          }
+        },
         labels: analytics.topics.map((topic) => topic.name),
         datasets: [
           {
@@ -113,7 +121,7 @@ export default function AiAnalyticsPage() {
                       <ul className="admin-list">
                         {analytics.topics.map((topic) => (
                           <li key={topic.name}>
-                            <span>{topic.name} </span>
+                            <span>{topic.name}: </span>
                             <span>{topic.percentage}% ({topic.count})</span>
                           </li>
                         ))}
