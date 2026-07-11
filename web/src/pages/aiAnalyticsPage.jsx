@@ -64,19 +64,6 @@ export default function AiAnalyticsPage() {
 
   const topicData = analytics?.topics?.length
     ? {
-        Chart: {
-          overridesPie: {
-            plugins: {
-              legend: {
-                position: 'left',
-                align: 'start',
-                labels: {
-                  color: '#fff'
-                }
-              }
-            }
-          }
-        },
         labels: analytics.topics.map((topic) => topic.name),
         datasets: [
           {
@@ -134,7 +121,13 @@ export default function AiAnalyticsPage() {
                       {topicData && (
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
                           <div style={{ width: '100%', maxWidth: 320 }}>
-                            <Pie data={topicData} />
+                            <Pie 
+                              data={topicData} 
+                              options={{
+                                legend: {display: true, position: 'left', align: 'start'},
+                                datalabels: {display: true, color: '#fff'}
+                              }}
+                            />
                           </div>
                         </div>
                       )}
