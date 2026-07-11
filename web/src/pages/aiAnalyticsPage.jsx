@@ -124,8 +124,12 @@ export default function AiAnalyticsPage() {
                             <Pie 
                               data={topicData} 
                               options={plugins={
-                                legend: {display: true, position: "left", align: "start"},
-                                datalabels: {display: true, color: "white"}
+                                legend: {
+                                  display: true, 
+                                  position: "left", 
+                                  align: "start", 
+                                  labels: {display: true, color: "white"}
+                                }
                               }}
                             />
                           </div>
