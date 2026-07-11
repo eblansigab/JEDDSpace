@@ -123,9 +123,9 @@ export default function AiAnalyticsPage() {
                           <div style={{ width: '100%', maxWidth: 320 }}>
                             <Pie 
                               data={topicData} 
-                              options={{
-                                legend: {display: true, position: 'left', align: 'start'},
-                                datalabels: {display: true, color: '#fff'}
+                              options={plugins={
+                                legend: {display: true, position: "left", align: "start"},
+                                datalabels: {display: true, color: "white"}
                               }}
                             />
                           </div>
