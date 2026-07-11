@@ -810,10 +810,7 @@ body.sidebar-collapsed .content {
   margin-top: 0;
   margin-bottom: 6px;
   color: #dbeafe;
-  /* Matches top bar color */
 }
-
-.dashboard-widget ul li span {color: #fff}
 
 .dashboard-widget-header span {
   display: block;
@@ -2350,8 +2347,8 @@ body.sidebar-collapsed .content {
   gap: 16px;
 }
 .analytics-stat-card {
-  background: #f9f9f9;
-  border: 1px solid #ddd;
+  background: #1e0977;
+  border: 1px solid #8f84bb;
   border-radius: 8px;
   padding: 18px;
   text-align: center;
@@ -2359,16 +2356,16 @@ body.sidebar-collapsed .content {
 .analytics-stat-value {
   font-size: 1.6rem;
   font-weight: 700;
-  color: #1E0977;
+  color: #dbeafe;
 }
 .analytics-stat-title {
   font-size: 0.95rem;
-  color: #475569;
+  color: #ccc;
   margin-top: 4px;
 }
 .analytics-stat-subtitle {
   font-size: 0.85rem;
-  color: #64748b;
+  color: #8f84bb;
 }
 .analytics-performance-list {
   display: grid;
