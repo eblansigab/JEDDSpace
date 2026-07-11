@@ -3,7 +3,7 @@ import { PageHeader } from '../components'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { supabaseClient } from '../supabase/supabaseClient'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
-import { Pie } from 'react-chartjs-2'
+import { Chart, Pie } from 'react-chartjs-2'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -64,11 +64,16 @@ export default function AiAnalyticsPage() {
 
   const topicData = analytics?.topics?.length
     ? {
-        options: {
-          plugins: {
-            legend: {
-              display: true,
-              labels: {color: '#fff'}
+        Chart: {
+          overridesPie: {
+            plugins: {
+              legend: {
+                position: 'left',
+                align: 'start',
+                labels: {
+                  color: '#fff'
+                }
+              }
             }
           }
         },
