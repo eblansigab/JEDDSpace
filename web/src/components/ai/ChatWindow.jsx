@@ -18,8 +18,7 @@ export default function ChatWindow({ messages = [], isLoading = false, loadingLa
   return (
     <div className="chat-window-bg"
       style={{
-        background: '#fff',
-        border: '1px solid #dbe3ef',
+        background: '#dbe3ef',
         borderRadius: 8,
         padding: 16,
         minHeight: 300,

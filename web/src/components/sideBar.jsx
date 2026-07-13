@@ -207,23 +207,21 @@ const Sidebar = () => {
           </li>
         )}
 
-        {hasPermission('job.view') && (
-          <li>
-            <Link to="/contracts" onClick={closeMobileSidebar} title="Contracts">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><polyline points="9 15 11 17 15 13"></polyline></svg>
-              <span className="sidebar-link-text">Contracts</span>
-            </Link>
-          </li>
-        )}
+        <li>
+          <Link to="/contracts" onClick={closeMobileSidebar} title="Contracts">
+            {/* Document with checkmark icon */}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><polyline points="9 15 11 17 15 13"></polyline></svg>
+            <span className="sidebar-link-text">Projects</span>
+          </Link>
+        </li>
 
-        {hasPermission('announcement.view') && (
-          <li>
-            <Link to="/announcements" onClick={closeMobileSidebar} title="Announcements">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"></path></svg>
-              <span className="sidebar-link-text">Announcements</span>
-            </Link>
-          </li>
-        )}
+        <li>
+          <Link to="/announcements" onClick={closeMobileSidebar} title="Announcements">
+            {/* Megaphone icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-megaphone-icon lucide-megaphone"><path d="M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M6 14a12 12 0 0 0 2.4 7.2 2 2 0 0 0 3.2-2.4A8 8 0 0 1 10 14"/><path d="M8 6v8"/></svg>
+            <span className="sidebar-link-text">Announcements</span>
+          </Link>
+        </li>
 
         {hasPermission('ai.chat') && (
           <li>
@@ -257,7 +255,8 @@ const Sidebar = () => {
         {isAdmin && (
           <li>
             <Link to="/admin-dashboard" onClick={closeMobileSidebar} title="Admin Dashboard">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+              {/* Shield with cog icon */}
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-cog-corner-icon lucide-shield-cog-corner"><path d="M11 22c-3.806-1.45-7-3.966-7-9V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1v4"/><path d="M14.923 16.547 14 16.164"/><path d="m14.923 18.843-.923.383"/><path d="M16.547 14.923 16.164 14"/><path d="m16.547 20.467-.383.924"/><path d="m18.843 14.923.383-.923"/><path d="m19.225 21.391-.382-.924"/><path d="m20.467 16.547.923-.383"/><path d="m20.467 18.843.923.383"/><circle cx="17.695" cy="17.695" r="3"/></svg>
               <span className="sidebar-link-text">Admin Dashboard</span>
             </Link>
           </li>

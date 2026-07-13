@@ -70,8 +70,7 @@ export default function ChatInput({ value, onChange, onSend, loading = false, pl
         marginTop: 16,
         padding: 16,
         borderRadius: 8,
-        border: '1px solid #dbe3ef',
-        background: '#fff'
+        background: '#dbe3ef'
       }}
     >
       {attachments.length > 0 && (

@@ -3,7 +3,7 @@ import { PageHeader } from '../components'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { supabaseClient } from '../supabase/supabaseClient'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
-import { Pie } from 'react-chartjs-2'
+import { Chart, Pie } from 'react-chartjs-2'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -70,8 +70,8 @@ export default function AiAnalyticsPage() {
             label: 'Prompts',
             data: analytics.topics.map((topic) => topic.count),
             backgroundColor: [
-              '#1e0977', '#47007b', '#650077', '#7c0070', '#91006a', '#a50064',
-              '#b9005d', '#cc0053', '#e00045', '#f3002e', '#ff0000'
+              '#E25668', '#E28956', '#E2CF56', '#AEE256', '#68E256', '#56E289',
+              '#56E2CF', '#56AEE2', '#5668E2', '#8A56E2', '#CF56E2'
             ],
             borderWidth: 0
           }
@@ -113,7 +113,7 @@ export default function AiAnalyticsPage() {
                       <ul className="admin-list">
                         {analytics.topics.map((topic) => (
                           <li key={topic.name}>
-                            <span>{topic.name}</span>
+                            <span>{topic.name}: </span>
                             <span>{topic.percentage}% ({topic.count})</span>
                           </li>
                         ))}
@@ -121,7 +121,17 @@ export default function AiAnalyticsPage() {
                       {topicData && (
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
                           <div style={{ width: '100%', maxWidth: 320 }}>
-                            <Pie data={topicData} />
+                            <Pie 
+                              options={{
+                                legend: {
+                                  display: true, 
+                                  position: "left", 
+                                  align: "start", 
+                                  labels: {display: true, color: "white"}
+                                }
+                              }}
+                              data={topicData} 
+                            />
                           </div>
                         </div>
                       )}
