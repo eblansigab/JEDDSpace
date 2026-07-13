@@ -1,7 +1,7 @@
 import { handleAnalytics } from '../server/admin/analyticsHandler.js'
 import { handleLogs } from '../server/admin/logsHandler.js'
 import { handleHealth } from '../server/admin/systemHandler.js'
-import { getRequestUserContext } from '../server/ai/supabaseClient.js'
+import { authorize } from '../server/middleware/authorize.js'
 import { fail, ok } from '../server/_shared/response.js'
 
 const runAction = async ({ action, viewer, payload }) => {
@@ -29,10 +29,11 @@ export default async function handler(req, res) {
   const { action, payload = {} } = req.body || {}
 
   try {
-    const viewer = await getRequestUserContext(req)
-    if (!viewer?.user?.id) {
-      return fail(res, 401, 'Authentication is required')
+    const authResult = await authorize(req, 'settings.manage')
+    if (!authResult.authorized) {
+      return authResult.error
     }
+    const viewer = authResult.viewer
 
     console.log('[ADMIN]', 'Action', action, 'Started')
     const result = await runAction({ action, viewer, payload })

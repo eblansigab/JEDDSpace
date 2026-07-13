@@ -1,97 +1,97 @@
-/*import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabaseClient } from '../supabase/supabaseClient';
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabaseClient } from '../supabase/supabaseClient'
 import {
   alertService
-} from '../utils/alertService';
+} from '../utils/alertService'
 import {
   createEmployeeRecord,
   getPendingEmployee,
   clearPendingEmployeeData,
-} from '../services/authService';
-import LoadingOverlay from '../components/LoadingOverlay';
+} from '../services/authService'
+import LoadingOverlay from '../components/LoadingOverlay'
 
 const AuthCallbackPage = () => {
-  const navigate = useNavigate();
-  const [status, setStatus] = useState('verifying');
-  const [statusMessage, setStatusMessage] = useState('Verifying your email...');
+  const navigate = useNavigate()
+  const [status, setStatus] = useState('verifying')
+  const [statusMessage, setStatusMessage] = useState('Verifying your email...')
 
   useEffect(() => {
-    let mounted = true;
+    let mounted = true
 
     const handleAuthCallback = async () => {
       try {
-        const { data, error } = await supabaseClient.auth.getSession();
+        const { data, error } = await supabaseClient.auth.getSession()
 
-        if (error) throw error;
+        if (error) throw error
 
-        const session = data?.session;
-        const user = session?.user;
+        const session = data?.session
+        const user = session?.user
 
         if (!user) {
-          if (mounted) setStatus('no-session');
-          return;
+          if (mounted) setStatus('no-session')
+          return
         }
 
         if (!user.email_confirmed_at) {
-          if (mounted) setStatus('unverified');
-          await supabaseClient.auth.signOut();
-          return;
+          if (mounted) setStatus('unverified')
+          await supabaseClient.auth.signOut()
+          return
         }
 
-        const pendingEmployee = getPendingEmployee();
+        const pendingEmployee = getPendingEmployee()
         if (pendingEmployee && pendingEmployee.email === user.email) {
           if (mounted) {
-            setStatus('creating-employee');
-            setStatusMessage('Email verified! Setting up your employee record...');
+            setStatus('creating-employee')
+            setStatusMessage('Email verified! Setting up your employee record...')
           }
 
           try {
-            await createEmployeeRecord(user.id, pendingEmployee);
-            clearPendingEmployeeData();
+            await createEmployeeRecord(user.id, pendingEmployee)
+            clearPendingEmployeeData()
           } catch (createErr) {
-            console.error('Failed to create employee record after verification:', createErr);
+            console.error('Failed to create employee record after verification:', createErr)
             if (mounted) {
-              setStatus('employee-error');
+              setStatus('employee-error')
               setStatusMessage(
                 'Email verified, but we could not create your employee record. Please contact your administrator.'
-              );
+              )
             }
-            await supabaseClient.auth.signOut();
-            return;
+            await supabaseClient.auth.signOut()
+            return
           }
         }
 
         if (mounted) {
-          setStatus('verified');
+          setStatus('verified')
           await alertService.success(
             'Email verified successfully! You can now log in.'
-          );
-          await supabaseClient.auth.signOut();
-          navigate('/', { replace: true });
+          )
+          await supabaseClient.auth.signOut()
+          navigate('/', { replace: true })
         }
       } catch (err) {
-        console.error('Auth callback error:', err);
+        console.error('Auth callback error:', err)
         if (mounted) {
-          setStatus('error');
+          setStatus('error')
           setStatusMessage(
             err?.message || 'Email verification failed. Please try again.'
-          );
+          )
         }
       }
-    };
+    }
 
-    handleAuthCallback();
+    handleAuthCallback()
 
     return () => {
-      mounted = false;
-    };
-  }, [navigate]);
+      mounted = false
+    }
+  }, [navigate])
 
   const handleGoToLogin = async () => {
-    await supabaseClient.auth.signOut();
-    navigate('/', { replace: true });
-  };
+    await supabaseClient.auth.signOut()
+    navigate('/', { replace: true })
+  }
 
   return (
     <div>
@@ -180,7 +180,7 @@ const AuthCallbackPage = () => {
         </section>
       </main>
     </div>
-  );
-};
+  )
+}
 
-export default AuthCallbackPage;*/
+export default AuthCallbackPage

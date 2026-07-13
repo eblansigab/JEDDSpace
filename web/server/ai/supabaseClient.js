@@ -45,13 +45,23 @@ export const getRequestUserContext = async (req) => {
 
   const { data: employee, error: employeeError } = await client
     .from('employee')
-    .select('employee_id, user_id, first_name, last_name, position, department, employee_type, role, employment_status, is_archived')
+    .select('employee_id, user_id, first_name, last_name, position, department, employee_type, role, employment_status, is_archived, role_id, roles:role_id (role_name, parent_role_id, hierarchy_level)')
     .eq('user_id', user.id)
     .maybeSingle()
 
   if (employeeError) {
     throw employeeError
   }
+
+  const employeePermissions = await (async () => {
+    if (!employee?.employee_id) return []
+    const { permissionService } = await import('../services/permissionService.js')
+    return permissionService.getUserPermissions(employee.employee_id)
+  })()
+
+  const isAdminByPermission = Boolean(
+    employeePermissions.some((p) => p.module === 'admin' && p.action === 'manage')
+  )
 
   const viewer = {
     user: {
@@ -69,13 +79,18 @@ export const getRequestUserContext = async (req) => {
           position: employee.position,
           department: employee.department,
           employee_type: employee.employee_type,
-          role: employee.role,
+          role: employee.roles?.role_name || employee.role,
+          role_id: employee.role_id,
           employment_status: employee.employment_status,
           is_archived: employee.is_archived,
+          parent_role_id: employee.roles?.parent_role_id || null,
+          hierarchy_level: employee.roles?.hierarchy_level || 0,
         }
       : null,
-    role: String(employee?.role || 'employee').toLowerCase(),
-    isAdmin: String(employee?.role || '').toLowerCase() === 'admin',
+    role: String(employee?.roles?.role_name || employee?.role || 'employee').toLowerCase(),
+    isAdmin: isAdminByPermission,
+    permissions: employeePermissions,
+    role_id: employee?.role_id || null,
   }
 
   return viewer

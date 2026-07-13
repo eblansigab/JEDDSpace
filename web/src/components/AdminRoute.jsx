@@ -1,15 +1,14 @@
 import { Navigate } from 'react-router-dom'
-import { useAuth } from '../services/authContext'
+import { usePermissions } from '../contexts/PermissionContext'
 
 const AdminRoute = ({ children }) => {
+  const { hasPermission, loading: permissionsLoading } = usePermissions()
 
-  const { profile, loading } = useAuth()
-
-  if (loading) {
+  if (permissionsLoading) {
     return null
   }
 
-  if (profile?.role !== 'admin') {
+  if (!hasPermission('settings.manage')) {
     return <Navigate to="/dashboard" replace />
   }
 

@@ -1,97 +1,213 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import logo from '../assets/JEDDSpace Logo (Transparent).png'
-import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, ROLE_OPTIONS } from '../constants/formOptions'
-import { isUsernameAvailable, registerUser, validateUsername } from '../services/authService'
+import { DEPARTMENT_OPTIONS, POSITION_OPTIONS } from '../constants/formOptions'
+import { isUsernameAvailable, registerUser, resendVerficationEmail } from '../services/authService'
 import { alertService } from '../utils/alertService'
+import Button from '../components/Button'
+
+const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[]{};':"\\|,.<>\/?]).{8,}$/
+
+const getFieldError = (field, value, form) => {
+  switch (field) {
+    case 'username':
+      if (!value.trim()) return 'Username is required.'
+      if (!USERNAME_PATTERN.test(value)) return 'Username must be 3–30 characters: letters, numbers, and underscores only.'
+      return null
+    case 'email':
+      if (!value.trim()) return 'Email is required.'
+      if (!EMAIL_PATTERN.test(value)) return 'Please enter a valid email address.'
+      return null
+    case 'password':
+      if (!value) return 'Password is required.'
+      if (!PASSWORD_PATTERN.test(value)) return 'Password must be at least 8 characters with uppercase, lowercase, number, and special character.'
+      return null
+    case 'confirmPassword':
+      if (!value) return 'Please confirm your password.'
+      if (value !== form.password) return 'Passwords do not match.'
+      return null
+    case 'firstName':
+      if (!value.trim()) return 'First name is required.'
+      return null
+    case 'lastName':
+      if (!value.trim()) return 'Last name is required.'
+      return null
+    case 'department':
+      if (!value) return 'Department is required.'
+      return null
+    case 'position':
+      if (!value) return 'Position is required.'
+      return null
+    default:
+      return null
+  }
+}
 
 const SignUp = () => {
-  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [department, setDepartment] = useState('')
-  const [role, setRole] = useState('')
   const [position, setPosition] = useState('')
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+
+  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
+  const [usernameStatus, setUsernameStatus] = useState('') // 'checking' | 'available' | 'taken' | ''
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
+
+  const checkUsername = useCallback(async (val) => {
+    const trimmed = val.trim().toLowerCase()
+    if (!USERNAME_PATTERN.test(trimmed)) {
+      setUsernameStatus('')
+      return
+    }
+    setUsernameStatus('checking')
+    try {
+      const available = await isUsernameAvailable(trimmed)
+      setUsernameStatus(available ? 'available' : 'taken')
+    } catch {
+      setUsernameStatus('')
+    }
+  }, [])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (touched.username) checkUsername(username)
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [username, touched.username, checkUsername])
+
+  const validateAll = () => {
+    const form = { firstName, lastName, department, position, email, username, password, confirmPassword }
+    const newErrors = {}
+    const fields = ['username', 'email', 'password', 'confirmPassword', 'firstName', 'lastName', 'department', 'position']
+    fields.forEach((field) => {
+      const error = getFieldError(field, form[field], form)
+      if (error) newErrors[field] = error
+    })
+    setErrors(newErrors)
+    setTouched({ username: true, email: true, password: true, confirmPassword: true, firstName: true, lastName: true, department: true, position: true })
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleBlur = (field) => {
+    setTouched((prev) => ({ ...prev, [field]: true }))
+    const form = { firstName, lastName, department, position, email, username, password, confirmPassword }
+    const error = getFieldError(field, form[field], form)
+    setErrors((prev) => ({ ...prev, [field]: error }))
+  }
 
   const handleRegister = async (e) => {
     e.preventDefault()
+    if (!validateAll()) return
+
     const normalizedUsername = username.trim().toLowerCase()
-
-    if (!firstName || !lastName || !department || !role || !position || !email || !normalizedUsername || !password || !confirmPassword) {
-      await alertService.warning('Please fill all fields')
-      return
-    }
-
-    if (password.trim() !== confirmPassword.trim()) {
-      await alertService.warning('Passwords do not match')
+    const available = await isUsernameAvailable(normalizedUsername)
+    if (!available) {
+      setErrors((prev) => ({ ...prev, username: 'Username is already taken.' }))
+      setTouched((prev) => ({ ...prev, username: true }))
       return
     }
 
     setIsSubmitting(true)
     try {
-      validateUsername(normalizedUsername)
-
-      const available = await isUsernameAvailable(normalizedUsername)
-      if (!available) {
-        await alertService.warning('Username is already taken.')
-        return
-      }
-
       await registerUser(
-        email,
+        email.trim(),
         password,
         confirmPassword,
-        firstName,
-        lastName,
+        firstName.trim(),
+        lastName.trim(),
         position,
-        role,
+        '', // role defaults to employee
         department,
         normalizedUsername
       )
 
-      const successMessage =
-        'Account created successfully.\n\nPlease check your email and click the verification link. ' +
-        'An administrator must approve your account before you can access JEDDSpace.'
-
-      await alertService.success(successMessage)
-
+      setRegisteredEmail(email.trim())
+      setIsSuccess(true)
       setFirstName('')
       setLastName('')
       setDepartment('')
-      setRole('')
       setPosition('')
       setEmail('')
       setUsername('')
       setPassword('')
       setConfirmPassword('')
-
-      navigate('/', {replace: true})
+      setErrors({})
+      setTouched({})
+      setUsernameStatus('')
     } catch (error) {
-      await alertService.error(error.message || 'Registration failed')
+      await alertService.error(error.message || 'Registration failed. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  const handleResendVerification = async () => {
+    try {
+      await resendVerficationEmail()
+      await alertService.success('Verification email sent. Please check your inbox.')
+    } catch (error) {
+      await alertService.error(error.message || 'Unable to resend verification email.')
+    }
+  }
+
+  const renderFieldError = (field) => {
+    if (!touched[field] || !errors[field]) return null
+    return <p style={{ color: '#dc2626', fontSize: 13, marginTop: 4 }}>{errors[field]}</p>
+  }
+
+  if (isSuccess) {
+    return (
+      <div>
+        <header>
+          <Link to="/">
+            <img className="max-w-3xs" src={logo} alt="JEDDSpace Logo" style={{ width: '220px' }} />
+          </Link>
+        </header>
+        <main className="container">
+          <section className="form-box" style={{ textAlign: 'center', maxWidth: '520px' }}>
+            <h3 style={{ marginBottom: 12 }}>Registration Successful</h3>
+            <p style={{ marginBottom: 12 }}>
+              A verification email has been sent to:<br />
+              <strong>{registeredEmail}</strong>
+            </p>
+            <p style={{ marginBottom: 12 }}>
+              Please verify your email before logging in.
+            </p>
+            <p style={{ marginBottom: 24, color: '#64748b' }}>
+              Your account will remain pending until approved by an administrator.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+              <Button variant="outline" onClick={handleResendVerification} title="Resend verification email">
+                Resend Verification Email
+              </Button>
+              <Link to="/" className="primary-btn" style={{ padding: '8px 16px', textDecoration: 'none', borderRadius: 6 }}>
+                Return to Login
+              </Link>
+            </div>
+          </section>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div>
       <header>
-        <a href="/dashboard">
-          <img
-            className="max-w-3xs"
-            src={logo}
-            alt="JEDDSpace Logo"
-            style={{ width: '220px' }}
-          />
-        </a>
+        <Link to="/">
+          <img className="max-w-3xs" src={logo} alt="JEDDSpace Logo" style={{ width: '220px' }} />
+        </Link>
       </header>
       <main className="container">
         <section className="form-box">
@@ -100,45 +216,73 @@ const SignUp = () => {
           <div style={{ display: 'flex', gap: '40px' }}>
             <div style={{ width: '50%' }}>
               <label>First Name</label>
-              <input type="text" placeholder="Enter First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <input
+                type="text"
+                placeholder="Enter First Name"
+                value={firstName}
+                onChange={(e) => { setFirstName(e.target.value); handleBlur('firstName') }}
+                onBlur={() => handleBlur('firstName')}
+                style={errors.firstName && touched.firstName ? { border: '1px solid #dc2626' } : undefined}
+              />
+              {renderFieldError('firstName')}
             </div>
             <div style={{ width: '50%' }}>
               <label>Last Name</label>
-              <input type="text" placeholder="Enter Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <input
+                type="text"
+                placeholder="Enter Last Name"
+                value={lastName}
+                onChange={(e) => { setLastName(e.target.value); handleBlur('lastName') }}
+                onBlur={() => handleBlur('lastName')}
+                style={errors.lastName && touched.lastName ? { border: '1px solid #dc2626' } : undefined}
+              />
+              {renderFieldError('lastName')}
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '40px' }}>
             <div style={{ width: '50%' }}>
               <label>Department</label>
-              <select value={department} onChange={(e) => setDepartment(e.target.value)}>
+              <select
+                value={department}
+                onChange={(e) => { setDepartment(e.target.value); handleBlur('department') }}
+                onBlur={() => handleBlur('department')}
+                style={errors.department && touched.department ? { border: '1px solid #dc2626' } : undefined}
+              >
                 <option disabled value="">Select Department</option>
                 {DEPARTMENT_OPTIONS.map((item) => (
                   <option key={item} value={item}>{item}</option>
                 ))}
               </select>
+              {renderFieldError('department')}
             </div>
             <div style={{ width: '50%' }}>
-              <label>Role</label>
-              <select value={role} onChange={(e) => setRole(e.target.value)}>
-                <option disabled value="">Select Role</option>
-                {ROLE_OPTIONS.map((item) => (
+              <label>Position</label>
+              <select
+                value={position}
+                onChange={(e) => { setPosition(e.target.value); handleBlur('position') }}
+                onBlur={() => handleBlur('position')}
+                style={errors.position && touched.position ? { border: '1px solid #dc2626' } : undefined}
+              >
+                <option disabled value="">Select Position</option>
+                {POSITION_OPTIONS.map((item) => (
                   <option key={item} value={item}>{item}</option>
                 ))}
               </select>
+              {renderFieldError('position')}
             </div>
           </div>
 
-          <label>Position</label>
-          <select value={position} onChange={(e) => setPosition(e.target.value)}>
-            <option disabled value="">Select Position</option>
-            {POSITION_OPTIONS.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-
           <label>Email</label>
-          <input type="email" placeholder="Enter Email Address" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            type="email"
+            placeholder="Enter Email Address"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); handleBlur('email') }}
+            onBlur={() => handleBlur('email')}
+            style={errors.email && touched.email ? { border: '1px solid #dc2626' } : undefined}
+          />
+          {renderFieldError('email')}
 
           <label>Username</label>
           <input
@@ -146,14 +290,37 @@ const SignUp = () => {
             placeholder="letters, numbers, underscores"
             value={username}
             onChange={(e) => setUsername(e.target.value.trim().toLowerCase())}
+            onBlur={() => handleBlur('username')}
+            style={
+              (errors.username && touched.username) ? { border: '1px solid #dc2626' } :
+              usernameStatus === 'available' ? { border: '1px solid #16a34a' } :
+              usernameStatus === 'taken' ? { border: '1px solid #dc2626' } : undefined
+            }
           />
-          <p style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>
-            Lowercase letters, numbers, and underscores only. No spaces.
+          <p style={{ fontSize: 12, marginTop: 4, color: '#64748b' }}>
+            Lowercase letters, numbers, and underscores only. 3–30 characters.
           </p>
+          {usernameStatus === 'checking' && (
+            <p style={{ fontSize: 12, marginTop: 4, color: '#2563eb' }}>Checking availability...</p>
+          )}
+          {usernameStatus === 'available' && (
+            <p style={{ fontSize: 12, marginTop: 4, color: '#16a34a' }}>Username Available</p>
+          )}
+          {usernameStatus === 'taken' && (
+            <p style={{ fontSize: 12, marginTop: 4, color: '#dc2626' }}>Username Already Taken</p>
+          )}
+          {renderFieldError('username')}
 
           <label>Password</label>
           <div style={{ position: 'relative' }}>
-            <input type={showPassword ? "text" : "password"} placeholder="Enter Password" style={{ paddingRight: '40px' }} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter Password"
+              style={{ paddingRight: '40px', ...((errors.password && touched.password) ? { border: '1px solid #dc2626' } : {}) }}
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); handleBlur('password') }}
+              onBlur={() => handleBlur('password')}
+            />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
@@ -187,10 +354,18 @@ const SignUp = () => {
               )}
             </button>
           </div>
+          {renderFieldError('password')}
 
           <label>Confirm Password</label>
           <div style={{ position: 'relative' }}>
-            <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirm Password" style={{ paddingRight: '40px' }} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm Password"
+              style={{ paddingRight: '40px', ...((errors.confirmPassword && touched.confirmPassword) ? { border: '1px solid #dc2626' } : {}) }}
+              value={confirmPassword}
+              onChange={(e) => { setConfirmPassword(e.target.value); handleBlur('confirmPassword') }}
+              onBlur={() => handleBlur('confirmPassword')}
+            />
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -224,10 +399,14 @@ const SignUp = () => {
               )}
             </button>
           </div>
+          {renderFieldError('confirmPassword')}
 
-          <button className="primary-btn" onClick={handleRegister} disabled={isSubmitting} title="Register new employee account">
+          <button className="primary-btn" onClick={handleRegister} disabled={isSubmitting || usernameStatus === 'taken'} title="Register new employee account">
             {isSubmitting ? 'Registering...' : 'Register'}
           </button>
+          <p style={{ marginTop: 16, fontSize: 13, color: '#64748b', textAlign: 'center' }}>
+            Already have an account? <Link to="/" style={{ color: '#1E0977', fontWeight: 600 }}>Log in</Link>
+          </p>
         </section>
       </main>
     </div>

@@ -1,10 +1,13 @@
 import { AuthProvider } from './services/authContext'
+import { PermissionProvider } from './contexts/PermissionContext'
 import AppRoutes from './routes/AppRoutes'
 
 function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <PermissionProvider>
+        <AppRoutes />
+      </PermissionProvider>
     </AuthProvider>
   )
 }

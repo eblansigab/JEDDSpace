@@ -5,6 +5,7 @@ import DashboardLayout from '../layouts/dashboardLayout'
 import { supabaseClient } from '../supabase/supabaseClient'
 import { alertService } from '../utils/alertService'
 import { useAuth } from '../services/authContext'
+import { usePermissions } from '../contexts/PermissionContext'
 import { Button, PageHeader } from '../components'
 import { getLeaveForms, getBusinessForms } from '../services/messageService'
 import { notificationService } from '../services/notificationService'
@@ -24,13 +25,14 @@ const EmptyState = ({ title }) => (
 
 const FormsOutletPage = () => {
   const { profile } = useAuth()
+  const { hasPermission } = usePermissions()
   const [activeTab, setActiveTab] = useState('leave')
   const [leaveForms, setLeaveForms] = useState([])
   const [businessForms, setBusinessForms] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = hasPermission('settings.manage')
 
   const loadForms = async () => {
     setLoading(true)

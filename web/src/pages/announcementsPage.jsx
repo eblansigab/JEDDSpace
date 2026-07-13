@@ -4,12 +4,14 @@ import { Button, Modal, PageHeader, SearchBar, StatusBadge } from '../components
 import { useEffect, useMemo, useState } from 'react'
 import { ANNOUNCEMENT_STATUSES, announcementService } from '../services/announcementService'
 import { useAuth } from '../services/authContext'
+import { usePermissions } from '../contexts/PermissionContext'
 import { emailService } from '../services/emailService'
 import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
 
 const AnnouncementsPage = () => {
-  const { profile, user } = useAuth()
+  const { user } = useAuth()
+  const { hasPermission } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [announcements, setAnnouncements] = useState([])
@@ -19,7 +21,7 @@ const AnnouncementsPage = () => {
   const [editBody, setEditBody] = useState('')
   const [editStatus, setEditStatus] = useState('Published')
   const [isSaving, setIsSaving] = useState(false)
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = hasPermission('settings.manage')
 
   const loadAnnouncements = async () => {
     setLoading(true)

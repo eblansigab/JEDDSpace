@@ -12,6 +12,7 @@ import { profileService } from '../services/profileService'
 import { sessionService } from '../services/sessionService'
 import { alertService } from '../utils/alertService'
 import { DEPARTMENT_OPTIONS, POSITION_OPTIONS } from '../constants/formOptions'
+import { usePermissions } from '../contexts/PermissionContext'
 
 const THEME_KEY = 'jeddspace_theme'
 const STANDARD_THEME_KEY = 'theme'
@@ -67,7 +68,8 @@ const ProfileField = ({ label, help, children }) => (
 const ProfileSettings = () => {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
-  const isAdmin = String(profile?.role || '').trim().toLowerCase() === 'admin'
+  const { hasPermission } = usePermissions()
+  const isAdmin = hasPermission('settings.manage')
 
   const [username, setUsername] = useState('')
   const [firstName, setFirstName] = useState('')

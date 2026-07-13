@@ -4,6 +4,7 @@ import DashboardLayout from '../layouts/dashboardLayout'
 import { Button } from '../components'
 import Modal from '../components/Modal'
 import { useAuth } from '../services/authContext'
+import { usePermissions } from '../contexts/PermissionContext'
 import { documentService } from '../services/documentService'
 import { emailService } from '../services/emailService'
 import { sessionService } from '../services/sessionService'
@@ -15,6 +16,7 @@ import { supabaseClient } from '../supabase/supabaseClient'
 
 const CommonDashboardPage = () => {
   const { user, profile } = useAuth()
+  const { hasPermission } = usePermissions()
   const fileInputRef = useRef(null)
   const [emailCount, setEmailCount] = useState(0)
   const [fileCount, setFileCount] = useState(0)
@@ -31,6 +33,11 @@ const CommonDashboardPage = () => {
   const [unreadEmails, setUnreadEmails] = useState([])
   const [isSummaryOpen, setIsSummaryOpen] = useState(false)
   const [isLoadingUnread, setIsLoadingUnread] = useState(false)
+
+  const canViewDocuments = hasPermission('document.view')
+  const canViewMessages = hasPermission('message.view')
+  const canUploadDocuments = hasPermission('document.upload')
+  const canUseAI = hasPermission('ai.chat')
 
   const loadUnreadEmails = async () => {
     setIsLoadingUnread(true)
@@ -186,33 +193,42 @@ const CommonDashboardPage = () => {
         </div>
 
         <div className="dashboard-grid">
-          <section className={`dashboard-widget ${collapsedWidgets.overview ? 'is-collapsed' : ''}`}>
-            <div className="dashboard-widget-header">
-              <div>
-                <h3>Today's Overview</h3>
-                <span>Quick stats</span>
-              </div>
-              <button type="button" className="collapse-btn" onClick={() => toggleWidget('overview')} title={collapsedWidgets.overview ? 'Expand Overview' : 'Collapse Overview'}>
-                {collapsedWidgets.overview ? 'Expand' : 'Collapse'}
-              </button>
-            </div>
-            {!collapsedWidgets.overview && (
-              <div className="dashboard-widget-body">
-                <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
-                  <div style={{ fontSize: 14 }}>
-                    <strong>{emailCount}</strong> messages logged
-                  </div>
-                  <div style={{ fontSize: 14 }}>
-                    <strong>{fileCount}</strong> files uploaded
-                  </div>
+          {(canViewMessages || canViewDocuments || canUploadDocuments || canUseAI) && (
+            <section className={`dashboard-widget ${collapsedWidgets.overview ? 'is-collapsed' : ''}`}>
+              <div className="dashboard-widget-header">
+                <div>
+                  <h3>Today's Overview</h3>
+                  <span>Quick stats</span>
                 </div>
-                <Link to="/ai-assistant" className="primary-btn" style={{ padding: '8px 12px', textDecoration: 'none' }}>
-                  Open AI Assistant
-                </Link>
+                <button type="button" className="collapse-btn" onClick={() => toggleWidget('overview')} title={collapsedWidgets.overview ? 'Expand Overview' : 'Collapse Overview'}>
+                  {collapsedWidgets.overview ? 'Expand' : 'Collapse'}
+                </button>
               </div>
-            )}
-          </section>
+              {!collapsedWidgets.overview && (
+                <div className="dashboard-widget-body">
+                  <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+                    {canViewMessages && (
+                      <div style={{ fontSize: 14 }}>
+                        <strong>{emailCount}</strong> messages logged
+                      </div>
+                    )}
+                    {canViewDocuments && (
+                      <div style={{ fontSize: 14 }}>
+                        <strong>{fileCount}</strong> files uploaded
+                      </div>
+                    )}
+                  </div>
+                  {canUseAI && (
+                    <Link to="/ai-assistant" className="primary-btn" style={{ padding: '8px 12px', textDecoration: 'none' }}>
+                      Open AI Assistant
+                    </Link>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
 
+          {canViewMessages && (
             <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>
               <div className="dashboard-widget-header">
                 <div>
@@ -232,46 +248,51 @@ const CommonDashboardPage = () => {
                     {isLoadingUnread ? 'Loading...' : 'Show Unread Messages'}
                   </Button>
                    <Link to="/emails" className="primary-btn">
-                     View Messages
-                   </Link>
+                      View Messages
+                    </Link>
                 </div>
               </div>
             )}
           </section>
+          )}
 
-          <section className={`dashboard-widget ${collapsedWidgets.files ? 'is-collapsed' : ''}`}>
-            <div className="dashboard-widget-header">
-              <div>
-                <h3>File Uploads</h3>
-                <span>{fileCount} uploaded {fileCount === 1 ? 'file' : 'files'}</span>
-              </div>
-              <button type="button" className="collapse-btn" onClick={() => toggleWidget('files')} title={collapsedWidgets.files ? 'Expand File Uploads' : 'Collapse File Uploads'}>
-                {collapsedWidgets.files ? 'Expand' : 'Collapse'}
-              </button>
-            </div>
-            {!collapsedWidgets.files && (
-              <div className="dashboard-widget-body">
-                <p>There are {fileCount} {fileCount === 1 ? 'file' : 'files'} uploaded.</p>
-                {latestFile && <p className="date">Latest: {latestFile}</p>}
-
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                    {isUploading ? 'Uploading...' : 'Upload File'}
-                  </Button>
-                  <Link to="/documents" className="primary-btn">
-                    Check Documents
-                  </Link>
+          {canViewDocuments && (
+            <section className={`dashboard-widget ${collapsedWidgets.files ? 'is-collapsed' : ''}`}>
+              <div className="dashboard-widget-header">
+                <div>
+                  <h3>File Uploads</h3>
+                  <span>{fileCount} uploaded {fileCount === 1 ? 'file' : 'files'}</span>
                 </div>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  onChange={handleFileSelected}
-                  style={{ display: 'none' }}
-                />
+                <button type="button" className="collapse-btn" onClick={() => toggleWidget('files')} title={collapsedWidgets.files ? 'Expand File Uploads' : 'Collapse File Uploads'}>
+                  {collapsedWidgets.files ? 'Expand' : 'Collapse'}
+                </button>
               </div>
-            )}
-          </section>
+              {!collapsedWidgets.files && (
+                <div className="dashboard-widget-body">
+                  <p>There are {fileCount} {fileCount === 1 ? 'file' : 'files'} uploaded.</p>
+                  {latestFile && <p className="date">Latest: {latestFile}</p>}
+
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {canUploadDocuments && (
+                      <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                        {isUploading ? 'Uploading...' : 'Upload File'}
+                      </Button>
+                    )}
+                    <Link to="/documents" className="primary-btn">
+                      Check Documents
+                    </Link>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={handleFileSelected}
+                    style={{ display: 'none' }}
+                  />
+                </div>
+              )}
+            </section>
+          )}
 
           <section className={`dashboard-widget ${collapsedWidgets.calendar ? 'is-collapsed' : ''} calendar-widget`}>
             <div className="dashboard-widget-header">

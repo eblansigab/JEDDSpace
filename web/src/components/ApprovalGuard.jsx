@@ -1,8 +1,10 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../services/authContext'
+import { usePermissions } from '../contexts/PermissionContext'
 
 const ApprovalGuard = ({ children }) => {
   const { user, loading, profile } = useAuth()
+  const { hasPermission } = usePermissions()
 
   if (loading) {
     return <div>Loading...</div>
@@ -12,7 +14,7 @@ const ApprovalGuard = ({ children }) => {
     return <Navigate to="/" replace />
   }
 
-  if (profile?.role === 'admin') {
+  if (hasPermission('settings.manage')) {
     return children
   }
 

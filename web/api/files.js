@@ -2,8 +2,18 @@ import { handleExtract } from '../server/files/extractHandler.js'
 import { handleImage } from '../server/files/imageHandler.js'
 import { handleSpeech } from '../server/files/speechHandler.js'
 import { handleUpload } from '../server/files/uploadHandler.js'
-import { getRequestUserContext } from '../server/ai/supabaseClient.js'
+import { authorize } from '../server/middleware/authorize.js'
 import { fail, ok } from '../server/_shared/response.js'
+
+const FILE_PERMISSION_MAP = {
+  upload: 'document.upload',
+  extract: 'document.view',
+  download: 'document.download',
+  preview: 'document.view',
+  ocr: 'document.view',
+  image: 'document.view',
+  speech: 'document.view',
+}
 
 const runAction = async ({ action, viewer, payload }) => {
   switch (action) {
@@ -30,12 +40,14 @@ export default async function handler(req, res) {
   }
 
   const { action, payload = {} } = req.body || {}
+  const requiredPermission = FILE_PERMISSION_MAP[action] || 'document.view'
 
   try {
-    const viewer = await getRequestUserContext(req)
-    if (!viewer?.user?.id) {
-      return fail(res, 401, 'Authentication is required')
+    const authResult = await authorize(req, requiredPermission)
+    if (!authResult.authorized) {
+      return authResult.error
     }
+    const viewer = authResult.viewer
 
     console.log('[FILES]', 'Action', action, 'Started')
     const result = await runAction({ action, viewer, payload })

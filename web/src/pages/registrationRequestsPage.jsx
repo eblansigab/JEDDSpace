@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { supabaseClient } from '../supabase/supabaseClient'
 import { alertService } from '../utils/alertService'
-import { useAuth } from '../services/authContext'
+import { usePermissions } from '../contexts/PermissionContext'
 import { Button, PageHeader } from '../components'
 
 const LoadingState = () => (
@@ -21,12 +21,12 @@ const EmptyState = () => (
 )
 
 const RegistrationRequestsPage = () => {
-  const { profile } = useAuth()
+  const { hasPermission } = usePermissions()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin = hasPermission('settings.manage')
 
   const loadRequests = async () => {
     try {
