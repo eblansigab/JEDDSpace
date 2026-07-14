@@ -666,31 +666,32 @@ const EmailsPage = () => {
                           {isOriginal && (
                             <div style={{ marginTop: 16 }} onClick={(event) => event.stopPropagation()}>
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                                {MESSAGE_REACTION_TYPES.map((reaction) => {
-                                  const count = reactionSummaries[selectedMessage.email_id]?.[reaction.value] || 0
-                                  const isActive = userReactions[selectedMessage.email_id] === reaction.value
-                                  return (
-                                    <button
-                                      key={reaction.value}
-                                      onClick={() => handleMessageReaction(selectedMessage.email_id, reaction.value)}
-                                      disabled={reactionLoading[selectedMessage.email_id]}
-                                      style={{
-                                        padding: '4px 10px',
-                                        borderRadius: 16,
-                                        border: isActive ? '1px solid #2563eb' : '1px solid #d1d5db',
-                                        backgroundColor: isActive ? 'rgba(37, 99, 235, 0.1)' : '#fff',
-                                        color: isActive ? '#2563eb' : '#374151',
-                                        cursor: reactionLoading[selectedMessage.email_id] ? 'not-allowed' : 'pointer',
-                                        fontSize: 12,
-                                        fontWeight: isActive ? '600' : '500',
-                                        opacity: reactionLoading[selectedMessage.email_id] ? 0.7 : 1,
-                                      }}
-                                    >
-                                      {reaction.label}
-                                      {count > 0 && ` (${count})`}
-                                    </button>
-                                  )
-                                })}
+                                 {MESSAGE_REACTION_TYPES.map((reaction) => {
+                                   const count = reactionSummaries[selectedMessage.email_id]?.[reaction.value] || 0
+                                   const isActive = userReactions[selectedMessage.email_id] === reaction.value
+                                   return (
+                                     <button
+                                       key={reaction.value}
+                                       onClick={() => handleMessageReaction(selectedMessage.email_id, reaction.value)}
+                                       disabled={reactionLoading[selectedMessage.email_id]}
+                                       title={reaction.label}
+                                       style={{
+                                         padding: '4px 10px',
+                                         borderRadius: 16,
+                                         border: isActive ? '1px solid #2563eb' : '1px solid #d1d5db',
+                                         backgroundColor: isActive ? 'rgba(37, 99, 235, 0.1)' : '#fff',
+                                         color: isActive ? '#2563eb' : '#374151',
+                                         cursor: reactionLoading[selectedMessage.email_id] ? 'not-allowed' : 'pointer',
+                                         fontSize: 12,
+                                         fontWeight: isActive ? '600' : '500',
+                                         opacity: reactionLoading[selectedMessage.email_id] ? 0.7 : 1,
+                                       }}
+                                     >
+                                       {reaction.icon}
+                                       {count > 0 && <span style={{ marginLeft: 4, fontSize: 12 }}>{count}</span>}
+                                     </button>
+                                   )
+                                 })}
                               </div>
                               {readReceipts.length > 0 && (
                                 <div style={{ fontSize: '12px', color: 'var(--text-secondary, #64748b)' }}>

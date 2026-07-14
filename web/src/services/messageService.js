@@ -1,11 +1,11 @@
 import { supabaseClient } from '../supabase/supabaseClient'
 
 export const MESSAGE_REACTION_TYPES = [
-  { value: 'acknowledged', label: 'Acknowledged' },
-  { value: 'appreciated', label: 'Appreciated' },
-  { value: 'important', label: 'Important' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'question', label: 'Question' },
+  { value: 'acknowledged', label: 'Acknowledged', icon: '👍' },
+  { value: 'appreciated', label: 'Appreciated', icon: '❤️' },
+  { value: 'important', label: 'Important', icon: '⭐' },
+  { value: 'confirmed', label: 'Confirmed', icon: '✅' },
+  { value: 'question', label: 'Question', icon: '❓' },
 ]
 
 export const getEmployeeDirectory = async () => {
