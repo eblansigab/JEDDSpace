@@ -418,130 +418,158 @@ const loadOperations = async (viewer = null, adminMode = false) => {
 }
 
 export const loadDataForIntent = async (intent, message, viewer = null, adminMode = false) => {
-  const text = String(message || '').toLowerCase()
+  try {
+    const text = String(message || '').toLowerCase()
 
-  if (intent === 'operations') {
-    return { operations: await loadOperations(viewer, adminMode) }
-  }
+    if (intent === 'operations') {
+      const operations = await loadOperations(viewer, adminMode)
+      return { operations }
+    }
 
-  if (intent === 'chat_logs') {
-    if (!isAdmin(viewer) && !adminMode) {
-      const userId = viewerUserId(viewer)
-      if (!userId) return { logs: [] }
+    if (intent === 'chat_logs') {
+      if (!isAdmin(viewer) && !adminMode) {
+        const userId = viewerUserId(viewer)
+        if (!userId) return { logs: [] }
+
+        const { data: logs, error } = await getClient()
+          .from('ai_chat_logs')
+          .select('prompt, response, intent, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (error) return { logs: [] }
+        return { logs: logs || [] }
+      }
 
       const { data: logs, error } = await getClient()
-        .from('ai_chat_logs')
-        .select('prompt, response, intent, created_at')
-        .eq('user_id', userId)
+        .from('ai_summarization')
+        .select('content_summary, created_at, reference_type')
+        .in('reference_type', ['weekly_leave_summary', 'contract_summary', 'notification_summary', 'job_daily_summary', 'employee_activity_summary'])
         .order('created_at', { ascending: false })
-        .limit(10)
+        .limit(50)
 
       if (error) return { logs: [] }
       return { logs: logs || [] }
     }
 
-    const { data: logs, error } = await getClient()
-      .from('ai_summarization')
-      .select('content_summary, created_at, reference_type')
-      .in('reference_type', ['weekly_leave_summary', 'contract_summary', 'notification_summary', 'job_daily_summary', 'employee_activity_summary'])
-      .order('created_at', { ascending: false })
-      .limit(50)
-
-    if (error) return { logs: [] }
-    return { logs: logs || [] }
-  }
-
-  if (intent === 'employee') {
-    const availabilityOnly = text.includes('available') || text.includes('who can') || text.includes('who is available')
-    const employees = await loadEmployees({ activeOnly: true, fieldWorkersOnly: availabilityOnly, limit: availabilityOnly ? 50 : 25, viewer, adminMode })
-    if (availabilityOnly) {
-      const [jobs, leaves, officialBusiness] = await Promise.all([
-        loadJobs(100, viewer, adminMode),
-        loadApprovedLeaves(100, viewer, adminMode),
-        loadApprovedOfficialBusiness(100, viewer, adminMode),
-      ])
-      return { employees, jobs, leaves, officialBusiness }
+    if (intent === 'employee') {
+      const availabilityOnly = text.includes('available') || text.includes('who can') || text.includes('who is available')
+      const employees = await loadEmployees({ activeOnly: true, fieldWorkersOnly: availabilityOnly, limit: availabilityOnly ? 50 : 25, viewer, adminMode })
+      if (availabilityOnly) {
+        const [jobs, leaves, officialBusiness] = await Promise.all([
+          loadJobs(100, viewer, adminMode),
+          loadApprovedLeaves(100, viewer, adminMode),
+          loadApprovedOfficialBusiness(100, viewer, adminMode),
+        ])
+        return { employees, jobs, leaves, officialBusiness }
+      }
+      return { employees }
     }
-    return { employees }
-  }
 
-  if (intent === 'job') {
-    return { jobs: await loadJobs(25, viewer, adminMode) }
-  }
+    if (intent === 'job') {
+      const jobs = await loadJobs(25, viewer, adminMode)
+      return { jobs }
+    }
 
-  if (intent === 'leave') {
-    return { leaves: await loadApprovedLeaves(25, viewer, adminMode) }
-  }
+    if (intent === 'leave') {
+      const leaves = await loadApprovedLeaves(25, viewer, adminMode)
+      return { leaves }
+    }
 
-  if (intent === 'contract') {
-    return { contracts: await loadContracts(25, viewer, adminMode) }
-  }
+    if (intent === 'contract') {
+      const contracts = await loadContracts(25, viewer, adminMode)
+      return { contracts }
+    }
 
-  if (intent === 'recommendation') {
-    return { recommendations: await loadRecommendations(viewer, adminMode) }
-  }
+    if (intent === 'recommendation') {
+      const recommendations = await loadRecommendations(viewer, adminMode)
+      return { recommendations }
+    }
 
-  if (intent === 'notification') {
-    const unreadOnly = text.includes('unread')
-    return { notifications: await loadNotifications(25, unreadOnly, viewer, adminMode) }
-  }
+    if (intent === 'notification') {
+      const unreadOnly = text.includes('unread')
+      const notifications = await loadNotifications(25, unreadOnly, viewer, adminMode)
+      return { notifications }
+    }
 
-  if (intent === 'document') {
-    const documents = await loadDocuments(25, viewer, adminMode)
-    const documentsWithSummaries = await Promise.all(
-      (documents || []).map(async (doc) => {
-        const summary = await loadDocumentSummary(doc.document_id)
-        return { ...doc, ai_summary: summary }
+    if (intent === 'document') {
+      const documents = await loadDocuments(25, viewer, adminMode)
+      const documentsWithSummaries = await Promise.all(
+        (documents || []).map(async (doc) => {
+          const summary = await loadDocumentSummary(doc.document_id)
+          return { ...doc, ai_summary: summary }
+        })
+      )
+      return { documents: documentsWithSummaries }
+    }
+
+    if (intent === 'inbox') {
+      const inboxScope = detectInboxScope(message, viewer)
+      let targetEmployeeObj = null
+
+      if (inboxScope.scope === 'employee' && inboxScope.targetName) {
+        targetEmployeeObj = await resolveEmployeeByName(inboxScope.targetName, viewer)
+      }
+
+      const messages = await loadInboxMessages({
+        viewer,
+        scope: inboxScope.scope,
+        targetEmployee: targetEmployeeObj,
+        limit: 25,
       })
-    )
-    return { documents: documentsWithSummaries }
-  }
 
-  if (intent === 'inbox') {
-    const inboxScope = detectInboxScope(message, viewer)
-    let targetEmployeeObj = null
-
-    if (inboxScope.scope === 'employee' && inboxScope.targetName) {
-      targetEmployeeObj = await resolveEmployeeByName(inboxScope.targetName, viewer)
+      return {
+        messages,
+        inboxScope: inboxScope.scope,
+        targetEmployee: targetEmployeeObj,
+        viewerEmail: viewerEmail(viewer),
+      }
     }
 
-    const messages = await loadInboxMessages({
-      viewer,
-      scope: inboxScope.scope,
-      targetEmployee: targetEmployeeObj,
-      limit: 25,
-    })
-
-    console.log('[InboxLoader]', JSON.stringify({
-      viewer: { employee_id: viewerEmployeeId(viewer), user_id: viewerUserId(viewer), email: viewerEmail(viewer), role: viewer?.role },
-      scope: inboxScope.scope,
-      targetEmployee: targetEmployeeObj ? { employee_id: targetEmployeeObj.employee_id, name: `${targetEmployeeObj.first_name} ${targetEmployeeObj.last_name}` } : null,
-      returnedCount: messages.length,
-    }))
+    const [employees, jobs, leaves, contracts, notifications, documents] = await Promise.all([
+      loadEmployees({ activeOnly: true, fieldWorkersOnly: false, limit: 10, viewer, adminMode }).catch((error) => {
+        console.error('[DataLoader] employees failed', error)
+        return []
+      }),
+      loadJobs(10, viewer, adminMode).catch((error) => {
+        console.error('[DataLoader] jobs failed', error)
+        return []
+      }),
+      loadApprovedLeaves(10, viewer, adminMode).catch((error) => {
+        console.error('[DataLoader] leaves failed', error)
+        return []
+      }),
+      loadContracts(10, viewer, adminMode).catch((error) => {
+        console.error('[DataLoader] contracts failed', error)
+        return []
+      }),
+      loadNotifications(10, false, viewer, adminMode).catch((error) => {
+        console.error('[DataLoader] notifications failed', error)
+        return []
+      }),
+      loadDocuments(10, viewer, adminMode).catch((error) => {
+        console.error('[DataLoader] documents failed', error)
+        return []
+      }),
+    ])
 
     return {
-      messages,
-      inboxScope: inboxScope.scope,
-      targetEmployee: targetEmployeeObj,
-      viewerEmail: viewerEmail(viewer),
+      employees,
+      jobs,
+      leaves,
+      contracts,
+      notifications,
+      documents,
     }
-  }
-
-  const [employees, jobs, leaves, contracts, notifications, documents] = await Promise.all([
-    loadEmployees({ activeOnly: true, fieldWorkersOnly: false, limit: 10, viewer, adminMode }),
-    loadJobs(10, viewer, adminMode),
-    loadApprovedLeaves(10, viewer, adminMode),
-    loadContracts(10, viewer, adminMode),
-    loadNotifications(10, false, viewer, adminMode),
-    loadDocuments(10, viewer, adminMode),
-  ])
-
-  return {
-    employees,
-    jobs,
-    leaves,
-    contracts,
-    notifications,
-    documents,
+  } catch (error) {
+    console.error('[DataLoader] loadDataForIntent failed', {
+      intent,
+      message,
+      viewer: viewer ? { employee_id: viewer.employee?.employee_id, user_id: viewer.user?.id } : null,
+      error: error?.message || String(error),
+      stack: error?.stack,
+    })
+    return {}
   }
 }

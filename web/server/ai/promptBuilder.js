@@ -195,16 +195,6 @@ const buildInboxSummary = (messages, scope, viewerEmail, targetEmployee = null) 
   return lines.join('\n')
 }
 
-const formatRecommendation = (recommendation) => {
-  return {
-    Employee: recommendation.full_name || 'Unknown employee',
-    Position: recommendation.position || 'Unknown',
-    Department: recommendation.department || 'Unknown',
-    Score: recommendation.score ?? 0,
-    Reasons: (recommendation.reasons || []).join(', ') || 'None',
-  }
-}
-
 const formatOperations = (ops) => {
   return {
     'Total Employees': ops.employees || 0,
