@@ -10,11 +10,11 @@ import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
 
 export const ANNOUNCEMENT_REACTION_TYPES = [
-  { value: 'acknowledged', label: 'Acknowledged' },
-  { value: 'appreciated', label: 'Appreciated' },
-  { value: 'important', label: 'Important' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'question', label: 'Question' },
+  { value: 'acknowledged', label: 'Acknowledged', icon: '👍' },
+  { value: 'appreciated', label: 'Appreciated', icon: '❤️' },
+  { value: 'important', label: 'Important', icon: '⭐' },
+  { value: 'confirmed', label: 'Confirmed', icon: '✅' },
+  { value: 'question', label: 'Question', icon: '❓' },
 ]
 
 const AnnouncementsPage = () => {
@@ -293,6 +293,7 @@ const AnnouncementsPage = () => {
                       key={reaction.value}
                       onClick={() => handleReaction(item, reaction.value)}
                       disabled={reactionLoading[item.announcement_id || item.id]}
+                      title={reaction.label}
                       style={{
                         padding: '4px 10px',
                         borderRadius: 16,
@@ -304,10 +305,10 @@ const AnnouncementsPage = () => {
                         fontWeight: isActive ? '600' : '500',
                         opacity: reactionLoading[item.announcement_id || item.id] ? 0.7 : 1,
                       }}
-                    >
-                      {reaction.label}
-                      {count > 0 && ` (${count})`}
-                    </button>
+                     >
+                       {reaction.icon}
+                       {count > 0 && <span style={{ marginLeft: 4, fontSize: 12 }}>{count}</span>}
+                     </button>
                   )
                 })}
               </div>
