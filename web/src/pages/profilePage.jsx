@@ -13,6 +13,7 @@ import { sessionService } from '../services/sessionService'
 import { alertService } from '../utils/alertService'
 import { DEPARTMENT_OPTIONS, POSITION_OPTIONS } from '../constants/formOptions'
 import { usePermissions } from '../contexts/PermissionContext'
+import { supabaseClient } from '../supabase/supabaseClient'
 
 const THEME_KEY = 'jeddspace_theme'
 const STANDARD_THEME_KEY = 'theme'
@@ -108,7 +109,7 @@ const ProfileSettings = () => {
     setDepartment(profile.department || '')
     setPosition(profile.position || '')
     setRegistrationStatus(profile.registration_status || 'approved')
-    setEmploymentStatus(profile.employment_status || 'active')
+    setEmploymentStatus(profile.employment_status)
   }, [profile])
 
   useEffect(() => {
@@ -537,9 +538,8 @@ const ProfileSettings = () => {
 
             <ProfileField label="Department">
               {isAdmin ? (
-                <select className="border p-2 rounded w-full" value={department} onChange={(event) => setDepartment(event.target.value)} disabled>
-                  {DEPARTMENT_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
+                <input className="border p-2 rounded w-full" value={department} onChange={(event) => setDepartment(event.target.value)} readOnly/>
+
               ) : (
                 <input className="border p-2 rounded w-full" value={department} readOnly />
               )}
@@ -547,9 +547,9 @@ const ProfileSettings = () => {
 
             <ProfileField label="Position">
               {isAdmin ? (
-                <select className="border p-2 rounded w-full" value={position} onChange={(event) => setPosition(event.target.value)} disabled>
-                  {POSITION_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
+                <input className="border p-2 rounded w-full" value={position} onChange={(event) => setPosition(event.target.value)} readOnly/>
+                  //POSITION_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)
+                  
               ) : (
                 <input className="border p-2 rounded w-full" value={position} readOnly />
               )}
@@ -569,12 +569,11 @@ const ProfileSettings = () => {
 */}
             <ProfileField label="Employment Status">
               {isAdmin ? (
-                <select className="border p-2 rounded w-full" value={employmentStatus} onChange={(event) => setEmploymentStatus(event.target.value)} disabled>
-                  <option value="active">active</option>
+                <input className="border p-2 rounded w-full" value={employmentStatus} onChange={(event) => setEmploymentStatus(event.target.value)} readOnly/>
+                  /*<option value="active">active</option>
                   <option value="inactive">inactive</option>
                   <option value="resigned">resigned</option>
-                  <option value="terminated">terminated</option>
-                </select>
+                  <option value="terminated">terminated</option>*/
               ) : (
                 <input className="border p-2 rounded w-full" value={employmentStatus} readOnly />
               )}
