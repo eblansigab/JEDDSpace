@@ -225,7 +225,7 @@ export const buildAIContext = async ({ viewer, intent, message, messages = [], a
       requestContext,
       'database',
       () => withTimeout(
-        loadDataForIntent(intent, message, viewer),
+        loadDataForIntent(intent, message, viewer, true),
         DATABASE_TIMEOUT_MS,
         'Database retrieval exceeded the allowed processing time.'
       ),

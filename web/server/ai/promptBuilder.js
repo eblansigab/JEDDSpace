@@ -33,18 +33,19 @@ Do not invent employees, contracts, jobs, leave requests, notifications, or docu
 Respect user authorization boundaries. If data is not present in the supplied context, say it is not available to you.
 Do not claim to have read documents, images, or audio that were not processed into the prompt.
 Explain what additional information is needed when you cannot answer.
-Provide concise, factual, and professional responses.`
+Provide concise, factual, and professional responses.
+When summarizing lists or records, prefer readable tables over raw CSV-style lines. Keep tables compact and scannable.`
 
 const formatEmployee = (employee) => {
   const name = `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown employee'
-  const lines = [name]
 
-  if (employee.position) lines.push(`Position: ${employee.position}`)
-  if (employee.department) lines.push(`Department: ${employee.department}`)
-  if (employee.employee_type) lines.push(`Type: ${employee.employee_type}`)
-  if (employee.employment_status) lines.push(`Status: ${employee.employment_status}`)
-
-  return lines.join(' | ')
+  return {
+    Name: name,
+    Position: employee.position || 'Unknown',
+    Department: employee.department || 'Unknown',
+    Type: employee.employee_type || 'Unknown',
+    Status: employee.employment_status || 'Unknown',
+  }
 }
 
 const formatJob = (job) => {
@@ -52,13 +53,13 @@ const formatJob = (job) => {
     ? `${job.employee.first_name || ''} ${job.employee.last_name || ''}`.trim()
     : 'Unassigned'
 
-  return [
-    `Job: ${job.destination || 'Unknown destination'}`,
-    `Department: ${job.department || 'Unknown'}`,
-    `Dates: ${job.start_date || 'Unknown'} to ${job.end_date || 'Unknown'}`,
-    `Status: ${job.status || 'Unknown'}`,
-    `Assigned To: ${employeeName}`,
-  ].join(' | ')
+  return {
+    Destination: job.destination || 'Unknown destination',
+    Department: job.department || 'Unknown',
+    Dates: `${job.start_date || 'Unknown'} to ${job.end_date || 'Unknown'}`,
+    Status: job.status || 'Unknown',
+    AssignedTo: employeeName,
+  }
 }
 
 const formatLeave = (leave) => {
@@ -66,13 +67,13 @@ const formatLeave = (leave) => {
     ? `${leave.employee.first_name || ''} ${leave.employee.last_name || ''}`.trim()
     : 'Unknown employee'
 
-  return [
-    `Employee: ${employeeName}`,
-    `Leave Type: ${leave.type || 'Unknown'}`,
-    `Dates: ${leave.start_date || 'Unknown'} to ${leave.end_date || 'Unknown'}`,
-    `Reason: ${leave.reason || 'No reason provided'}`,
-    `Status: ${leave.status || 'Unknown'}`,
-  ].join(' | ')
+  return {
+    Employee: employeeName,
+    Type: leave.type || 'Unknown',
+    Dates: `${leave.start_date || 'Unknown'} to ${leave.end_date || 'Unknown'}`,
+    Reason: leave.reason || 'No reason provided',
+    Status: leave.status || 'Unknown',
+  }
 }
 
 const formatContract = (contract) => {
@@ -80,48 +81,48 @@ const formatContract = (contract) => {
     ? `${contract.contractor.first_name || ''} ${contract.contractor.last_name || ''}`.trim()
     : 'Unknown contractor'
 
-  return [
-    `Contract: ${contract.contract_title || 'Untitled contract'}`,
-    `Contractor: ${employeeName}`,
-    `Dates: ${contract.start_date || 'Unknown'} to ${contract.end_date || 'Unknown'}`,
-    `Status: ${contract.status || 'Unknown'}`,
-    `Salary: ${contract.salary ?? 'Unknown'}`,
-  ].join(' | ')
+  return {
+    Contract: contract.contract_title || 'Untitled contract',
+    Contractor: employeeName,
+    Dates: `${contract.start_date || 'Unknown'} to ${contract.end_date || 'Unknown'}`,
+    Status: contract.status || 'Unknown',
+    Salary: contract.salary ?? 'Unknown',
+  }
 }
 
 const formatNotification = (notification) => {
-  return [
-    `Title: ${notification.title || 'Untitled notification'}`,
-    `Type: ${notification.type || 'Unknown'}`,
-    `Priority: ${notification.priority || 'Normal'}`,
-    `Read: ${notification.is_read ? 'Yes' : 'No'}`,
-    notification.message ? `Message: ${notification.message}` : null,
-  ].filter(Boolean).join(' | ')
+  return {
+    Title: notification.title || 'Untitled notification',
+    Type: notification.type || 'Unknown',
+    Priority: notification.priority || 'Normal',
+    Read: notification.is_read ? 'Yes' : 'No',
+    Message: String(notification.message || '').slice(0, 180),
+  }
 }
 
 const formatDocument = (document) => {
-  const parts = [
-    `Title: ${document.title || document.file_name || 'Untitled document'}`,
-    `File: ${document.file_name || 'Unknown'}`,
-    `Type: ${document.file_type || 'Unknown'}`,
-  ]
+  const parts = {
+    Title: document.title || document.file_name || 'Untitled document',
+    File: document.file_name || 'Unknown',
+    Type: document.file_type || 'Unknown',
+  }
 
   if (document.created_at) {
-    parts.push(`Uploaded: ${new Date(document.created_at).toLocaleDateString()}`)
+    parts.Uploaded = new Date(document.created_at).toLocaleDateString()
   }
 
   if (document.uploaded_by) {
     const uploaderName = document.employee
       ? `${document.employee.first_name || ''} ${document.employee.last_name || ''}`.trim()
       : `User ID: ${document.uploaded_by}`
-    parts.push(`Uploaded By: ${uploaderName}`)
+    parts['Uploaded By'] = uploaderName
   }
 
   if (document.ai_summary) {
-    parts.push(`Summary: ${document.ai_summary}`)
+    parts.Summary = document.ai_summary
   }
 
-  return parts.join(' | ')
+  return parts
 }
 
 const formatMessage = (msg) => {
@@ -133,16 +134,36 @@ const formatMessage = (msg) => {
     ? `${msg.recipient.first_name || ''} ${msg.recipient.last_name || ''}`.trim()
     : msg.recipient_email || 'Unknown'
 
-  return [
-    `From: ${senderName}`,
-    msg.employee?.position ? `Position: ${msg.employee.position}` : null,
-    msg.employee?.department ? `Department: ${msg.employee.department}` : null,
-    `To: ${recipientName}`,
-    `Subject: ${msg.subject || 'No Subject'}`,
-    `Date: ${msg.created_at ? new Date(msg.created_at).toLocaleString() : 'Unknown'}`,
-    `Read: ${msg.is_read ? 'Yes' : 'No'}`,
-    msg.message_body ? `Body: ${msg.message_body}` : null,
-  ].filter(Boolean).join(' | ')
+  return {
+    From: senderName,
+    Position: msg.employee?.position || '',
+    Department: msg.employee?.department || '',
+    To: recipientName,
+    Subject: msg.subject || 'No Subject',
+    Date: msg.created_at ? new Date(msg.created_at).toLocaleString() : 'Unknown',
+    Read: msg.is_read ? 'Yes' : 'No',
+    Body: msg.message_body || '',
+  }
+}
+
+const formatRecommendation = (recommendation) => {
+  return {
+    Employee: recommendation.full_name || 'Unknown employee',
+    Position: recommendation.position || 'Unknown',
+    Department: recommendation.department || 'Unknown',
+    Score: recommendation.score ?? 0,
+    Reasons: (recommendation.reasons || []).join(', ') || 'None',
+  }
+}
+
+const buildMarkdownTable = (rows = []) => {
+  if (!rows.length) return ''
+  const headers = Object.keys(rows[0])
+  const escape = (value) => String(value ?? '').replace(/\|/g, '\\|')
+  const headerRow = `| ${headers.map(escape).join(' | ')} |`
+  const separatorRow = `| ${headers.map(() => '---').join(' | ')} |`
+  const dataRows = rows.map((row) => `| ${headers.map((key) => escape(row[key])).join(' | ')} |`)
+  return [headerRow, separatorRow, ...dataRows].join('\n')
 }
 
 const buildInboxSummary = (messages, scope, viewerEmail, targetEmployee = null) => {
@@ -175,35 +196,34 @@ const buildInboxSummary = (messages, scope, viewerEmail, targetEmployee = null) 
 }
 
 const formatRecommendation = (recommendation) => {
-  return [
-    `Employee: ${recommendation.full_name || 'Unknown employee'}`,
-    `Position: ${recommendation.position || 'Unknown'}`,
-    `Department: ${recommendation.department || 'Unknown'}`,
-    `Score: ${recommendation.score ?? 0}`,
-    `Reasons: ${(recommendation.reasons || []).join(', ') || 'None'}`,
-  ].join(' | ')
+  return {
+    Employee: recommendation.full_name || 'Unknown employee',
+    Position: recommendation.position || 'Unknown',
+    Department: recommendation.department || 'Unknown',
+    Score: recommendation.score ?? 0,
+    Reasons: (recommendation.reasons || []).join(', ') || 'None',
+  }
 }
 
 const formatOperations = (ops) => {
-  const lines = [
-    `Total Employees: ${ops.employees || 0}`,
-    `Active Jobs: ${ops.active_jobs || 0}`,
-    `Employees on Leave: ${ops.employees_on_leave || 0}`,
-    `Contracts Expiring Soon: ${ops.expiring_contracts || 0}`,
-    `Unread Notifications: ${ops.unread_notifications || 0}`,
-    `Scheduling Conflicts: ${ops.scheduling_conflicts || 0}`,
-  ]
-  return lines.join('\n')
+  return {
+    'Total Employees': ops.employees || 0,
+    'Active Jobs': ops.active_jobs || 0,
+    'Employees on Leave': ops.employees_on_leave || 0,
+    'Contracts Expiring Soon': ops.expiring_contracts || 0,
+    'Unread Notifications': ops.unread_notifications || 0,
+    'Scheduling Conflicts': ops.scheduling_conflicts || 0,
+  }
 }
 
 const formatChatLog = (log) => {
   if (log.prompt || log.response) {
-    return [
-      log.created_at ? `Date: ${new Date(log.created_at).toLocaleString()}` : null,
-      log.intent ? `Intent: ${log.intent}` : null,
-      log.prompt ? `User asked: ${log.prompt}` : null,
-      log.response ? `Assistant answered: ${String(log.response).slice(0, 700)}` : null,
-    ].filter(Boolean).join(' | ')
+    return {
+      Date: log.created_at ? new Date(log.created_at).toLocaleString() : '',
+      Intent: log.intent || '',
+      'User asked': log.prompt || '',
+      'Assistant answered': String(log.response || '').slice(0, 700),
+    }
   }
 
   const typeMap = {
@@ -214,7 +234,10 @@ const formatChatLog = (log) => {
     employee_activity_summary: 'Employee Activity Summary',
   }
   const typeLabel = typeMap[log.reference_type] || log.reference_type
-  return `[${typeLabel}] ${log.created_at ? new Date(log.created_at).toLocaleDateString() : ''}`
+  return {
+    Type: typeLabel,
+    Date: log.created_at ? new Date(log.created_at).toLocaleDateString() : '',
+  }
 }
 
 const compactMessages = (messages = []) => {
@@ -233,60 +256,69 @@ const buildDataContext = ({ intent, data }) => {
 
   if (intent === 'operations') {
     contextParts.push('Today\'s Operations Summary')
-    contextParts.push(formatOperations(data.operations))
+    const row = formatOperations(data.operations)
+    contextParts.push(buildMarkdownTable([row]))
   } else if (intent === 'chat_logs') {
     contextParts.push('Previous AI Summaries')
-    if ((data.logs || []).length) {
-      contextParts.push(...(data.logs || []).map(formatChatLog))
+    const rows = (data.logs || []).map(formatChatLog).filter(Boolean)
+    if (rows.length) {
+      contextParts.push(buildMarkdownTable(rows))
     } else {
       contextParts.push('No previous AI summaries available.')
     }
   } else if (intent === 'employee') {
-    contextParts.push('Employees')
-    if ((data.employees || []).length) {
-      contextParts.push(...(data.employees || []).map(formatEmployee))
+    const rows = (data.employees || []).map(formatEmployee).filter(Boolean)
+    if (rows.length) {
+      contextParts.push('Employees')
+      contextParts.push(buildMarkdownTable(rows))
     } else {
       contextParts.push('No employees found.')
     }
   } else if (intent === 'job') {
-    contextParts.push('Current Jobs')
-    if ((data.jobs || []).length) {
-      contextParts.push(...(data.jobs || []).map(formatJob))
+    const rows = (data.jobs || []).map(formatJob).filter(Boolean)
+    if (rows.length) {
+      contextParts.push('Current Jobs')
+      contextParts.push(buildMarkdownTable(rows))
     } else {
       contextParts.push('No jobs found.')
     }
   } else if (intent === 'leave') {
-    contextParts.push('Approved Leave Requests')
-    if ((data.leaves || []).length) {
-      contextParts.push(...(data.leaves || []).map(formatLeave))
+    const rows = (data.leaves || []).map(formatLeave).filter(Boolean)
+    if (rows.length) {
+      contextParts.push('Approved Leave Requests')
+      contextParts.push(buildMarkdownTable(rows))
     } else {
       contextParts.push('No approved leave requests found.')
     }
   } else if (intent === 'contract') {
-    contextParts.push('Contracts')
-    if ((data.contracts || []).length) {
-      contextParts.push(...(data.contracts || []).map(formatContract))
+    const rows = (data.contracts || []).map(formatContract).filter(Boolean)
+    if (rows.length) {
+      contextParts.push('Contracts')
+      contextParts.push(buildMarkdownTable(rows))
     } else {
       contextParts.push('No contracts found.')
     }
   } else if (intent === 'recommendation') {
-    contextParts.push('Recommended Workers')
-    if ((data.recommendations || []).length) {
-      contextParts.push(...(data.recommendations || []).map(formatRecommendation))
+    const rows = (data.recommendations || []).map(formatRecommendation).filter(Boolean)
+    if (rows.length) {
+      contextParts.push('Recommended Workers')
+      contextParts.push(buildMarkdownTable(rows))
     } else {
       contextParts.push('No recommendations available.')
     }
   } else if (intent === 'notification') {
-    contextParts.push('Notifications')
-    if ((data.notifications || []).length) {
-      contextParts.push(...(data.notifications || []).map(formatNotification))
+    const rows = (data.notifications || []).map(formatNotification).filter(Boolean)
+    if (rows.length) {
+      contextParts.push('Notifications')
+      contextParts.push(buildMarkdownTable(rows))
     } else {
       contextParts.push('No notifications found.')
     }
   } else if (intent === 'document') {
-    contextParts.push('Documents')
-    if ((data.documents || []).length) {
-      contextParts.push(...(data.documents || []).map(formatDocument))
+    const rows = (data.documents || []).map(formatDocument).filter(Boolean)
+    if (rows.length) {
+      contextParts.push('Documents')
+      contextParts.push(buildMarkdownTable(rows))
     } else {
       contextParts.push('No documents found.')
     }
@@ -294,28 +326,45 @@ const buildDataContext = ({ intent, data }) => {
     const summary = buildInboxSummary(data.messages, data.inboxScope, data.viewerEmail, data.targetEmployee)
     contextParts.push(summary)
     contextParts.push('')
-    if ((data.messages || []).length) {
+    const rows = (data.messages || []).map(formatMessage).filter(Boolean)
+    if (rows.length) {
       contextParts.push('Messages')
-      contextParts.push(...(data.messages || []).map(formatMessage))
+      contextParts.push(buildMarkdownTable(rows))
     } else {
       contextParts.push('No messages found.')
     }
   } else {
+    const employeeRows = (data.employees || []).map(formatEmployee).filter(Boolean)
+    const jobRows = (data.jobs || []).map(formatJob).filter(Boolean)
+    const leaveRows = (data.leaves || []).map(formatLeave).filter(Boolean)
+    const contractRows = (data.contracts || []).map(formatContract).filter(Boolean)
+    const notificationRows = (data.notifications || []).map(formatNotification).filter(Boolean)
+
     contextParts.push('Business Context')
-    contextParts.push('Employees')
-    contextParts.push(...(data.employees || []).map(formatEmployee))
+    if (employeeRows.length) {
+      contextParts.push('Employees')
+      contextParts.push(buildMarkdownTable(employeeRows))
+    }
     contextParts.push('')
-    contextParts.push('Current Jobs')
-    contextParts.push(...(data.jobs || []).map(formatJob))
+    if (jobRows.length) {
+      contextParts.push('Current Jobs')
+      contextParts.push(buildMarkdownTable(jobRows))
+    }
     contextParts.push('')
-    contextParts.push('Approved Leave Requests')
-    contextParts.push(...(data.leaves || []).map(formatLeave))
+    if (leaveRows.length) {
+      contextParts.push('Approved Leave Requests')
+      contextParts.push(buildMarkdownTable(leaveRows))
+    }
     contextParts.push('')
-    contextParts.push('Contracts')
-    contextParts.push(...(data.contracts || []).map(formatContract))
+    if (contractRows.length) {
+      contextParts.push('Contracts')
+      contextParts.push(buildMarkdownTable(contractRows))
+    }
     contextParts.push('')
-    contextParts.push('Notifications')
-    contextParts.push(...(data.notifications || []).map(formatNotification))
+    if (notificationRows.length) {
+      contextParts.push('Notifications')
+      contextParts.push(buildMarkdownTable(notificationRows))
+    }
   }
 
   return contextParts.join('\n')

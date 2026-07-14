@@ -83,6 +83,26 @@ const EMAIL_SELECT = `
     department
   )
 `
+const BUSINESS_FORM_SELECT = `
+  businessform_id,
+  employee_id,
+  start_date,
+  end_date,
+  location,
+  company_car,
+  driver_name,
+  phone_num,
+  project_name,
+  status,
+  created_at,
+  employee:employee_id (
+    employee_id,
+    first_name,
+    last_name,
+    position,
+    department
+  )
+`
 
 const hasDateOverlap = (start1, end1, start2, end2) => {
   return new Date(start1) <= new Date(end2) && new Date(end1) >= new Date(start2)
@@ -92,7 +112,7 @@ const orderByCreatedAtDesc = { ascending: false }
 
 const getClient = () => getSupabaseServerClient()
 
-const isAdmin = (viewer) => Boolean(viewer?.isAdmin)
+const isAdmin = (viewer) => Boolean(viewer?.isAdmin) || Number(viewer?.employee?.hierarchy_level || 0) <= 4
 const viewerEmployeeId = (viewer) => viewer?.employee?.employee_id ?? null
 const viewerUserId = (viewer) => viewer?.employee?.user_id || viewer?.user?.id || null
 const viewerEmail = (viewer) => viewer?.user?.email || viewer?.employee?.email || null
@@ -103,17 +123,19 @@ const queryOrThrow = async (query) => {
   return data || []
 }
 
-const scopeEmployeeQuery = (query, viewer) => {
-  if (isAdmin(viewer)) return query
+const scopeEmployeeQuery = (query, viewer, adminMode = false) => {
+  if (isAdmin(viewer) || adminMode) return query
   const employeeId = viewerEmployeeId(viewer)
   return employeeId ? query.eq('employee_id', employeeId) : query.limit(0)
 }
 
-const scopeUserQuery = (query, viewer, column) => {
-  if (isAdmin(viewer)) return query
+const scopeUserQuery = (query, viewer, column, adminMode = false) => {
+  if (isAdmin(viewer) || adminMode) return query
   const userId = viewerUserId(viewer)
   return userId ? query.eq(column, userId) : query.limit(0)
 }
+
+const applyAdminMode = (query, adminMode) => adminMode ? query : query
 
 const resolveEmployeeByName = async (name, viewer) => {
   if (!isAdmin(viewer)) return null
@@ -187,7 +209,7 @@ const loadInboxMessages = async (options = {}) => {
 }
 
 const loadEmployees = async (options = {}) => {
-  const { viewer } = options
+  const { viewer, adminMode } = options
   const { activeOnly = true, fieldWorkersOnly = false, limit = 25 } = options
   let query = getClient().from('employee').select(EMPLOYEE_SELECT).order('first_name').limit(limit)
 
@@ -199,17 +221,17 @@ const loadEmployees = async (options = {}) => {
     query = query.eq('employee_type', 'field_worker')
   }
 
-  query = scopeEmployeeQuery(query, viewer)
+  query = scopeEmployeeQuery(query, viewer, adminMode)
 
   return await queryOrThrow(query)
 }
 
-const loadJobs = async (limit = 25, viewer = null) => {
+const loadJobs = async (limit = 25, viewer = null, adminMode = false) => {
   const query = getClient().from('job').select(JOB_SELECT).order('created_at', orderByCreatedAtDesc).limit(limit)
-  return await queryOrThrow(scopeEmployeeQuery(query, viewer))
+  return await queryOrThrow(scopeEmployeeQuery(query, viewer, adminMode))
 }
 
-const loadApprovedLeaves = async (limit = 25, viewer = null) => {
+const loadApprovedLeaves = async (limit = 25, viewer = null, adminMode = false) => {
   const query = getClient()
     .from('leaveform')
     .select(LEAVE_SELECT)
@@ -217,24 +239,35 @@ const loadApprovedLeaves = async (limit = 25, viewer = null) => {
     .order('start_date', orderByCreatedAtDesc)
     .limit(limit)
 
-  return await queryOrThrow(scopeEmployeeQuery(query, viewer))
+  return await queryOrThrow(scopeEmployeeQuery(query, viewer, adminMode))
 }
 
-const loadContracts = async (limit = 25, viewer = null) => {
+const loadApprovedOfficialBusiness = async (limit = 25, viewer = null, adminMode = false) => {
+  const query = getClient()
+    .from('businessform')
+    .select(BUSINESS_FORM_SELECT)
+    .eq('status', 'approved')
+    .order('start_date', orderByCreatedAtDesc)
+    .limit(limit)
+
+  return await queryOrThrow(scopeEmployeeQuery(query, viewer, adminMode))
+}
+
+const loadContracts = async (limit = 25, viewer = null, adminMode = false) => {
   const query = getClient().from('contracts').select(CONTRACT_SELECT).order('created_at', orderByCreatedAtDesc).limit(limit)
-  if (isAdmin(viewer)) return await queryOrThrow(query)
+  if (isAdmin(viewer) || adminMode) return await queryOrThrow(query)
   const employeeId = viewerEmployeeId(viewer)
   return await queryOrThrow(employeeId ? query.eq('contractor', employeeId) : query.limit(0))
 }
 
-const loadNotifications = async (limit = 25, unreadOnly = false, viewer = null) => {
+const loadNotifications = async (limit = 25, unreadOnly = false, viewer = null, adminMode = false) => {
   let query = getClient().from('notification').select(NOTIFICATION_SELECT).order('created_at', orderByCreatedAtDesc).limit(limit)
 
   if (unreadOnly) {
     query = query.eq('is_read', false)
   }
 
-  if (!isAdmin(viewer)) {
+  if (!isAdmin(viewer) && !adminMode) {
     const employeeId = viewerEmployeeId(viewer)
     query = employeeId ? query.eq('notify_to', employeeId) : query.limit(0)
   }
@@ -242,30 +275,17 @@ const loadNotifications = async (limit = 25, unreadOnly = false, viewer = null) 
   return await queryOrThrow(query)
 }
 
-const loadDocuments = async (limit = 25, viewer = null) => {
+const loadDocuments = async (limit = 25, viewer = null, adminMode = false) => {
   const query = getClient().from('document').select(DOCUMENT_SELECT).order('created_at', { ascending: false }).limit(limit)
-  return await queryOrThrow(scopeUserQuery(query, viewer, 'uploaded_by'))
+  return await queryOrThrow(scopeUserQuery(query, viewer, 'uploaded_by', adminMode))
 }
 
-const loadDocumentSummary = async (documentId) => {
-  const client = getClient()
-  const { data, error } = await client
-    .from('ai_summarization')
-    .select('content_summary')
-    .eq('reference_type', `document_${documentId}`)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
-
-  if (error) return null
-  return data?.content_summary || null
-}
-
-const loadRecommendations = async (viewer = null) => {
-  const [employees, leaves, jobs] = await Promise.all([
-    loadEmployees({ activeOnly: true, fieldWorkersOnly: true, limit: 50, viewer }),
-    loadApprovedLeaves(100, viewer),
-    loadJobs(100, viewer),
+const loadRecommendations = async (viewer = null, adminMode = false) => {
+  const [employees, leaves, jobs, officialBusiness] = await Promise.all([
+    loadEmployees({ activeOnly: true, fieldWorkersOnly: true, limit: 50, viewer, adminMode }),
+    loadApprovedLeaves(100, viewer, adminMode),
+    loadJobs(100, viewer, adminMode),
+    loadApprovedOfficialBusiness(100, viewer, adminMode),
   ])
 
   const startDate = new Date()
@@ -285,20 +305,36 @@ const loadRecommendations = async (viewer = null) => {
     jobsByEmployee.get(job.employee_id).push(job)
   })
 
+  const officialBusinessByEmployee = new Map()
+  officialBusiness.forEach((ob) => {
+    const key = ob.employee_id
+    if (!officialBusinessByEmployee.has(key)) officialBusinessByEmployee.set(key, [])
+    officialBusinessByEmployee.get(key).push(ob)
+  })
+
   const recommendations = employees
     .map((employee) => {
       let score = 0
       const reasons = []
       const employeeLeaves = leaveByEmployee.get(employee.employee_id) || []
       const employeeJobs = jobsByEmployee.get(employee.employee_id) || []
+      const employeeOfficialBusiness = officialBusinessByEmployee.get(employee.employee_id) || []
 
       const onLeave = employeeLeaves.some((leave) =>
         hasDateOverlap(startDate, endDate, leave.start_date, leave.end_date)
       )
 
-      if (!onLeave) {
+      const onOfficialBusiness = employeeOfficialBusiness.some((ob) =>
+        hasDateOverlap(startDate, endDate, ob.start_date, ob.end_date)
+      )
+
+      if (!onLeave && !onOfficialBusiness) {
         score += 50
         reasons.push('Available')
+      } else if (onLeave) {
+        reasons.push('On Leave')
+      } else if (onOfficialBusiness) {
+        reasons.push('On Official Business')
       }
 
       const overlappingJobs = employeeJobs.filter((job) =>
@@ -337,13 +373,13 @@ const loadRecommendations = async (viewer = null) => {
   return recommendations
 }
 
-const loadOperations = async (viewer = null) => {
+const loadOperations = async (viewer = null, adminMode = false) => {
   const [employees, jobs, leaves, contracts, notifications] = await Promise.all([
-    loadEmployees({ activeOnly: true, fieldWorkersOnly: false, limit: 100, viewer }),
-    loadJobs(100, viewer),
-    loadApprovedLeaves(100, viewer),
-    loadContracts(100, viewer),
-    loadNotifications(50, false, viewer),
+    loadEmployees({ activeOnly: true, fieldWorkersOnly: false, limit: 100, viewer, adminMode }),
+    loadJobs(100, viewer, adminMode),
+    loadApprovedLeaves(100, viewer, adminMode),
+    loadContracts(100, viewer, adminMode),
+    loadNotifications(50, false, viewer, adminMode),
   ])
 
   const activeJobs = (jobs || []).filter((j) => String(j.status || '').toLowerCase() === 'open' || String(j.status || '').toLowerCase() === 'ongoing')
@@ -381,15 +417,15 @@ const loadOperations = async (viewer = null) => {
   }
 }
 
-export const loadDataForIntent = async (intent, message, viewer = null) => {
+export const loadDataForIntent = async (intent, message, viewer = null, adminMode = false) => {
   const text = String(message || '').toLowerCase()
 
   if (intent === 'operations') {
-    return { operations: await loadOperations(viewer) }
+    return { operations: await loadOperations(viewer, adminMode) }
   }
 
   if (intent === 'chat_logs') {
-    if (!isAdmin(viewer)) {
+    if (!isAdmin(viewer) && !adminMode) {
       const userId = viewerUserId(viewer)
       if (!userId) return { logs: [] }
 
@@ -417,40 +453,41 @@ export const loadDataForIntent = async (intent, message, viewer = null) => {
 
   if (intent === 'employee') {
     const availabilityOnly = text.includes('available') || text.includes('who can') || text.includes('who is available')
-    const employees = await loadEmployees({ activeOnly: true, fieldWorkersOnly: availabilityOnly, limit: availabilityOnly ? 50 : 25, viewer })
+    const employees = await loadEmployees({ activeOnly: true, fieldWorkersOnly: availabilityOnly, limit: availabilityOnly ? 50 : 25, viewer, adminMode })
     if (availabilityOnly) {
-      const [jobs, leaves] = await Promise.all([
-        loadJobs(100, viewer),
-        loadApprovedLeaves(100, viewer),
+      const [jobs, leaves, officialBusiness] = await Promise.all([
+        loadJobs(100, viewer, adminMode),
+        loadApprovedLeaves(100, viewer, adminMode),
+        loadApprovedOfficialBusiness(100, viewer, adminMode),
       ])
-      return { employees, jobs, leaves }
+      return { employees, jobs, leaves, officialBusiness }
     }
     return { employees }
   }
 
   if (intent === 'job') {
-    return { jobs: await loadJobs(25, viewer) }
+    return { jobs: await loadJobs(25, viewer, adminMode) }
   }
 
   if (intent === 'leave') {
-    return { leaves: await loadApprovedLeaves(25, viewer) }
+    return { leaves: await loadApprovedLeaves(25, viewer, adminMode) }
   }
 
   if (intent === 'contract') {
-    return { contracts: await loadContracts(25, viewer) }
+    return { contracts: await loadContracts(25, viewer, adminMode) }
   }
 
   if (intent === 'recommendation') {
-    return { recommendations: await loadRecommendations(viewer) }
+    return { recommendations: await loadRecommendations(viewer, adminMode) }
   }
 
   if (intent === 'notification') {
     const unreadOnly = text.includes('unread')
-    return { notifications: await loadNotifications(25, unreadOnly, viewer) }
+    return { notifications: await loadNotifications(25, unreadOnly, viewer, adminMode) }
   }
 
   if (intent === 'document') {
-    const documents = await loadDocuments(25, viewer)
+    const documents = await loadDocuments(25, viewer, adminMode)
     const documentsWithSummaries = await Promise.all(
       (documents || []).map(async (doc) => {
         const summary = await loadDocumentSummary(doc.document_id)
@@ -491,12 +528,12 @@ export const loadDataForIntent = async (intent, message, viewer = null) => {
   }
 
   const [employees, jobs, leaves, contracts, notifications, documents] = await Promise.all([
-    loadEmployees({ activeOnly: true, fieldWorkersOnly: false, limit: 10, viewer }),
-    loadJobs(10, viewer),
-    loadApprovedLeaves(10, viewer),
-    loadContracts(10, viewer),
-    loadNotifications(10, false, viewer),
-    loadDocuments(10, viewer),
+    loadEmployees({ activeOnly: true, fieldWorkersOnly: false, limit: 10, viewer, adminMode }),
+    loadJobs(10, viewer, adminMode),
+    loadApprovedLeaves(10, viewer, adminMode),
+    loadContracts(10, viewer, adminMode),
+    loadNotifications(10, false, viewer, adminMode),
+    loadDocuments(10, viewer, adminMode),
   ])
 
   return {
