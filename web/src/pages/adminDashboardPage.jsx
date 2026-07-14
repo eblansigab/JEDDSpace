@@ -7,7 +7,7 @@ const AdminDashboardPage = () => {
   const { hasPermission } = usePermissions()
 
   const canManageAnnouncements = hasPermission('ANN_MANAGE')
-   const canManageEmployees = hasPermission('EMP_ADD')
+  const canManageEmployees = hasPermission('EMP_ADD')
   const canAssignJobs = hasPermission('PROJ_ASSIGN')
   const canAuditBlockchain = hasPermission('BLOCKCHAIN_AUDIT')
   const canViewAIAnalytics = hasPermission('AI_ANALYTICS')
@@ -25,7 +25,7 @@ const AdminDashboardPage = () => {
           <div className="admin-grid">
 
             {/* Post Announcement */}
-            <div className="admin-box">
+            {canManageAnnouncements && (<div className="admin-box">
 
               <h3>
                 {/* Megaphone icon */}
@@ -47,10 +47,10 @@ const AdminDashboardPage = () => {
                 <span>Create</span>
               </Link>
 
-            </div>
+            </div>)}
 
              {/* Manage Employees */}
-            <div className="admin-box">
+            {canManageEmployees && (<div className="admin-box">
 
               <h3>
                 {/* Users Icon*/}
@@ -72,10 +72,10 @@ const AdminDashboardPage = () => {
                 <span>Manage</span>
               </Link>
 
-            </div>
+            </div>)}
 
             {/* Assign Jobs */}
-            <div className="admin-box">
+            {canAssignJobs && (<div className="admin-box">
 
               <h3>
                 {/* File text icon */}
@@ -97,10 +97,10 @@ const AdminDashboardPage = () => {
                 <span>Assign</span>
               </Link>
 
-            </div>
+            </div>)}
 
             {/* Audit Blockchain */}
-            <div className="admin-box">
+            {canAuditBlockchain && (<div className="admin-box">
 
               <h3>
                 {/* Bitcoin Icon */}
@@ -122,10 +122,10 @@ const AdminDashboardPage = () => {
                 <span>Audit</span>
               </Link>
 
-            </div>
+            </div>)}
 
             {/* AI Analytics */}
-            <div className="admin-box">
+            {canViewAIAnalytics && (<div className="admin-box">
 
               <h3>
                 {/* Chart Icon */}
@@ -147,10 +147,10 @@ const AdminDashboardPage = () => {
                 <span>Analyze</span>
               </Link>
 
-            </div>
+            </div>)}
 
             {/* AI History */}
-            <div className="admin-box">
+            {canViewAIChatLogs && (<div className="admin-box">
 
               <h3>
                 {/* History Icon */}
@@ -172,10 +172,10 @@ const AdminDashboardPage = () => {
                 <span>Review</span>
               </Link>
 
-            </div>
+            </div>)}
 
             {/* Forms Outlet */}
-            <div className="admin-box">
+            {canManageForms && (<div className="admin-box">
 
               <h3>
                 {/* File stack Icon */}
@@ -197,8 +197,7 @@ const AdminDashboardPage = () => {
                 <span>Review</span>
               </Link>
 
-            </div>
-
+            </div>)}
           </div>
 
         </main>
