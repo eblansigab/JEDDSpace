@@ -8,6 +8,7 @@ import { documentService } from '../services/documentService'
 import { emailService } from '../services/emailService'
 import { sessionService } from '../services/sessionService'
 import { alertService } from '../utils/alertService'
+import { announcementService } from '../services/announcementService'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
@@ -50,10 +51,19 @@ const CommonDashboardPage = () => {
   }
 
   const loadCalendarEvents = async () => {
+    const viewer = profile
+      ? {
+          isAdmin: false,
+          employee: {
+            department: profile.department,
+            role_id: profile.role_id,
+          },
+          scope: profile.role?.scope || profile.scope || 'ALL',
+        }
+      : null
+
     const { data: announcements } =
-      await supabaseClient
-        .from('announcement')
-        .select('*')
+      await announcementService.getAnnouncements(viewer)
 
     const announcementEvents =
       (announcements || []).map(item => ({

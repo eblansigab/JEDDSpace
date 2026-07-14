@@ -7,7 +7,7 @@ import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
 import { supabaseClient } from '../supabase/supabaseClient'
 import ComposeMessageModal from '../components/messaging/ComposeMessageModal'
-import { getEmployeeDirectory, getThreadMessages, sendMessage } from '../services/messageService'
+import { getEmployeeDirectory, getThreadMessages, sendMessage, sendMessageWithAttachments, getMessageAttachments } from '../services/messageService'
 
 const EmailsPage = () => {
   const { user, profile } = useAuth()
@@ -24,6 +24,8 @@ const EmailsPage = () => {
   const [composeReplyTo, setComposeReplyTo] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  const [messageAttachments, setMessageAttachments] = useState([])
+  const [loadingAttachments, setLoadingAttachments] = useState(false)
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768)
@@ -38,6 +40,19 @@ const EmailsPage = () => {
     } catch (error) {
       console.error('[EmailsPage] Error loading thread:', error)
       setThreadMessages([])
+    }
+  }
+
+  const loadAttachments = async (emailId) => {
+    setLoadingAttachments(true)
+    try {
+      const attachments = await getMessageAttachments(emailId)
+      setMessageAttachments(attachments || [])
+    } catch (error) {
+      console.error('[EmailsPage] Error loading attachments:', error)
+      setMessageAttachments([])
+    } finally {
+      setLoadingAttachments(false)
     }
   }
 
@@ -141,6 +156,7 @@ const EmailsPage = () => {
   const handleSelectMessage = async (msg) => {
     setSelectedMessage(msg)
     await loadThread(msg.email_id)
+    await loadAttachments(msg.email_id)
     const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const recipientClean = String(msg.recipient_email || msg.recipient || '').trim().toLowerCase()
 
@@ -196,17 +212,30 @@ const EmailsPage = () => {
     setComposeReplyTo(null)
   }
 
-  const handleComposeSubmit = async ({ recipient, subject, body }) => {
+  const handleComposeSubmit = async ({ recipient, subject, body, files = [] }) => {
     setIsSubmitting(true)
     try {
-      const result = await sendMessage({
-        recipientEmail: recipient,
-        subject,
-        messageBody: body,
-        folder: 'inbox',
-        senderId: profile?.employee_id,
-        replyToEmailId: composeReplyTo
-      })
+      let result
+      if (files.length > 0) {
+        result = await sendMessageWithAttachments({
+          senderId: profile?.employee_id,
+          recipientEmail: recipient,
+          subject,
+          messageBody: body,
+          folder: 'inbox',
+          replyToEmailId: composeReplyTo,
+          files
+        })
+      } else {
+        result = await sendMessage({
+          recipientEmail: recipient,
+          subject,
+          messageBody: body,
+          folder: 'inbox',
+          senderId: profile?.employee_id,
+          replyToEmailId: composeReplyTo
+        })
+      }
 
       if (recipient === 'all') {
         await Promise.allSettled(
@@ -570,24 +599,63 @@ const EmailsPage = () => {
                           </div>
                         )}
 
-                        <div style={{
-                          fontSize: '15px',
-                          lineHeight: '1.6',
-                          whiteSpace: 'pre-wrap',
-                          padding: isOriginal ? '20px' : '16px',
-                          borderRadius: '8px',
-                          backgroundColor: isOriginal ? 'rgba(148, 163, 184, 0.05)' : 'rgba(148, 163, 184, 0.02)',
-                          border: `1px solid ${isOriginal ? 'var(--border-color, #f1f5f9)' : 'transparent'}`,
-                          minHeight: isOriginal ? '200px' : 'auto'
-                        }} className="email-bg-subtle">
-                          {!isOriginal && (
-                             <div style={{ fontSize: '12px', color: 'var(--text-secondary, #64748b)', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }} className="email-text-muted">
-                               <strong>Sender:</strong> {getSenderName(threadMsg.sender_id)} &nbsp;|&nbsp; <strong>Recipient:</strong> {getRecipientName(threadMsg.recipient_email)} &nbsp;|&nbsp; {threadMsg.created_at ? new Date(threadMsg.created_at).toLocaleString() : ''}
-                             </div>
-                          )}  
-                          {threadMsg.message_body || threadMsg.body || 'No message body.'}
-                        </div>
-                      </div>
+                         <div style={{
+                           fontSize: '15px',
+                           lineHeight: '1.6',
+                           whiteSpace: 'pre-wrap',
+                           padding: isOriginal ? '20px' : '16px',
+                           borderRadius: '8px',
+                           backgroundColor: isOriginal ? 'rgba(148, 163, 184, 0.05)' : 'rgba(148, 163, 184, 0.02)',
+                           border: `1px solid ${isOriginal ? 'var(--border-color, #f1f5f9)' : 'transparent'}`,
+                           minHeight: isOriginal ? '200px' : 'auto'
+                         }} className="email-bg-subtle">
+                           {!isOriginal && (
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary, #64748b)', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }} className="email-text-muted">
+                                 <strong>Sender:</strong> {getSenderName(threadMsg.sender_id)} &nbsp;|&nbsp; <strong>Recipient:</strong> {getRecipientName(threadMsg.recipient_email)} &nbsp;|&nbsp; {threadMsg.created_at ? new Date(threadMsg.created_at).toLocaleString() : ''}
+                              </div>
+                            )}  
+                           {threadMsg.message_body || threadMsg.body || 'No message body.'}
+                         </div>
+                         {isOriginal && (
+                           <div>
+                             {loadingAttachments ? (
+                               <p style={{ fontSize: '13px', color: 'var(--text-secondary, #64748b)' }}>Loading attachments...</p>
+                             ) : messageAttachments.length > 0 ? (
+                               <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', border: '1px dashed #d1d5db', backgroundColor: '#f9fafb' }}>
+                                 <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '8px', color: '#374151' }}>
+                                   Attachments ({messageAttachments.length})
+                                 </div>
+                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                   {messageAttachments.map((attachment) => (
+                                     <a
+                                       key={attachment.email_attachment_id}
+                                       href={attachment.file_path}
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       style={{
+                                         display: 'flex',
+                                         alignItems: 'center',
+                                         gap: '8px',
+                                         padding: '8px 10px',
+                                         borderRadius: '6px',
+                                         border: '1px solid #e5e7eb',
+                                         backgroundColor: '#fff',
+                                         textDecoration: 'none',
+                                         color: '#2563eb',
+                                         fontSize: '13px'
+                                       }}
+                                     >
+                                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                         {attachment.file_name}
+                                       </span>
+                                     </a>
+                                   ))}
+                                 </div>
+                               </div>
+                             ) : null}
+                           </div>
+                         )}
+                       </div>
                     )
                   })}
                 </div>
