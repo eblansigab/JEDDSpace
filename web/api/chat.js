@@ -3,7 +3,7 @@ import { handleDocumentSummary } from '../server/ai/documentHandler.js'
 import { handleHistory, handleChatLogs } from '../server/ai/historyHandler.js'
 import { handleOperations } from '../server/ai/operationsHandler.js'
 import { handleRecommendation } from '../server/ai/recommendationHandler.js'
-import { authorize } from '../server/middleware/authorize.js'
+import { getRequestUserContext } from '../server/ai/supabaseClient.js'
 import { fail, ok } from '../server/_shared/response.js'
 
 const logAIError = (action, error, meta = {}) => {
@@ -65,11 +65,14 @@ export default async function handler(req, res) {
   const payload = body.payload || body
 
   try {
-    const authResult = await authorize(req, 'ai.chat')
-    if (!authResult.authorized) {
-      return authResult.error
+    const viewer = await getRequestUserContext(req)
+    if (!viewer?.user?.id) {
+      return fail(res, 401, 'Authentication is required.')
     }
-    const viewer = authResult.viewer
+    const employeeId = viewer.employee?.employee_id
+    if (!employeeId) {
+      return fail(res, 403, 'Employee record not found.')
+    }
 
     if ((action === 'chat' || action === 'conversation') && payload?.stream) {
       res.writeHead(200, {

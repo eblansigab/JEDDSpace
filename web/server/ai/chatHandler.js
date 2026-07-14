@@ -161,12 +161,11 @@ export const handleChat = async ({ viewer, payload = {} }) => {
 
   const { requestContext, intent, message, messages = [], sessionId, context, groqMessages } = prepared
 
-  const groqResult = await timedStage(
-    requestContext,
-    'groq',
-    () => groqClient.chatWithMetadata(groqMessages),
-    { model: 'llama-3.3-70b-versatile' }
-  )
+    const groqResult = await timedStage(
+      'groq',
+      () => groqClient.chatWithMetadata(groqMessages),
+      { model: 'gpt-oss-120b' }
+    )
   const response = groqResult.content
 
   try {
@@ -242,7 +241,7 @@ export const handleChatStream = async ({ viewer, payload = {}, sendEvent }) => {
   const groqStartedAt = Date.now()
 
   sendEvent('progress', { message: 'Generating answer...' })
-  requestContext.log('groq:stream:start', { model: 'llama-3.3-70b-versatile' })
+  requestContext.log('groq:stream:start', { model: 'gpt-oss-120b' })
 
   for await (const token of groqClient.streamChat(groqMessages)) {
     response += token
@@ -250,8 +249,7 @@ export const handleChatStream = async ({ viewer, payload = {}, sendEvent }) => {
   }
 
   const groqResult = {
-    content: response,
-    model: 'llama-3.3-70b-versatile',
+    model: 'gpt-oss-120b',
     latencyMs: Date.now() - groqStartedAt,
   }
   requestContext.log('groq:stream:complete', { latencyMs: groqResult.latencyMs })
