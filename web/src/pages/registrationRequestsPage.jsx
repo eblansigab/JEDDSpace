@@ -26,7 +26,7 @@ const RegistrationRequestsPage = () => {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
-  const isAdmin = hasPermission('settings.manage')
+  const isAdmin = hasPermission('EMP_ADD')
 
   const loadRequests = async () => {
     try {

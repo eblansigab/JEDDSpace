@@ -70,7 +70,6 @@ export const profileService = {
 
     const payload = {
       user_id: userId,
-      auth_user_id: userId,
       first_name: updates.first_name?.trim() || 'Unknown',
       last_name: updates.last_name?.trim() || 'User',
       department: updates.department?.trim() || 'general',

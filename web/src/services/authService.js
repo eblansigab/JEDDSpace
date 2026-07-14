@@ -141,6 +141,19 @@ export const createEmployeeRecord = async (authUserId, employeeData) => {
 
   const fallbackFirstName = employeeData.firstName || employeeData.email?.split('@')[0] || 'Unknown'
   const fallbackLastName = employeeData.lastName || 'User'
+  const roleName = String(employeeData.role || '').toLowerCase() === 'admin' ? 'admin' : 'employee'
+
+  let roleId = null
+  try {
+    const { data: roleRow } = await supabaseClient
+      .from('roles')
+      .select('role_id')
+      .eq('role_name', roleName)
+      .maybeSingle()
+    roleId = roleRow?.role_id || null
+  } catch {
+    // proceed without role_id if lookup fails
+  }
 
   const { data, error: insertError } = await supabaseClient
     .from('employee')
@@ -151,12 +164,9 @@ export const createEmployeeRecord = async (authUserId, employeeData) => {
         position: employeeData.position || 'employee',
         department: employeeData.department || 'general',
         employee_type: employeeData.employeeType || 'staff',
-        role:
-          String(employeeData.role || '').toLowerCase() === 'admin'
-            ? 'admin'
-            : 'employee',
+        role: roleName,
+        role_id: roleId,
         user_id: authUserId,
-        auth_user_id: authUserId,
         email: employeeData.email,
         username: employeeData.username || null,
       },
@@ -210,6 +220,19 @@ export const registerUser = async (
     try {
       const fallbackFirstName = firstName || email.split('@')[0] || 'Unknown'
       const fallbackLastName = lastName || 'User'
+      const roleName = String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee'
+
+      let roleId = null
+      try {
+        const { data: roleRow } = await supabaseClient
+          .from('roles')
+          .select('role_id')
+          .eq('role_name', roleName)
+          .maybeSingle()
+        roleId = roleRow?.role_id || null
+      } catch {
+        // proceed without role_id if lookup fails
+      }
 
       const { data, error: insertError } = await supabaseClient
         .from('employee')
@@ -220,9 +243,9 @@ export const registerUser = async (
             position,
             department,
             employee_type: 'staff',
-            role: String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
+            role: roleName,
+            role_id: roleId,
             user_id: authUserId,
-            auth_user_id: authUserId,
             email,
             username: normalizedUsername,
           },

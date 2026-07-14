@@ -39,19 +39,32 @@ const ensureEmployeeRecord = async (user) => {
     const emailName = (user.email || '').split('@')[0] || ''
     const fallbackFirstName = meta.first_name || emailName || 'Unknown'
     const fallbackLastName = meta.last_name || 'User'
+    const roleName = String(meta.role || 'employee').toLowerCase() === 'admin' ? 'admin' : 'employee'
+
+    let roleId = null
+    try {
+      const { data: roleRow } = await supabaseClient
+        .from('roles')
+        .select('role_id')
+        .eq('role_name', roleName)
+        .maybeSingle()
+      roleId = roleRow?.role_id || null
+    } catch {
+      // proceed without role_id if lookup fails
+    }
 
     const { data: inserted, error: insertError } = await supabaseClient
       .from('employee')
       .insert([
         {
           user_id: user.id,
-          auth_user_id: user.id,
           first_name: fallbackFirstName,
           last_name: fallbackLastName,
           position: meta.position || 'employee',
           department: meta.department || 'general',
           employee_type: meta.employee_type || 'staff',
-          role: String(meta.role || 'employee').toLowerCase() === 'admin' ? 'admin' : 'employee',
+          role: roleName,
+          role_id: roleId,
           email: user.email,
         },
       ])

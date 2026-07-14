@@ -4,7 +4,7 @@ import { usePermissions } from '../contexts/PermissionContext'
 
 const ApprovalGuard = ({ children }) => {
   const { user, loading, profile } = useAuth()
-  const { hasPermission } = usePermissions()
+  const { hasAdminAccess } = usePermissions()
 
   if (loading) {
     return <div>Loading...</div>
@@ -14,7 +14,7 @@ const ApprovalGuard = ({ children }) => {
     return <Navigate to="/" replace />
   }
 
-  if (hasPermission('settings.manage')) {
+  if (hasAdminAccess()) {
     return children
   }
 
