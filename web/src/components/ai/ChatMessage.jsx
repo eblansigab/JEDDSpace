@@ -89,7 +89,7 @@ const parseMarkdownTable = (text) => {
 
   const headers = parseRow(tableLines[0])
   const separator = tableLines[1]
-  const isSeparator = /^|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(separator)
+  const isSeparator = /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(separator)
 
   if (!isSeparator) return null
 
