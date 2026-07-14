@@ -7,7 +7,7 @@ import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
 import { supabaseClient } from '../supabase/supabaseClient'
 import ComposeMessageModal from '../components/messaging/ComposeMessageModal'
-import { getEmployeeDirectory, getThreadMessages, sendMessage, sendMessageWithAttachments, getMessageAttachments } from '../services/messageService'
+import { getEmployeeDirectory, getThreadMessages, sendMessageWithAttachments } from '../services/messageService'
 
 const EmailsPage = () => {
   const { user, profile } = useAuth()
@@ -24,8 +24,6 @@ const EmailsPage = () => {
   const [composeReplyTo, setComposeReplyTo] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
-  const [messageAttachments, setMessageAttachments] = useState([])
-  const [loadingAttachments, setLoadingAttachments] = useState(false)
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768)
@@ -40,19 +38,6 @@ const EmailsPage = () => {
     } catch (error) {
       console.error('[EmailsPage] Error loading thread:', error)
       setThreadMessages([])
-    }
-  }
-
-  const loadAttachments = async (emailId) => {
-    setLoadingAttachments(true)
-    try {
-      const attachments = await getMessageAttachments(emailId)
-      setMessageAttachments(attachments || [])
-    } catch (error) {
-      console.error('[EmailsPage] Error loading attachments:', error)
-      setMessageAttachments([])
-    } finally {
-      setLoadingAttachments(false)
     }
   }
 
@@ -156,7 +141,6 @@ const EmailsPage = () => {
   const handleSelectMessage = async (msg) => {
     setSelectedMessage(msg)
     await loadThread(msg.email_id)
-    await loadAttachments(msg.email_id)
     const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const recipientClean = String(msg.recipient_email || msg.recipient || '').trim().toLowerCase()
 
@@ -212,30 +196,18 @@ const EmailsPage = () => {
     setComposeReplyTo(null)
   }
 
-  const handleComposeSubmit = async ({ recipient, subject, body, files = [] }) => {
+  const handleComposeSubmit = async ({ recipient, subject, body, file = null }) => {
     setIsSubmitting(true)
     try {
-      let result
-      if (files.length > 0) {
-        result = await sendMessageWithAttachments({
-          senderId: profile?.employee_id,
-          recipientEmail: recipient,
-          subject,
-          messageBody: body,
-          folder: 'inbox',
-          replyToEmailId: composeReplyTo,
-          files
-        })
-      } else {
-        result = await sendMessage({
-          recipientEmail: recipient,
-          subject,
-          messageBody: body,
-          folder: 'inbox',
-          senderId: profile?.employee_id,
-          replyToEmailId: composeReplyTo
-        })
-      }
+      await sendMessageWithAttachments({
+        senderId: profile?.employee_id,
+        recipientEmail: recipient,
+        subject,
+        messageBody: body,
+        file,
+        folder: 'inbox',
+        replyToEmailId: composeReplyTo
+      })
 
       if (recipient === 'all') {
         await Promise.allSettled(
@@ -616,45 +588,32 @@ const EmailsPage = () => {
                             )}  
                            {threadMsg.message_body || threadMsg.body || 'No message body.'}
                          </div>
-                         {isOriginal && (
-                           <div>
-                             {loadingAttachments ? (
-                               <p style={{ fontSize: '13px', color: 'var(--text-secondary, #64748b)' }}>Loading attachments...</p>
-                             ) : messageAttachments.length > 0 ? (
-                               <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', border: '1px dashed #d1d5db', backgroundColor: '#f9fafb' }}>
-                                 <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '8px', color: '#374151' }}>
-                                   Attachments ({messageAttachments.length})
-                                 </div>
-                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                   {messageAttachments.map((attachment) => (
-                                     <a
-                                       key={attachment.email_attachment_id}
-                                       href={attachment.file_path}
-                                       target="_blank"
-                                       rel="noopener noreferrer"
-                                       style={{
-                                         display: 'flex',
-                                         alignItems: 'center',
-                                         gap: '8px',
-                                         padding: '8px 10px',
-                                         borderRadius: '6px',
-                                         border: '1px solid #e5e7eb',
-                                         backgroundColor: '#fff',
-                                         textDecoration: 'none',
-                                         color: '#2563eb',
-                                         fontSize: '13px'
-                                       }}
-                                     >
-                                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                         {attachment.file_name}
-                                       </span>
-                                     </a>
-                                   ))}
-                                 </div>
-                               </div>
-                             ) : null}
+                         {isOriginal && selectedMessage.attachment_url ? (
+                           <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', border: '1px dashed #d1d5db', backgroundColor: '#f9fafb' }}>
+                             <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '8px', color: '#374151' }}>
+                               Attachment
+                             </div>
+                             <a
+                               href={selectedMessage.attachment_url}
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               style={{
+                                 display: 'inline-flex',
+                                 alignItems: 'center',
+                                 gap: '8px',
+                                 padding: '8px 10px',
+                                 borderRadius: '6px',
+                                 border: '1px solid #e5e7eb',
+                                 backgroundColor: '#fff',
+                                 textDecoration: 'none',
+                                 color: '#2563eb',
+                                 fontSize: '13px'
+                               }}
+                             >
+                               {selectedMessage.attachment_url.split('/').pop()}
+                             </a>
                            </div>
-                         )}
+                         ) : null}
                        </div>
                     )
                   })}

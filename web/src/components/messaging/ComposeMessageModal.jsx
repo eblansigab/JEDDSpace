@@ -16,25 +16,21 @@ export default function ComposeMessageModal({
   const [recipient, setRecipient] = useState(defaultRecipient)
   const [subject, setSubject] = useState(defaultSubject)
   const [body, setBody] = useState('')
-  const [attachments, setAttachments] = useState([])
+  const [attachment, setAttachment] = useState(null)
 
   useEffect(() => {
     if (visible) {
       setRecipient(defaultRecipient)
       setSubject(defaultSubject)
       setBody('')
-      setAttachments([])
+      setAttachment(null)
     }
   }, [visible, defaultRecipient, defaultSubject])
 
   const handleFileChange = (event) => {
-    const files = Array.from(event.target.files || [])
-    setAttachments((prev) => [...prev, ...files])
+    const file = event.target.files?.[0] || null
+    setAttachment(file)
     event.target.value = ''
-  }
-
-  const removeAttachment = (index) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (event) => {
@@ -57,7 +53,7 @@ export default function ComposeMessageModal({
       recipient,
       subject: subject.trim(),
       body: body.trim(),
-      files: attachments
+      file: attachment
     })
   }
 
@@ -205,12 +201,11 @@ export default function ComposeMessageModal({
                 color: '#374151'
               }}
             >
-              Attachments
+              Attachment
             </label>
             <input
               id="compose-attachments"
               type="file"
-              multiple
               onChange={handleFileChange}
               disabled={isSubmitting}
               style={{
@@ -222,43 +217,28 @@ export default function ComposeMessageModal({
                 boxSizing: 'border-box'
               }}
             />
-            {attachments.length > 0 && (
-              <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {attachments.map((file, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '6px 10px',
-                      borderRadius: '6px',
-                      border: '1px solid #e5e7eb',
-                      backgroundColor: '#f9fafb'
-                    }}
-                  >
-                    <span style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {file.name}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(index)}
-                      disabled={isSubmitting}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#ef4444',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        padding: '2px 6px',
-                        borderRadius: '4px'
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
+            {attachment && (
+              <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: '6px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+                <span style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {attachment.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAttachment(null)}
+                  disabled={isSubmitting}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: '#ef4444',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    padding: '2px 6px',
+                    borderRadius: '4px'
+                  }}
+                >
+                  Remove
+                </button>
               </div>
             )}
           </div>

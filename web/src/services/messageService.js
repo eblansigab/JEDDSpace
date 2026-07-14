@@ -30,7 +30,8 @@ export const sendMessage = async ({
   subject,
   messageBody,
   folder = 'inbox',
-  replyToEmailId = null
+  replyToEmailId = null,
+  attachmentUrl = null
 }) => {
   const payload = {
     sender_id: senderId,
@@ -38,7 +39,8 @@ export const sendMessage = async ({
     subject,
     message_body: messageBody,
     folder,
-    reply_to_email_id: replyToEmailId
+    reply_to_email_id: replyToEmailId,
+    ...(attachmentUrl ? { attachment_url: attachmentUrl } : {})
   }
 
   const { data, error } = await supabaseClient
@@ -55,7 +57,7 @@ export const sendMessage = async ({
   return data
 }
 
-export const uploadMessageAttachment = async (file) => {
+const uploadToDocumentBucket = async (file) => {
   const fileName = `message_${Date.now()}_${file.name}`
   const { error: uploadError } = await supabaseClient.storage
     .from('document')
@@ -70,39 +72,7 @@ export const uploadMessageAttachment = async (file) => {
     .from('document')
     .getPublicUrl(fileName)
 
-  const { data, error } = await supabaseClient
-    .from('email_attachment')
-    .insert({
-      file_name: file.name,
-      file_type: file.type,
-      file_size: file.size,
-      file_path: publicUrlData.publicUrl,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('[messageService] Error saving attachment record:', error)
-    throw error
-  }
-
-  return data
-}
-
-export const linkAttachmentToEmail = async (emailId, attachmentId) => {
-  const { data, error } = await supabaseClient
-    .from('email_attachment')
-    .update({ email_id: emailId })
-    .eq('email_attachment_id', attachmentId)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('[messageService] Error linking attachment to email:', error)
-    throw error
-  }
-
-  return data
+  return publicUrlData.publicUrl
 }
 
 export const sendMessageWithAttachments = async ({
@@ -110,48 +80,25 @@ export const sendMessageWithAttachments = async ({
   recipientEmail,
   subject,
   messageBody,
-  files = [],
+  file = null,
   folder = 'inbox',
   replyToEmailId = null
 }) => {
-  const email = await sendMessage({
+  let attachmentUrl = null
+
+  if (file) {
+    attachmentUrl = await uploadToDocumentBucket(file)
+  }
+
+  return sendMessage({
     senderId,
     recipientEmail,
     subject,
     messageBody,
     folder,
-    replyToEmailId
+    replyToEmailId,
+    attachmentUrl
   })
-
-  if (!email?.email_id) {
-    return email
-  }
-
-  const uploadPromises = files.map((file) => uploadMessageAttachment(file))
-  const uploaded = await Promise.all(uploadPromises)
-
-  await Promise.all(
-    uploaded
-      .filter((item) => item?.email_attachment_id)
-      .map((item) => linkAttachmentToEmail(email.email_id, item.email_attachment_id))
-  )
-
-  return email
-}
-
-export const getMessageAttachments = async (emailId) => {
-  const { data, error } = await supabaseClient
-    .from('email_attachment')
-    .select('*')
-    .eq('email_id', emailId)
-    .order('created_at', { ascending: true })
-
-  if (error) {
-    console.error('[messageService] Error fetching message attachments:', error)
-    throw error
-  }
-
-  return data || []
 }
 
 export const getThreadMessages = async (rootEmailId) => {

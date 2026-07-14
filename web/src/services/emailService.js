@@ -123,21 +123,6 @@ export const emailService = {
     }
 
     return (directCount || 0) + (broadcastCount || 0)
-  },
-
-  async getMessageAttachments(emailId) {
-    const { data, error } = await supabaseClient
-      .from('email_attachment')
-      .select('*')
-      .eq('email_id', emailId)
-      .order('created_at', { ascending: true })
-
-    if (error) {
-      console.error('[emailService] Error fetching message attachments:', error)
-      throw error
-    }
-
-    return data || []
   }
 }
 
