@@ -1,5 +1,13 @@
 import { supabaseClient } from '../supabase/supabaseClient'
 
+export const MESSAGE_REACTION_TYPES = [
+  { value: 'acknowledged', label: 'Acknowledged' },
+  { value: 'appreciated', label: 'Appreciated' },
+  { value: 'important', label: 'Important' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'question', label: 'Question' },
+]
+
 export const getEmployeeDirectory = async () => {
   const { data, error } = await supabaseClient
     .from('employee')
@@ -228,5 +236,101 @@ export const getBusinessForms = async () => {
   }
 
   return data || []
+}
+
+export const addMessageReaction = async (emailId, employeeId, reactionType) => {
+  const { error } = await supabaseClient
+    .from('message_reactions')
+    .upsert(
+      { email_id: emailId, employee_id: employeeId, reaction_type: reactionType, updated_at: new Date().toISOString() },
+      { onConflict: ['email_id', 'employee_id'] }
+    )
+
+  if (error) {
+    console.error('[messageService] addMessageReaction failed', error)
+    throw error
+  }
+}
+
+export const getMessageReactions = async (emailId) => {
+  const { data, error } = await supabaseClient
+    .from('message_reactions')
+    .select('message_reaction_id, email_id, employee_id, reaction_type, created_at, updated_at, employee:employee_id (first_name, last_name, department)')
+    .eq('email_id', emailId)
+    .order('updated_at', { ascending: false })
+
+  if (error) {
+    console.error('[messageService] getMessageReactions failed', error)
+    return []
+  }
+
+  return (data || []).map((reaction) => {
+    const employee = reaction.employee || {}
+    return {
+      message_reaction_id: reaction.message_reaction_id,
+      employee_id: reaction.employee_id,
+      reaction_type: reaction.reaction_type,
+      created_at: reaction.created_at,
+      updated_at: reaction.updated_at,
+      employee_name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown',
+      department: employee.department || '',
+    }
+  })
+}
+
+export const getMessageReactionSummary = async (emailId) => {
+  const { data, error } = await supabaseClient
+    .from('message_reactions')
+    .select('reaction_type')
+    .eq('email_id', emailId)
+
+  if (error) {
+    console.error('[messageService] getMessageReactionSummary failed', error)
+    return {}
+  }
+
+  return (data || []).reduce((summary, row) => {
+    const type = row.reaction_type || 'unknown'
+    summary[type] = (summary[type] || 0) + 1
+    return summary
+  }, {})
+}
+
+export const markMessageRead = async (emailId, employeeId) => {
+  const { error } = await supabaseClient
+    .from('message_read_receipts')
+    .upsert(
+      { email_id: emailId, employee_id: employeeId, read_at: new Date().toISOString() },
+      { onConflict: ['email_id', 'employee_id'] }
+    )
+
+  if (error) {
+    console.error('[messageService] markMessageRead failed', error)
+    throw error
+  }
+}
+
+export const getMessageReadReceipts = async (emailId) => {
+  const { data, error } = await supabaseClient
+    .from('message_read_receipts')
+    .select('message_read_receipt_id, email_id, employee_id, read_at, employee:employee_id (first_name, last_name, department)')
+    .eq('email_id', emailId)
+    .order('read_at', { ascending: false })
+
+  if (error) {
+    console.error('[messageService] getMessageReadReceipts failed', error)
+    return []
+  }
+
+  return (data || []).map((receipt) => {
+    const employee = receipt.employee || {}
+    return {
+      message_read_receipt_id: receipt.message_read_receipt_id,
+      employee_id: receipt.employee_id,
+      read_at: receipt.read_at,
+      employee_name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown',
+      department: employee.department || '',
+    }
+  })
 }
 

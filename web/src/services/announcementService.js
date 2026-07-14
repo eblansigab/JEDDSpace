@@ -173,5 +173,63 @@ export const announcementService = {
       }
     })
   },
+
+  async addReaction(announcementId, employeeId, reactionType) {
+    const { error } = await supabaseClient
+      .from('announcement_reactions')
+      .upsert(
+        { announcement_id: announcementId, employee_id: employeeId, reaction_type: reactionType, updated_at: new Date().toISOString() },
+        { onConflict: ['announcement_id', 'employee_id'] }
+      )
+
+    if (error) {
+      console.error('[announcementService] addReaction failed', error)
+      throw error
+    }
+  },
+
+  async getReactions(announcementId) {
+    const { data, error } = await supabaseClient
+      .from('announcement_reactions')
+      .select('announcement_reaction_id, announcement_id, employee_id, reaction_type, created_at, updated_at, employee:employee_id (first_name, last_name, department)')
+      .eq('announcement_id', announcementId)
+      .order('updated_at', { ascending: false })
+
+    if (error) {
+      console.error('[announcementService] getReactions failed', error)
+      return []
+    }
+
+    return (data || []).map((reaction) => {
+      const employee = reaction.employee || {}
+      return {
+        announcement_reaction_id: reaction.announcement_reaction_id,
+        employee_id: reaction.employee_id,
+        reaction_type: reaction.reaction_type,
+        created_at: reaction.created_at,
+        updated_at: reaction.updated_at,
+        employee_name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown',
+        department: employee.department || '',
+      }
+    })
+  },
+
+  async getReactionSummary(announcementId) {
+    const { data, error } = await supabaseClient
+      .from('announcement_reactions')
+      .select('reaction_type')
+      .eq('announcement_id', announcementId)
+
+    if (error) {
+      console.error('[announcementService] getReactionSummary failed', error)
+      return {}
+    }
+
+    return (data || []).reduce((summary, row) => {
+      const type = row.reaction_type || 'unknown'
+      summary[type] = (summary[type] || 0) + 1
+      return summary
+    }, {})
+  },
 }
 

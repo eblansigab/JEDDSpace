@@ -7,7 +7,7 @@ import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
 import { supabaseClient } from '../supabase/supabaseClient'
 import ComposeMessageModal from '../components/messaging/ComposeMessageModal'
-import { getEmployeeDirectory, getThreadMessages, sendMessageWithAttachments } from '../services/messageService'
+import { getEmployeeDirectory, getThreadMessages, sendMessageWithAttachments, MESSAGE_REACTION_TYPES, addMessageReaction, getMessageReactionSummary, getMessageReactions, markMessageRead, getMessageReadReceipts } from '../services/messageService'
 
 const EmailsPage = () => {
   const { user, profile } = useAuth()
@@ -24,6 +24,10 @@ const EmailsPage = () => {
   const [composeReplyTo, setComposeReplyTo] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  const [reactionSummaries, setReactionSummaries] = useState({})
+  const [userReactions, setUserReactions] = useState({})
+  const [reactionLoading, setReactionLoading] = useState({})
+  const [readReceipts, setReadReceipts] = useState([])
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768)
@@ -141,12 +145,15 @@ const EmailsPage = () => {
   const handleSelectMessage = async (msg) => {
     setSelectedMessage(msg)
     await loadThread(msg.email_id)
+    await loadMessageReactions(msg.email_id)
+    await loadReadReceipts(msg.email_id)
     const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const recipientClean = String(msg.recipient_email || msg.recipient || '').trim().toLowerCase()
 
     if ((recipientClean === myEmail || recipientClean === 'all') && !msg.is_read) {
       try {
         await emailService.markAsRead(msg.email_id)
+        await markMessageRead(msg.email_id, profile?.employee_id)
         setMessages((prev) =>
           prev.map((m) => (m.email_id === msg.email_id ? { ...m, is_read: true } : m))
         )
@@ -257,6 +264,48 @@ const EmailsPage = () => {
     const replyRecipient = senderEmp ? senderEmp.email : msg.recipient_email
     const reSubject = String(msg.subject || '').startsWith('Re:') ? msg.subject : `Re: ${msg.subject || 'No Subject'}`
     openCompose(replyRecipient, reSubject, msg.email_id)
+  }
+
+  const loadMessageReactions = async (emailId) => {
+    try {
+      const [summary, list] = await Promise.all([
+        getMessageReactionSummary(emailId),
+        getMessageReactions(emailId),
+      ])
+      setReactionSummaries((prev) => ({ ...prev, [emailId]: summary }))
+      if (profile?.employee_id && list.length > 0) {
+        const mine = list.find((r) => r.employee_id === profile.employee_id)
+        if (mine) {
+          setUserReactions((prev) => ({ ...prev, [emailId]: mine.reaction_type }))
+        }
+      }
+    } catch (error) {
+      console.error('[EmailsPage] Error loading reactions:', error)
+    }
+  }
+
+  const loadReadReceipts = async (emailId) => {
+    try {
+      const receipts = await getMessageReadReceipts(emailId)
+      setReadReceipts(receipts || [])
+    } catch (error) {
+      console.error('[EmailsPage] Error loading read receipts:', error)
+      setReadReceipts([])
+    }
+  }
+
+  const handleMessageReaction = async (emailId, reactionType) => {
+    if (!profile?.employee_id) return
+    setReactionLoading((prev) => ({ ...prev, [emailId]: true }))
+    try {
+      await addMessageReaction(emailId, profile.employee_id, reactionType)
+      setUserReactions((prev) => ({ ...prev, [emailId]: reactionType }))
+      await loadMessageReactions(emailId)
+    } catch (error) {
+      await alertService.error(error.message || 'Unable to update reaction.', 'Reaction Failed')
+    } finally {
+      setReactionLoading((prev) => ({ ...prev, [emailId]: false }))
+    }
   }
 
   // Count helper functions for badge indicators
@@ -588,33 +637,69 @@ const EmailsPage = () => {
                             )}  
                            {threadMsg.message_body || threadMsg.body || 'No message body.'}
                          </div>
-                         {isOriginal && selectedMessage.attachment_url ? (
-                           <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', border: '1px dashed #d1d5db', backgroundColor: '#f9fafb' }}>
-                             <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '8px', color: '#374151' }}>
-                               Attachment
-                             </div>
-                             <a
-                               href={selectedMessage.attachment_url}
-                               target="_blank"
-                               rel="noopener noreferrer"
-                               style={{
-                                 display: 'inline-flex',
-                                 alignItems: 'center',
-                                 gap: '8px',
-                                 padding: '8px 10px',
-                                 borderRadius: '6px',
-                                 border: '1px solid #e5e7eb',
-                                 backgroundColor: '#fff',
-                                 textDecoration: 'none',
-                                 color: '#2563eb',
-                                 fontSize: '13px'
-                               }}
-                             >
-                               {selectedMessage.attachment_url.split('/').pop()}
-                             </a>
-                           </div>
-                         ) : null}
-                       </div>
+                          {isOriginal && selectedMessage.attachment_url ? (
+                            <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', border: '1px dashed #d1d5db', backgroundColor: '#f9fafb' }}>
+                              <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '8px', color: '#374151' }}>
+                                Attachment
+                              </div>
+                              <a
+                                href={selectedMessage.attachment_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  padding: '8px 10px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #e5e7eb',
+                                  backgroundColor: '#fff',
+                                  textDecoration: 'none',
+                                  color: '#2563eb',
+                                  fontSize: '13px'
+                                }}
+                              >
+                                {selectedMessage.attachment_url.split('/').pop()}
+                              </a>
+                            </div>
+                          ) : null}
+                          {isOriginal && (
+                            <div style={{ marginTop: 16 }} onClick={(event) => event.stopPropagation()}>
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                                {MESSAGE_REACTION_TYPES.map((reaction) => {
+                                  const count = reactionSummaries[selectedMessage.email_id]?.[reaction.value] || 0
+                                  const isActive = userReactions[selectedMessage.email_id] === reaction.value
+                                  return (
+                                    <button
+                                      key={reaction.value}
+                                      onClick={() => handleMessageReaction(selectedMessage.email_id, reaction.value)}
+                                      disabled={reactionLoading[selectedMessage.email_id]}
+                                      style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 16,
+                                        border: isActive ? '1px solid #2563eb' : '1px solid #d1d5db',
+                                        backgroundColor: isActive ? 'rgba(37, 99, 235, 0.1)' : '#fff',
+                                        color: isActive ? '#2563eb' : '#374151',
+                                        cursor: reactionLoading[selectedMessage.email_id] ? 'not-allowed' : 'pointer',
+                                        fontSize: 12,
+                                        fontWeight: isActive ? '600' : '500',
+                                        opacity: reactionLoading[selectedMessage.email_id] ? 0.7 : 1,
+                                      }}
+                                    >
+                                      {reaction.label}
+                                      {count > 0 && ` (${count})`}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                              {readReceipts.length > 0 && (
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary, #64748b)' }}>
+                                  Read by: {readReceipts.map((r) => r.employee_name).join(', ')}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                     )
                   })}
                 </div>

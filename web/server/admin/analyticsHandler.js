@@ -74,7 +74,7 @@ export const handleAnalytics = async ({ viewer }) => {
   topUsersData.data?.forEach((row) => {
     const uid = row.user_id
     if (!userPromptCounts[uid]) {
-      const fullName = employeeNameMap[String(uid)] || String(uid)
+      const fullName = employeeNameMap.get(String(uid)) || String(uid)
       userPromptCounts[uid] = {
         userId: uid,
         name: fullName,

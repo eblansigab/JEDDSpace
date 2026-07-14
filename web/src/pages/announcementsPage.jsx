@@ -9,6 +9,14 @@ import { emailService } from '../services/emailService'
 import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
 
+export const ANNOUNCEMENT_REACTION_TYPES = [
+  { value: 'acknowledged', label: 'Acknowledged' },
+  { value: 'appreciated', label: 'Appreciated' },
+  { value: 'important', label: 'Important' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'question', label: 'Question' },
+]
+
 const AnnouncementsPage = () => {
   const { user, profile } = useAuth()
   const { hasPermission } = usePermissions()
@@ -24,6 +32,9 @@ const AnnouncementsPage = () => {
   const [views, setViews] = useState([])
   const [isViewsOpen, setIsViewsOpen] = useState(false)
   const [loadingViews, setLoadingViews] = useState(false)
+  const [reactionSummaries, setReactionSummaries] = useState({})
+  const [userReactions, setUserReactions] = useState({})
+  const [reactionLoading, setReactionLoading] = useState({})
   const isAdmin = hasPermission('ANN_MANAGE')
 
   const viewer = useMemo(() => {
@@ -52,9 +63,61 @@ const AnnouncementsPage = () => {
     }
   }
 
+  const loadReactions = async (announcementIds) => {
+    const ids = Array.isArray(announcementIds) ? announcementIds : [announcementIds]
+    const summaries = {}
+    const reactions = {}
+
+    await Promise.allSettled(
+      ids.map(async (id) => {
+        try {
+          const [summary, list] = await Promise.all([
+            announcementService.getReactionSummary(id),
+            announcementService.getReactions(id),
+          ])
+          summaries[id] = summary
+          if (profile?.employee_id && list.length > 0) {
+            const mine = list.find((r) => r.employee_id === profile.employee_id)
+            if (mine) {
+              reactions[id] = mine.reaction_type
+            }
+          }
+        } catch {
+          summaries[id] = {}
+        }
+      })
+    )
+
+    setReactionSummaries((prev) => ({ ...prev, ...summaries }))
+    setUserReactions((prev) => ({ ...prev, ...reactions }))
+  }
+
+  const handleReaction = async (announcement, reactionType) => {
+    const announcementId = announcement.announcement_id || announcement.id
+    if (!profile?.employee_id) return
+
+    setReactionLoading((prev) => ({ ...prev, [announcementId]: true }))
+    try {
+      await announcementService.addReaction(announcementId, profile.employee_id, reactionType)
+      setUserReactions((prev) => ({ ...prev, [announcementId]: reactionType }))
+      await loadReactions(announcementId)
+    } catch (error) {
+      await alertService.error(error.message || 'Unable to update reaction.', 'Reaction Failed')
+    } finally {
+      setReactionLoading((prev) => ({ ...prev, [announcementId]: false }))
+    }
+  }
+
   useEffect(() => {
     loadAnnouncements()
   }, [viewer])
+
+  useEffect(() => {
+    const ids = announcements.map((item) => item.announcement_id || item.id)
+    if (ids.length > 0) {
+      loadReactions(ids)
+    }
+  }, [announcements])
 
   const openEditModal = (announcement) => {
     setEditingAnnouncement(announcement)
@@ -221,6 +284,33 @@ const AnnouncementsPage = () => {
                 </div>
               </div>
               <p>{item.body}</p>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }} onClick={(event) => event.stopPropagation()}>
+                {ANNOUNCEMENT_REACTION_TYPES.map((reaction) => {
+                  const count = reactionSummaries[item.announcement_id || item.id]?.[reaction.value] || 0
+                  const isActive = userReactions[item.announcement_id || item.id] === reaction.value
+                  return (
+                    <button
+                      key={reaction.value}
+                      onClick={() => handleReaction(item, reaction.value)}
+                      disabled={reactionLoading[item.announcement_id || item.id]}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 16,
+                        border: isActive ? '1px solid #2563eb' : '1px solid #d1d5db',
+                        backgroundColor: isActive ? 'rgba(37, 99, 235, 0.1)' : '#fff',
+                        color: isActive ? '#2563eb' : '#374151',
+                        cursor: reactionLoading[item.announcement_id || item.id] ? 'not-allowed' : 'pointer',
+                        fontSize: 12,
+                        fontWeight: isActive ? '600' : '500',
+                        opacity: reactionLoading[item.announcement_id || item.id] ? 0.7 : 1,
+                      }}
+                    >
+                      {reaction.label}
+                      {count > 0 && ` (${count})`}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           ))}
         </main>
