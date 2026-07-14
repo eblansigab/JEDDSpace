@@ -42,7 +42,11 @@ const ManageEmployeesPage = () => {
 
   const fetchEmployees = async () => {
     try {
-      const data = await employeeService.getAll()
+      const viewer = profile ? {
+        roleId: profile.role_id,
+        employeeId: profile.employee_id,
+      } : null
+      const data = await employeeService.getManageable(viewer)
       setEmployees(data || [])
     } catch (error) {
       console.error('[ManageEmployees] Fetch employees failed', error)
@@ -56,9 +60,22 @@ const ManageEmployeesPage = () => {
   }, [])
 
   const getPosition = async()=>{
-    const data = await getPositions()
-    const filteredData = data.filter(level=>level.hierarchy_level > profile.role_id)
-    console.log(filteredData)
+    const [positions, currentRole] = await Promise.all([
+      getPositions(),
+      profile?.role_id
+        ? supabaseClient
+            .from('roles')
+            .select('hierarchy_level')
+            .eq('role_id', profile.role_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ])
+
+    const currentHierarchyLevel = currentRole?.data?.hierarchy_level
+    const filteredData = positions.filter((level) => {
+      if (!currentHierarchyLevel) return true
+      return level.hierarchy_level > currentHierarchyLevel
+    })
     setPosition(filteredData)
   }
 
@@ -182,10 +199,18 @@ const ManageEmployeesPage = () => {
       return
     }
 
-    //temporary validation check for position
-    const role = position.filter(id=>id.role_name==form.position).hierarchy_level
-    if(role<=profile.role_id){
-      await alertService.warning("Invalid position.")
+    const targetPosition = position.find((item) => item.role_name === form.position)
+    const currentRoleHierarchy = profile?.role_id
+      ? await supabaseClient
+          .from('roles')
+          .select('hierarchy_level')
+          .eq('role_id', profile.role_id)
+          .maybeSingle()
+          .then((r) => r.data?.hierarchy_level)
+      : null
+
+    if (targetPosition?.hierarchy_level && currentRoleHierarchy && targetPosition.hierarchy_level <= currentRoleHierarchy) {
+      await alertService.warning('Invalid position.')
       return
     }
 

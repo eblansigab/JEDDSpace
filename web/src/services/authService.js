@@ -161,7 +161,7 @@ export const createEmployeeRecord = async (authUserId, employeeData) => {
       {
         first_name: fallbackFirstName,
         last_name: fallbackLastName,
-        position: employeeData.position || 'employee',
+        position: roleName,
         department: employeeData.department || 'general',
         employee_type: employeeData.employeeType || 'staff',
         role: roleName,
@@ -240,7 +240,7 @@ export const registerUser = async (
           {
             first_name: fallbackFirstName,
             last_name: fallbackLastName,
-            position,
+            position: roleName,
             department,
             employee_type: 'staff',
             role: roleName,

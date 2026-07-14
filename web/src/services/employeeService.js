@@ -1,11 +1,74 @@
 import { supabaseClient } from '../supabase/supabaseClient'
 
+const syncRoleFields = async (employeeData, existingRoleId = null) => {
+  const roleId = employeeData.role_id || existingRoleId
+  if (!roleId) {
+    return employeeData
+  }
+
+  const { data: roleRow } = await supabaseClient
+    .from('roles')
+    .select('role_name')
+    .eq('role_id', roleId)
+    .maybeSingle()
+
+  if (!roleRow) {
+    return employeeData
+  }
+
+  return {
+    ...employeeData,
+    position: roleRow.role_name,
+    role: roleRow.role_name,
+  }
+}
+
 export const employeeService = {
   async getAll() {
     const { data, error } = await supabaseClient
       .from('employee')
       .select('*')
       .eq('is_archived', false)
+      .order('first_name')
+
+    if (error) throw error
+
+    return data
+  },
+
+  async getManageable(viewer = null) {
+    if (!viewer?.roleId) {
+      return []
+    }
+
+    const { data: currentRole } = await supabaseClient
+      .from('roles')
+      .select('hierarchy_level')
+      .eq('role_id', viewer.roleId)
+      .maybeSingle()
+
+    const currentHierarchyLevel = currentRole?.hierarchy_level
+
+    if (!currentHierarchyLevel) {
+      return []
+    }
+
+    const { data: subordinateRoles } = await supabaseClient
+      .from('roles')
+      .select('role_id')
+      .gt('hierarchy_level', currentHierarchyLevel)
+
+    const subordinateRoleIds = (subordinateRoles || []).map((role) => role.role_id)
+
+    if (subordinateRoleIds.length === 0) {
+      return []
+    }
+
+    const { data, error } = await supabaseClient
+      .from('employee')
+      .select('*')
+      .eq('is_archived', false)
+      .in('role_id', subordinateRoleIds)
       .order('first_name')
 
     if (error) throw error
@@ -53,9 +116,11 @@ export const employeeService = {
   },
 
   async create(employeeData) {
+    const syncedData = await syncRoleFields(employeeData)
+
     const { data, error } = await supabaseClient
       .from('employee')
-      .insert([employeeData])
+      .insert([syncedData])
 
     if (error) throw error
 
@@ -63,9 +128,17 @@ export const employeeService = {
   },
 
   async update(employeeId, updates) {
+    const { data: currentEmployee } = await supabaseClient
+      .from('employee')
+      .select('role_id')
+      .eq('employee_id', employeeId)
+      .maybeSingle()
+
+    const syncedUpdates = await syncRoleFields(updates, currentEmployee?.role_id)
+
     const { data, error } = await supabaseClient
       .from('employee')
-      .update(updates)
+      .update(syncedUpdates)
       .eq('employee_id', employeeId)
 
     if (error) throw error
