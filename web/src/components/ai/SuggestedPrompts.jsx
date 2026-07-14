@@ -2,7 +2,7 @@ import Button from '../Button'
 
 export default function SuggestedPrompts({ prompts = [], onSelect }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+    <div  style={{ display: 'grid', gap: 10 }}>
       {prompts.map((prompt) => (
         <Button
           className='suggested-prompt'
@@ -11,19 +11,19 @@ export default function SuggestedPrompts({ prompts = [], onSelect }) {
           onClick={() => onSelect(prompt)}
           title={prompt.label}
           style={{
-            justifyContent: 'center',
-            textAlign: 'center',
-            minHeight: 32,
-            padding: '6px 12px',
+            justifyContent: 'flex-start',
+            textAlign: 'left',
+            minHeight: 46,
+            padding: '10px 14px',
             borderColor: '#cbd5e1',
             color: '#0f172a',
-            background: '#fff',
-            fontSize: 12,
-            lineHeight: 1.3,
-            borderRadius: 999,
+            background: '#fff'
           }}
         >
-          {prompt.label}
+          <div>
+            <div style={{ fontWeight: 700 }}>{prompt.label}</div>
+            {prompt.description && <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{prompt.description}</div>}
+          </div>
         </Button>
       ))}
     </div>
