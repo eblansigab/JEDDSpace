@@ -10,7 +10,7 @@ import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
 
 const AnnouncementsPage = () => {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { hasPermission } = usePermissions()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
@@ -21,13 +21,28 @@ const AnnouncementsPage = () => {
   const [editBody, setEditBody] = useState('')
   const [editStatus, setEditStatus] = useState('Published')
   const [isSaving, setIsSaving] = useState(false)
+  const [views, setViews] = useState([])
+  const [isViewsOpen, setIsViewsOpen] = useState(false)
+  const [loadingViews, setLoadingViews] = useState(false)
   const isAdmin = hasPermission('ANN_MANAGE')
+
+  const viewer = useMemo(() => {
+    if (!profile) return null
+    return {
+      isAdmin,
+      employee: {
+        department: profile.department,
+        role_id: profile.role_id,
+      },
+      scope: profile.role?.scope || profile.scope || 'ALL',
+    }
+  }, [profile, isAdmin])
 
   const loadAnnouncements = async () => {
     setLoading(true)
 
     try {
-      const data = await announcementService.getAnnouncements()
+      const data = await announcementService.getAnnouncements(viewer)
       setAnnouncements(data)
     } catch (error) {
       console.error(error)
@@ -39,7 +54,7 @@ const AnnouncementsPage = () => {
 
   useEffect(() => {
     loadAnnouncements()
-  }, [])
+  }, [viewer])
 
   const openEditModal = (announcement) => {
     setEditingAnnouncement(announcement)
@@ -105,14 +120,32 @@ const AnnouncementsPage = () => {
     }
   }
 
+  const openAnnouncement = async (announcement) => {
+    if (profile?.employee_id) {
+      await announcementService.markViewed(announcement.announcement_id || announcement.id, profile.employee_id)
+    }
+  }
+
+  const openViews = async (announcement) => {
+    const announcementId = announcement.announcement_id || announcement.id
+    setLoadingViews(true)
+    setIsViewsOpen(true)
+    try {
+      const data = await announcementService.getViews(announcementId)
+      setViews(data)
+    } catch (error) {
+      console.error(error)
+      setViews([])
+    } finally {
+      setLoadingViews(false)
+    }
+  }
+
   const filteredAnnouncements = useMemo(
     () => {
       const query = searchTerm.trim().toLowerCase()
-      const visibleAnnouncements = isAdmin
-        ? announcements
-        : announcements.filter((item) => (item.status || 'Published') === 'Published')
 
-      return visibleAnnouncements.filter((item) => {
+      return announcements.filter((item) => {
         const matchesStatus = statusFilter === 'All' || (item.status || 'Published') === statusFilter
         const matchesQuery = [item.title, item.body].some((text) =>
           text?.toLowerCase().includes(query)
@@ -121,7 +154,7 @@ const AnnouncementsPage = () => {
         return matchesStatus && (!query || matchesQuery)
       })
     },
-    [announcements, isAdmin, searchTerm, statusFilter]
+    [announcements, searchTerm, statusFilter]
   )
 
   return (
@@ -164,7 +197,12 @@ const AnnouncementsPage = () => {
           )}
 
           {!loading && filteredAnnouncements.map((item) => (
-            <div key={item.announcement_id || item.id || item.created_at} className="announcement-box">
+            <div
+              key={item.announcement_id || item.id || item.created_at}
+              className="announcement-box"
+              onClick={() => openAnnouncement(item)}
+              style={{ cursor: 'pointer' }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div>
                   <h3>{item.title}</h3>
@@ -176,6 +214,9 @@ const AnnouncementsPage = () => {
                   <StatusBadge status={item.status || 'Published'} />
                   {isAdmin && (
                     <Button variant="outline" onClick={() => openEditModal(item)}>Edit</Button>
+                  )}
+                  {isAdmin && (
+                    <Button variant="outline" onClick={() => openViews(item)}>Seen By</Button>
                   )}
                 </div>
               </div>
@@ -217,6 +258,36 @@ const AnnouncementsPage = () => {
             <option key={status} value={status}>{status}</option>
           ))}
         </select>
+      </Modal>
+      <Modal
+        visible={isViewsOpen}
+        title="Seen By"
+        onClose={() => setIsViewsOpen(false)}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <Button variant="outline" onClick={() => setIsViewsOpen(false)}>Close</Button>
+          </div>
+        }
+      >
+        {loadingViews ? (
+          <p>Loading views...</p>
+        ) : views.length === 0 ? (
+          <p>No views recorded yet.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {views.map((view) => (
+              <div key={view.announcement_view_id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{view.employee_name}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{view.department}</div>
+                </div>
+                <div style={{ fontSize: 12, color: '#64748b' }}>
+                  {view.viewed_at ? new Date(view.viewed_at).toLocaleString() : ''}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Modal>
       </DashboardLayout>
     </>

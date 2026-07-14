@@ -3,21 +3,56 @@ import DashboardLayout from '../layouts/dashboardLayout'
 import Sidebar from '../components/sideBar'
 import { Button, Modal, PageHeader, StatusBadge, Table } from '../components'
 import { useAuth } from '../services/authContext'
-import { ANNOUNCEMENT_STATUSES, announcementService } from '../services/announcementService'
+import { ANNOUNCEMENT_STATUSES, ANNOUNCEMENT_VISIBILITY_SCOPES, announcementService } from '../services/announcementService'
 import { emailService } from '../services/emailService'
 import { PRIORITY_LEVELS, getNotificationId, notificationService } from '../services/notificationService'
+import { usePermissions } from '../contexts/PermissionContext'
 import { alertService } from '../utils/alertService'
 
 const PostAnnouncement = () => {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const { hasPermission, getScope } = usePermissions()
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [status, setStatus] = useState('Published')
   const [priority, setPriority] = useState('Normal')
+  const [visibilityScope, setVisibilityScope] = useState('ORGANIZATION')
+  const [visibilityTarget, setVisibilityTarget] = useState('')
+  const [availableAudiences, setAvailableAudiences] = useState([])
   const [isPublishing, setIsPublishing] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
+
+  const canCreateAnnouncements = hasPermission('ANN_CREATE')
+  const announcementScope = getScope('ANN_CREATE') || 'ALL'
+
+  useEffect(() => {
+    if (!canCreateAnnouncements || !profile) {
+      setAvailableAudiences([{ label: 'Entire Organization', value: 'ORGANIZATION', target: null }])
+      return
+    }
+
+    const audiences = [{ label: 'Entire Organization', value: 'ORGANIZATION', target: null }]
+
+    const scope = String(announcementScope || 'ALL').toUpperCase()
+    const userDepartment = String(profile.department || '').trim()
+    const userRoleId = profile.role_id ?? null
+
+    const canAccess = (allowed) => allowed.some((s) => s === scope || s === 'ALL')
+
+    if (canAccess(['ALL', 'DEPARTMENT', 'SUBORDINATE']) && userDepartment) {
+      audiences.push({ label: `Department: ${userDepartment}`, value: 'DEPARTMENT', target: userDepartment })
+    }
+
+    if (canAccess(['ALL', 'SUBORDINATE']) && userRoleId) {
+      audiences.push({ label: 'My Role', value: 'ROLE', target: String(userRoleId) })
+    }
+
+    setAvailableAudiences(audiences)
+    setVisibilityScope(audiences[0]?.value || 'ORGANIZATION')
+    setVisibilityTarget(audiences[0]?.target || '')
+  }, [canCreateAnnouncements, profile, announcementScope])
 
   const loadNotifications = async () => {
     try {
@@ -29,14 +64,18 @@ const PostAnnouncement = () => {
   }
 
   useEffect(() => {
-    loadNotifications()
-  }, [])
+    if (canCreateAnnouncements) {
+      loadNotifications()
+    }
+  }, [canCreateAnnouncements])
 
   const resetForm = () => {
     setTitle('')
     setContent('')
     setStatus('Published')
     setPriority('Normal')
+    setVisibilityScope('ORGANIZATION')
+    setVisibilityTarget('')
   }
 
   const handlePublish = async () => {
@@ -58,6 +97,8 @@ const PostAnnouncement = () => {
         title: trimmedTitle,
         body: trimmedContent,
         status,
+        visibilityScope,
+        visibilityTarget: visibilityScope === 'ORGANIZATION' ? null : visibilityTarget || null,
         userId: user?.id
       })
 
@@ -174,6 +215,17 @@ const PostAnnouncement = () => {
     </div>
   )
 
+  if (!canCreateAnnouncements) {
+    return (
+      <DashboardLayout>
+        <main className="content">
+          <PageHeader title="Post Announcement" />
+          <p>You do not have permission to create announcements.</p>
+        </main>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <>
       <DashboardLayout>
@@ -218,6 +270,18 @@ const PostAnnouncement = () => {
               ))}
             </select>
 
+            <label className="block mb-1">Audience</label>
+            <select value={visibilityScope} onChange={(event) => {
+              const selected = event.target.value
+              setVisibilityScope(selected)
+              const audience = availableAudiences.find((a) => a.value === selected)
+              setVisibilityTarget(audience?.target || '')
+            }} className="border p-2 rounded w-full mb-4">
+              {availableAudiences.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+
             <label className="block mb-1">Alert Priority</label>
             <select value={priority} onChange={(event) => setPriority(event.target.value)} className="border p-2 rounded w-full mb-4">
               {PRIORITY_LEVELS.map((item) => (
@@ -238,17 +302,19 @@ const PostAnnouncement = () => {
             {renderAnnouncementPreview()}
           </section>
 
-          <section className="profile-section">
-            <PageHeader
-              title="Alert Management"
-              subtitle="Notification records created for announcements and future mobile alerts."
-              actions={[
-                <Button key="read" variant="outline" onClick={handleMarkAllRead}>Mark All Read</Button>,
-                <Button key="clear" variant="danger" onClick={handleClearOldLogs}>Clear Old Logs</Button>
-              ]}
-            />
-            <Table columns={notificationColumns} data={notifications} />
-          </section>
+          {canCreateAnnouncements && (
+            <section className="profile-section">
+              <PageHeader
+                title="Alert Management"
+                subtitle="Notification records created for announcements and future mobile alerts."
+                actions={[
+                  <Button key="read" variant="outline" onClick={handleMarkAllRead}>Mark All Read</Button>,
+                  <Button key="clear" variant="danger" onClick={handleClearOldLogs}>Clear Old Logs</Button>
+                ]}
+              />
+              <Table columns={notificationColumns} data={notifications} />
+            </section>
+          )}
         </main>
 
       <Modal

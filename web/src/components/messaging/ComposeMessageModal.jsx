@@ -16,14 +16,26 @@ export default function ComposeMessageModal({
   const [recipient, setRecipient] = useState(defaultRecipient)
   const [subject, setSubject] = useState(defaultSubject)
   const [body, setBody] = useState('')
+  const [attachments, setAttachments] = useState([])
 
   useEffect(() => {
     if (visible) {
       setRecipient(defaultRecipient)
       setSubject(defaultSubject)
       setBody('')
+      setAttachments([])
     }
   }, [visible, defaultRecipient, defaultSubject])
+
+  const handleFileChange = (event) => {
+    const files = Array.from(event.target.files || [])
+    setAttachments((prev) => [...prev, ...files])
+    event.target.value = ''
+  }
+
+  const removeAttachment = (index) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index))
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -44,7 +56,8 @@ export default function ComposeMessageModal({
     await onSubmit({
       recipient,
       subject: subject.trim(),
-      body: body.trim()
+      body: body.trim(),
+      files: attachments
     })
   }
 
@@ -179,6 +192,75 @@ export default function ComposeMessageModal({
                 fontFamily: 'inherit'
               }}
             />
+          </div>
+
+          <div>
+            <label
+              htmlFor="compose-attachments"
+              style={{
+                display: 'block',
+                fontWeight: '600',
+                marginBottom: '6px',
+                fontSize: '14px',
+                color: '#374151'
+              }}
+            >
+              Attachments
+            </label>
+            <input
+              id="compose-attachments"
+              type="file"
+              multiple
+              onChange={handleFileChange}
+              disabled={isSubmitting}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db',
+                fontSize: '14px',
+                boxSizing: 'border-box'
+              }}
+            />
+            {attachments.length > 0 && (
+              <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {attachments.map((file, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid #e5e7eb',
+                      backgroundColor: '#f9fafb'
+                    }}
+                  >
+                    <span style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      disabled={isSubmitting}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </form>

@@ -249,6 +249,13 @@ export const buildAIContext = async ({ viewer, intent, message, messages = [], a
     warnings.push('One or more follow-up references had low confidence. Ask the user to clarify if the answer depends on that entity.')
   }
 
+  try {
+    const preview = buildDataContext({ intent, data: data || {} })
+    requestContext?.log?.('database:context:preview', { previewLength: preview.length, preview })
+  } catch (previewError) {
+    requestContext?.fail?.('database:context:preview:error', previewError)
+  }
+
   return {
     data,
     attachmentContext,
