@@ -11,7 +11,6 @@ import { employeeService } from '../services/employeeService'
 import { profileService } from '../services/profileService'
 import { sessionService } from '../services/sessionService'
 import { alertService } from '../utils/alertService'
-import { DEPARTMENT_OPTIONS, POSITION_OPTIONS } from '../constants/formOptions'
 import { usePermissions } from '../contexts/PermissionContext'
 import { supabaseClient } from '../supabase/supabaseClient'
 
