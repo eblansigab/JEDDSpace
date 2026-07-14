@@ -1,7 +1,7 @@
 /* global process */
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
-const GROQ_MODEL = 'gpt-oss-120b'
+const GROQ_MODEL = 'openai/gpt-oss-120b'
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || ''
 const GROQ_TIMEOUT_MS = 30000
 

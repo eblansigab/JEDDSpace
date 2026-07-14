@@ -164,7 +164,7 @@ export const handleChat = async ({ viewer, payload = {} }) => {
     const groqResult = await timedStage(
       'groq',
       () => groqClient.chatWithMetadata(groqMessages),
-      { model: 'gpt-oss-120b' }
+      { model: 'openai/gpt-oss-120b' }
     )
   const response = groqResult.content
 
@@ -241,7 +241,7 @@ export const handleChatStream = async ({ viewer, payload = {}, sendEvent }) => {
   const groqStartedAt = Date.now()
 
   sendEvent('progress', { message: 'Generating answer...' })
-  requestContext.log('groq:stream:start', { model: 'gpt-oss-120b' })
+  requestContext.log('groq:stream:start', { model: 'openai/gpt-oss-120b' })
 
   for await (const token of groqClient.streamChat(groqMessages)) {
     response += token
@@ -249,7 +249,7 @@ export const handleChatStream = async ({ viewer, payload = {}, sendEvent }) => {
   }
 
   const groqResult = {
-    model: 'gpt-oss-120b',
+    model: 'openai/gpt-oss-120b',
     latencyMs: Date.now() - groqStartedAt,
   }
   requestContext.log('groq:stream:complete', { latencyMs: groqResult.latencyMs })
