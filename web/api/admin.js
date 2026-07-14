@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   const { action, payload = {} } = req.body || {}
 
   try {
-    const authResult = await authorize(req, 'settings.manage')
+    const authResult = await authorize(req, 'PROJ_MANAGE')
     if (!authResult.authorized) {
       return authResult.error
     }

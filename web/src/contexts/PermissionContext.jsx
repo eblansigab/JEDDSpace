@@ -216,10 +216,5 @@ export const PermissionProvider = ({ children }) => {
 
   return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>
 }
-const { data, error } = await supabaseClient
-  .from("role_permissions")
-  .select("*")
-  .eq("role_id", 1);
 
-console.log("TEST ROLE 1", data, error);
 export const usePermissions = () => useContext(PermissionContext)

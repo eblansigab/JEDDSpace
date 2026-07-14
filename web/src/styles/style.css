@@ -1282,6 +1282,34 @@ body.sidebar-collapsed .content {
   color: #1e0977;
 }
 
+.admin-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background-color: #d41d1d;
+  color: white;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.admin-action-btn svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.admin-action-btn:hover {
+  background-color: #fff;
+  color: #1e0977;
+  transform: translateY(-1px);
+}
+
 /* Sidebar Dropdown */
 .sidebar ul .dropdown {
   list-style: none;

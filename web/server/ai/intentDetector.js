@@ -74,6 +74,19 @@ export const detectIntent = (message) => {
 
   if (
     includesAny(text, [
+      'contract',
+      'contracts',
+      'agreement',
+      'contract summary',
+      'conflicts between',
+      'existing contracts',
+    ])
+  ) {
+    return 'contract'
+  }
+
+  if (
+    includesAny(text, [
       'document',
       'documents',
       'uploaded',
@@ -91,17 +104,6 @@ export const detectIntent = (message) => {
     ])
   ) {
     return 'document'
-  }
-
-  if (
-    includesAny(text, [
-      'contract',
-      'contracts',
-      'agreement',
-      'contract summary',
-    ])
-  ) {
-    return 'contract'
   }
 
   if (

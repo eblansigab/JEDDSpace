@@ -28,7 +28,6 @@ const ProtectedRoute = lazy(() => import('../components/ProtectedRoute'))
 const PermissionRoute = lazy(() => import('../components/PermissionRoute'))
 const ApprovalGuard = lazy(() => import('../components/ApprovalGuard'))
 const AwaitingApprovalPage = lazy(() => import('../pages/awaitingApprovalPage'))
-const RegistrationRequestsPage = lazy(() => import('../pages/registrationRequestsPage'))
 const FormsOutletPage = lazy(() => import('../pages/formsOutletPage'))
 
 const InnerRoutes = () => {
@@ -74,7 +73,6 @@ const InnerRoutes = () => {
           <Route path="/ai-assistant" element={<ProtectedRoute><ApprovalGuard><AiAssistantPage /></ApprovalGuard></ProtectedRoute>} />
           <Route path="/ai-chat-logs" element={<ProtectedRoute><AdminRoute><ApprovalGuard><PermissionRoute permission="AI_HISTORY"><AiChatLogsPage /></PermissionRoute></ApprovalGuard></AdminRoute></ProtectedRoute>} />
           <Route path="/ai-analytics" element={<ProtectedRoute><AdminRoute><ApprovalGuard><PermissionRoute permission="AI_ANALYTICS"><AiAnalyticsPage /></PermissionRoute></ApprovalGuard></AdminRoute></ProtectedRoute>} />
-          <Route path="/registration-requests" element={<ProtectedRoute><AdminRoute><ApprovalGuard><PermissionRoute permission="EMP_ADD"><RegistrationRequestsPage /></PermissionRoute></ApprovalGuard></AdminRoute></ProtectedRoute>} />
           <Route path="/forms-outlet" element={<ProtectedRoute><AdminRoute><ApprovalGuard><PermissionRoute permission="LEAVE_MANAGE"><FormsOutletPage /></PermissionRoute></ApprovalGuard></AdminRoute></ProtectedRoute>} />
         </Routes>
       </Suspense>
