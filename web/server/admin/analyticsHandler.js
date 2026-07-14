@@ -1,8 +1,10 @@
 import { getSupabaseServerClient } from '../ai/supabaseClient.js'
+import { permissionService } from '../services/permissionService.js'
 
 export const handleAnalytics = async ({ viewer }) => {
-  if (!viewer?.isAdmin) {
-    return { status: viewer?.user?.id ? 403 : 401, error: 'Admin access required' }
+  const hasAccess = permissionService.hasPermission(viewer.permissions || [], 'AI_ANALYTICS')
+  if (!hasAccess) {
+    return { status: viewer?.user?.id ? 403 : 401, error: 'AI analytics access required' }
   }
 
   const client = getSupabaseServerClient()

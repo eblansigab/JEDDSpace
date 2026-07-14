@@ -1,4 +1,5 @@
 import { getSupabaseServerClient } from './supabaseClient.js'
+import { permissionService } from '../services/permissionService.js'
 
 const logHistory = (label, meta = {}) => {
   const entry = {
@@ -161,9 +162,10 @@ export const handleHistory = async ({ viewer, payload = {} }) => {
 }
 
 export const handleChatLogs = async ({ viewer }) => {
-  if (!viewer.isAdmin) {
-    logHistory('Admin access required for chat logs', { userId: viewer.user?.id })
-    return { status: 403, error: 'Admin access required' }
+  const hasAccess = permissionService.hasPermission(viewer.permissions || [], 'AI_HISTORY')
+  if (!hasAccess) {
+    logHistory('AI history access required', { userId: viewer.user?.id })
+    return { status: 403, error: 'AI history access required' }
   }
 
   const client = getSupabaseServerClient()

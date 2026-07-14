@@ -4,6 +4,14 @@ import { handleHealth } from '../server/admin/systemHandler.js'
 import { authorize } from '../server/middleware/authorize.js'
 import { fail, ok } from '../server/_shared/response.js'
 
+const ACTION_PERMISSIONS = {
+  analytics: 'AI_ANALYTICS',
+  metrics: 'AI_ANALYTICS',
+  logs: 'AI_HISTORY',
+  health: 'PROJ_MANAGE',
+  system: 'PROJ_MANAGE',
+}
+
 const runAction = async ({ action, viewer, payload }) => {
   switch (action) {
     case 'analytics':
@@ -29,7 +37,8 @@ export default async function handler(req, res) {
   const { action, payload = {} } = req.body || {}
 
   try {
-    const authResult = await authorize(req, 'PROJ_MANAGE')
+    const requiredPermission = ACTION_PERMISSIONS[action] || 'PROJ_MANAGE'
+    const authResult = await authorize(req, requiredPermission)
     if (!authResult.authorized) {
       return authResult.error
     }
