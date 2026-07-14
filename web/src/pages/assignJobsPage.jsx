@@ -90,9 +90,19 @@ const AssignJobsPage = () => {
 
     try {
       const employee = fieldWorkers.find((w) => String(w.employee_id) === String(selectedEmployee))
+      const dateStart = new Date(startDate)
+      const dateEnd = new Date(endDate)
 
       if (!employee) {
         await alertService.error('Employee not found')
+        return
+      }
+      if(dateStart > new Date()){
+        await alertService.error("Start date can't be before today.")
+        return
+      }
+      if (dateStart > dateEnd){
+        await alertService.error("Start date can't be after the end date.")
         return
       }
 
@@ -328,7 +338,7 @@ const AssignJobsPage = () => {
           ? row.notes.length > 40
             ? `${row.notes.slice(0, 40)}...`
             : row.notes
-          : 'No notes'
+          : '-'
     },
     {
       key: 'status',
@@ -410,11 +420,14 @@ const AssignJobsPage = () => {
           </div>
           <div>
             <label>Start Date</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} 
+            min={new Date().toISOString().split("T")[0]}
+            />
           </div>
           <div>
             <label>End Date</label>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+            min={startDate?startDate:new Date().toISOString().split("T")[0]} />
           </div>
           <div>
             <label>Travel Notes (optional)</label>
