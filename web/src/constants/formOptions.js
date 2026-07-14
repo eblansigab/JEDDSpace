@@ -1,8 +1,8 @@
-export const POSITION_OPTIONS = ['employee', 'admin']
+import { supabaseClient } from "../supabase/supabaseClient"
 
-export const ROLE_OPTIONS = ['employee', 'admin']
+export const POSITION_OPTIONS = await getPositions()
 
-export const DEPARTMENT_OPTIONS = ['hr', 'it', 'finance', 'admin']
+export const DEPARTMENT_OPTIONS = ['engineering', 'admin']
 
 export const NCR_DESTINATION_OPTIONS = [
   'Manila',
@@ -25,3 +25,9 @@ export const NCR_DESTINATION_OPTIONS = [
 ]
 
 export const JOB_STATUS_OPTIONS = ['open', 'closed', 'pending', 'in progress', 'cancelled', 'problem']
+
+export async function getPositions(){
+  const {data,error} = await supabaseClient.from("roles").select("role_name,hierarchy_level")
+  return data
+}
+

@@ -8,7 +8,8 @@ import { notificationService } from '../services/notificationService'
 import { useAuth } from '../services/authContext'
 import { alertService } from '../utils/alertService'
 import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
-import { DEPARTMENT_OPTIONS, POSITION_OPTIONS } from '../constants/formOptions'
+import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, getPositions } from '../constants/formOptions'
+import { supabaseClient } from '../supabase/supabaseClient'
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
 
@@ -23,20 +24,21 @@ const createEmptyForm = () => ({
   username: '',
   password: '',
   confirmPassword: '',
-  department: 'general',
-  position: 'employee',
+  department: '',
+  position: '',
   registration_status: 'approved',
   employment_status: 'active',
 })
 
 const ManageEmployeesPage = () => {
-  const { user } = useAuth()
+  const { user,profile } = useAuth()
   const [employees, setEmployees] = useState([])
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [form, setForm] = useState(createEmptyForm)
+  const [position,setPosition] = useState([])
 
   const fetchEmployees = async () => {
     try {
@@ -44,13 +46,21 @@ const ManageEmployeesPage = () => {
       setEmployees(data || [])
     } catch (error) {
       console.error('[ManageEmployees] Fetch employees failed', error)
-      await alertService.error(error.message || 'Failed to load employees.')
+      await alertService.error('Failed to load employees.')
     }
   }
 
   useEffect(() => {
     fetchEmployees()
+    getPosition()
   }, [])
+
+  const getPosition = async()=>{
+    const data = await getPositions()
+    const filteredData = data.filter(level=>level.hierarchy_level > profile.role_id)
+    console.log(filteredData)
+    setPosition(filteredData)
+  }
 
   const updateForm = (field, value) => {
     setForm((current) => ({
@@ -172,6 +182,13 @@ const ManageEmployeesPage = () => {
       return
     }
 
+    //temporary validation check for position
+    const role = position.filter(id=>id.role_name==form.position).hierarchy_level
+    if(role<=profile.role_id){
+      await alertService.warning("Invalid position.")
+      return
+    }
+
     try {
       await employeeService.update(editingEmployee.employee_id, {
         username: normalizedUsername,
@@ -198,7 +215,8 @@ const ManageEmployeesPage = () => {
       setIsEditOpen(false)
       await fetchEmployees()
     } catch (error) {
-      await alertService.error(error.message || 'Failed to update employee.')
+      await alertService.error('Failed to update employee.')
+      console.error(error.message)
     }
   }
 
@@ -256,11 +274,7 @@ const ManageEmployeesPage = () => {
     { key: 'username', title: 'Username', render: (value) => value || 'Not set' },
     { key: 'department', title: 'Department', render: (value) => value || '—' },
     { key: 'position', title: 'Position', render: (value) => value || '—' },
-    {
-      key: 'registration_status',
-      title: 'Account Status',
-      render: (value) => <StatusBadge status={value || 'pending'} />
-    },
+
     {
       key: 'employment_status',
       title: 'Employment Status',
@@ -318,6 +332,7 @@ const ManageEmployeesPage = () => {
         }}
         onSave={handleAddEmployee}
         mode="add"
+        profile={profile}
       />
 
       <EmployeeModal
@@ -331,6 +346,7 @@ const ManageEmployeesPage = () => {
         }}
         onSave={handleUpdateEmployee}
         mode="edit"
+        profile={profile}
       />
     </DashboardLayout>
   )
@@ -342,7 +358,7 @@ const profileServiceInitials = (employee) => {
   return `${first}${last}`.toUpperCase() || 'U'
 }
 
-const EmployeeModal = ({ visible, title, form, onChange, onClose, onSave, mode }) => (
+const EmployeeModal = ({ visible, title, form, onChange, onClose, onSave, mode,profile }) => (
   <Modal
     visible={visible}
     title={title}
@@ -401,7 +417,9 @@ const EmployeeModal = ({ visible, title, form, onChange, onClose, onSave, mode }
         {DEPARTMENT_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
       </select>
       <select value={form.position} onChange={(event) => onChange('position', event.target.value)}>
-        {POSITION_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+        {POSITION_OPTIONS.filter(item=>item.hierarchy_level>profile.role_id).map((item) => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)
+        }
+        
       </select>
       <select value={form.registration_status} onChange={(event) => onChange('registration_status', event.target.value)}>
         <option value="pending">pending</option>
