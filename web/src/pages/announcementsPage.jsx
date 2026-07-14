@@ -21,7 +21,7 @@ const AnnouncementsPage = () => {
   const [editBody, setEditBody] = useState('')
   const [editStatus, setEditStatus] = useState('Published')
   const [isSaving, setIsSaving] = useState(false)
-  const isAdmin = hasPermission('settings.manage')
+  const isAdmin = hasPermission('ANN_MANAGE')
 
   const loadAnnouncements = async () => {
     setLoading(true)

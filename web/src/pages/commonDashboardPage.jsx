@@ -4,7 +4,6 @@ import DashboardLayout from '../layouts/dashboardLayout'
 import { Button } from '../components'
 import Modal from '../components/Modal'
 import { useAuth } from '../services/authContext'
-import { usePermissions } from '../contexts/PermissionContext'
 import { documentService } from '../services/documentService'
 import { emailService } from '../services/emailService'
 import { sessionService } from '../services/sessionService'
@@ -16,7 +15,6 @@ import { supabaseClient } from '../supabase/supabaseClient'
 
 const CommonDashboardPage = () => {
   const { user, profile } = useAuth()
-  const { hasPermission } = usePermissions()
   const fileInputRef = useRef(null)
   const [emailCount, setEmailCount] = useState(0)
   const [fileCount, setFileCount] = useState(0)
@@ -33,11 +31,6 @@ const CommonDashboardPage = () => {
   const [unreadEmails, setUnreadEmails] = useState([])
   const [isSummaryOpen, setIsSummaryOpen] = useState(false)
   const [isLoadingUnread, setIsLoadingUnread] = useState(false)
-
-  const canViewDocuments = hasPermission('document.view')
-  const canViewMessages = hasPermission('message.view')
-  const canUploadDocuments = hasPermission('document.upload')
-  const canUseAI = hasPermission('ai.chat')
 
   const loadUnreadEmails = async () => {
     setIsLoadingUnread(true)
@@ -207,26 +200,24 @@ const CommonDashboardPage = () => {
                 {collapsedWidgets.overview ? 'Expand' : 'Collapse'}
               </button>
             </div>
-            {!collapsedWidgets.overview && (
-              <div className="dashboard-widget-body">
-                <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
-                  <div style={{ fontSize: 14 }}>
-                    <p style={{margin:'auto 0'}}><strong>{emailCount}</strong> messages logged</p>
-                    <p style={{marginBottom:0}}><strong>{fileCount}</strong> files uploaded</p>
-                  </div>
-                  {canUseAI && (
-                    <Link to="/ai-assistant" className="primary-btn" style={{ padding: '8px 12px', textDecoration: 'none' }}>
-                      Open AI Assistant
-                    </Link>
-                  )}
-                </div>
-                </div>
-            )}
-            </section>
-        
+             {!collapsedWidgets.overview && (
+               <div className="dashboard-widget-body">
+                 <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+                   <div style={{ fontSize: 14 }}>
+                     <p style={{margin:'auto 0'}}><strong>{emailCount}</strong> messages logged</p>
+                     <p style={{marginBottom:0}}><strong>{fileCount}</strong> files uploaded</p>
+                   </div>
+                   <Link to="/ai-assistant" className="primary-btn" style={{ padding: '8px 12px', textDecoration: 'none' }}>
+                     Open AI Assistant
+                   </Link>
+                 </div>
+                 </div>
+             )}
+             </section>
+         
 
-          {canViewMessages && (
-            <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>
+
+           <section className={`dashboard-widget ${collapsedWidgets.email ? 'is-collapsed' : ''}`}>
               <div className="dashboard-widget-header">
                 <div>
                   <h3>
@@ -240,22 +231,21 @@ const CommonDashboardPage = () => {
                 {collapsedWidgets.email ? 'Expand' : 'Collapse'}
               </button>
             </div>
-            {!collapsedWidgets.email && (
-              <div className="dashboard-widget-body">
-                <p>You currently have {emailCount} logged {emailCount === 1 ? 'message' : 'messages'}.</p>
-                {latestEmail && <p className="date">Latest: {latestEmail}</p>}
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <Button onClick={loadUnreadEmails} disabled={isLoadingUnread}>
-                    {isLoadingUnread ? 'Loading...' : 'Show Unread Messages'}
-                  </Button>
-                   <Link to="/emails" className="primary-btn">
-                      View Messages
+             {!collapsedWidgets.email && (
+               <div className="dashboard-widget-body">
+                 <p>You currently have {emailCount} logged {emailCount === 1 ? 'message' : 'messages'}.</p>
+                 {latestEmail && <p className="date">Latest: {latestEmail}</p>}
+                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                   <Button onClick={loadUnreadEmails} disabled={isLoadingUnread}>
+                     {isLoadingUnread ? 'Loading...' : 'Show Unread Messages'}
+                   </Button>
+                    <Link to="/emails" className="primary-btn">
+                       View Messages
                     </Link>
-                </div>
-              </div>
-            )}
-          </section>
-          )}
+                 </div>
+               </div>
+             )}
+           </section>
 
           <section className={`dashboard-widget ${collapsedWidgets.files ? 'is-collapsed' : ''}`}>
             <div className="dashboard-widget-header">
@@ -277,15 +267,13 @@ const CommonDashboardPage = () => {
                 {latestFile && <p className="date">Latest: {latestFile}</p>}
 
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                    {canUploadDocuments && (
                       <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
                         {isUploading ? 'Uploading...' : 'Upload File'}
                       </Button>
-                    )}
-                    <Link to="/documents" className="primary-btn">
-                      Check Documents
-                    </Link>
-                  </div>
+                      <Link to="/documents" className="primary-btn">
+                        Check Documents
+                      </Link>
+                    </div>
 
                   <input
                     ref={fileInputRef}

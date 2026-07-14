@@ -6,14 +6,14 @@ import { usePermissions } from '../contexts/PermissionContext'
 const AdminDashboardPage = () => {
   const { hasPermission } = usePermissions()
 
-  const canManageAnnouncements = hasPermission('announcement.manage')
-  const canManageRegistrations = hasPermission('employee.manage')
-  const canManageEmployees = hasPermission('employee.manage')
-  const canAssignJobs = hasPermission('job.manage')
-  const canAuditBlockchain = hasPermission('audit.view')
-  const canViewAIAnalytics = hasPermission('settings.manage')
-  const canViewAIChatLogs = hasPermission('settings.manage')
-  const canManageForms = hasPermission('leave.manage') || hasPermission('business.manage')
+  const canManageAnnouncements = hasPermission('ANN_MANAGE')
+  const canManageRegistrations = hasPermission('EMP_ADD')
+  const canManageEmployees = hasPermission('EMP_ADD')
+  const canAssignJobs = hasPermission('PROJ_ASSIGN')
+  const canAuditBlockchain = hasPermission('BLOCKCHAIN_AUDIT')
+  const canViewAIAnalytics = hasPermission('AI_ANALYTICS')
+  const canViewAIChatLogs = hasPermission('AI_HISTORY')
+  const canManageForms = hasPermission('LEAVE_MANAGE')
   return (
     <DashboardLayout>
         <main className="content">

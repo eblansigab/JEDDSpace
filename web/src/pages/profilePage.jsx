@@ -69,7 +69,7 @@ const ProfileSettings = () => {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
   const { hasPermission } = usePermissions()
-  const isAdmin = hasPermission('settings.manage')
+  const isAdmin = hasPermission('EMP_PROFILE')
 
   const [username, setUsername] = useState('')
   const [firstName, setFirstName] = useState('')

@@ -1,5 +1,50 @@
 import { getSupabaseServerClient } from '../ai/supabaseClient.js'
 
+const CSV_PERMISSION_CODES = new Set([
+  'EMP_ADD',
+  'EMP_PROFILE',
+  'EMP_ROLE',
+  'PROJ_MANAGE',
+  'PROJ_ASSIGN',
+  'PROJ_ARCHIVE',
+  'LEAVE_VIEW',
+  'LEAVE_MANAGE',
+  'BLOCKCHAIN_AUDIT',
+  'BLOCKCHAIN_VERIFY',
+  'ANN_CREATE',
+  'ANN_MANAGE',
+  'AI_ANALYTICS',
+  'AI_HISTORY',
+  'AI_USERS',
+  'AI_INTENTS',
+])
+
+const DB_KEY_TO_CSV_CODE = {
+  'Employee Management.Add Employee': 'EMP_ADD',
+  'Employee Management.Manage Employee Profile': 'EMP_PROFILE',
+  'Employee Management.Change Employee Role': 'EMP_ROLE',
+  'Projects.Manage Projects': 'PROJ_MANAGE',
+  'Projects.Assign Employees': 'PROJ_ASSIGN',
+  'Projects.View Project Archives': 'PROJ_ARCHIVE',
+  'Leave & Official Business.View Requests': 'LEAVE_VIEW',
+  'Leave & Official Business.Manage Requests': 'LEAVE_MANAGE',
+  'Blockchain Integrity.Audit Blockchain Records': 'BLOCKCHAIN_AUDIT',
+  'Blockchain Integrity.Verify Integrity': 'BLOCKCHAIN_VERIFY',
+  'Announcements.Create Announcements': 'ANN_CREATE',
+  'Announcements.Manage Announcements': 'ANN_MANAGE',
+  'AI Analytics.View AI Analytics': 'AI_ANALYTICS',
+  'AI Chat Logs.View Conversation History': 'AI_HISTORY',
+  'AI Chat Logs.View User Activity': 'AI_USERS',
+  'AI Chat Logs.View Intent Classification': 'AI_INTENTS',
+}
+
+const normalizePermissionKey = (rawKey) => {
+  const trimmed = String(rawKey || '').trim()
+  if (!trimmed) return ''
+  if (CSV_PERMISSION_CODES.has(trimmed)) return trimmed
+  return DB_KEY_TO_CSV_CODE[trimmed] || trimmed.toLowerCase()
+}
+
 const PERMISSION_CACHE_TTL_MS = 5 * 60 * 1000
 const ROLE_CACHE_TTL_MS = 5 * 60 * 1000
 
@@ -19,21 +64,32 @@ class PermissionService {
     }
 
     const client = getSupabaseServerClient()
-    const { data, error } = await client
-      .from('role_permissions')
-      .select('permission_id, scope, permission:permission_id (module, action)')
-      .eq('role_id', roleId)
+    const [rolePermsResult, permissionsResult] = await Promise.all([
+      client
+        .from('role_permissions')
+        .select('permission_id, scope')
+        .eq('role_id', roleId),
+      client
+        .from('permissions')
+        .select('permission_id, module, action'),
+    ])
 
-    if (error || !data) {
-      return []
-    }
+    const rolePerms = rolePermsResult.data || []
+    const allPermissions = permissionsResult.data || []
 
-    const permissions = data.map((row) => {
-      const module = String(row.permission?.module || '').trim()
-      const action = String(row.permission?.action || '').trim()
+    const permissionMap = new Map(
+      (allPermissions || []).map((perm) => [perm.permission_id, perm])
+    )
+
+    const permissions = rolePerms.map((row) => {
+      const perm = permissionMap.get(row.permission_id) || {}
+      const module = String(perm.module || '').trim()
+      const action = String(perm.action || '').trim()
+      const rawKey = module && action ? `${module}.${action}` : ''
       return {
         permission_id: row.permission_id,
-        key: module && action ? `${module}.${action}` : '',
+        key: normalizePermissionKey(rawKey),
+        rawKey,
         module,
         action,
         scope: row.scope || 'ALL',
@@ -80,12 +136,38 @@ class PermissionService {
     return this.loadPermissionsByRoleId(role.role_id)
   }
 
+  async hasAdminAccess(employeeId) {
+    const role = await this.loadRole(employeeId)
+    if (!role || !role.role_id) return false
+
+    try {
+      const client = getSupabaseServerClient()
+      const { count } = await client
+        .from('role_permissions')
+        .select('*', { count: 'exact', head: true })
+        .eq('role_id', role.role_id)
+
+      if (Number(count || 0) === 0) return false
+    } catch {
+      // proceed to permission check below
+    }
+
+    const perms = await this.loadPermissionsByRoleId(role.role_id)
+    return perms.some((p) => ADMIN_PERMISSION_CODES.has(p.key))
+  }
+
   hasPermission(permissions, permissionKey) {
-    return permissions.some((p) => p.key === permissionKey)
+    const normalized = normalizePermissionKey(permissionKey)
+    return permissions.some((p) => p.key === normalized || p.rawKey === permissionKey)
+  }
+
+  hasAnyPermission(permissions) {
+    return permissions.length > 0
   }
 
   getScope(permissions, permissionKey) {
-    const perm = permissions.find((p) => p.key === permissionKey)
+    const normalized = normalizePermissionKey(permissionKey)
+    const perm = permissions.find((p) => p.key === normalized || p.rawKey === permissionKey)
     return perm ? perm.scope : null
   }
 

@@ -32,7 +32,7 @@ const FormsOutletPage = () => {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
-  const isAdmin = hasPermission('settings.manage')
+  const isAdmin = hasPermission('LEAVE_MANAGE')
 
   const loadForms = async () => {
     setLoading(true)
