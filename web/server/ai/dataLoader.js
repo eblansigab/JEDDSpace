@@ -418,6 +418,13 @@ export const loadDataForIntent = async (intent, message, viewer = null) => {
   if (intent === 'employee') {
     const availabilityOnly = text.includes('available') || text.includes('who can') || text.includes('who is available')
     const employees = await loadEmployees({ activeOnly: true, fieldWorkersOnly: availabilityOnly, limit: availabilityOnly ? 50 : 25, viewer })
+    if (availabilityOnly) {
+      const [jobs, leaves] = await Promise.all([
+        loadJobs(100, viewer),
+        loadApprovedLeaves(100, viewer),
+      ])
+      return { employees, jobs, leaves }
+    }
     return { employees }
   }
 

@@ -236,34 +236,70 @@ const buildDataContext = ({ intent, data }) => {
     contextParts.push(formatOperations(data.operations))
   } else if (intent === 'chat_logs') {
     contextParts.push('Previous AI Summaries')
-    contextParts.push(...(data.logs || []).map(formatChatLog))
+    if ((data.logs || []).length) {
+      contextParts.push(...(data.logs || []).map(formatChatLog))
+    } else {
+      contextParts.push('No previous AI summaries available.')
+    }
   } else if (intent === 'employee') {
     contextParts.push('Employees')
-    contextParts.push(...(data.employees || []).map(formatEmployee))
+    if ((data.employees || []).length) {
+      contextParts.push(...(data.employees || []).map(formatEmployee))
+    } else {
+      contextParts.push('No employees found.')
+    }
   } else if (intent === 'job') {
     contextParts.push('Current Jobs')
-    contextParts.push(...(data.jobs || []).map(formatJob))
+    if ((data.jobs || []).length) {
+      contextParts.push(...(data.jobs || []).map(formatJob))
+    } else {
+      contextParts.push('No jobs found.')
+    }
   } else if (intent === 'leave') {
     contextParts.push('Approved Leave Requests')
-    contextParts.push(...(data.leaves || []).map(formatLeave))
+    if ((data.leaves || []).length) {
+      contextParts.push(...(data.leaves || []).map(formatLeave))
+    } else {
+      contextParts.push('No approved leave requests found.')
+    }
   } else if (intent === 'contract') {
     contextParts.push('Contracts')
-    contextParts.push(...(data.contracts || []).map(formatContract))
+    if ((data.contracts || []).length) {
+      contextParts.push(...(data.contracts || []).map(formatContract))
+    } else {
+      contextParts.push('No contracts found.')
+    }
   } else if (intent === 'recommendation') {
     contextParts.push('Recommended Workers')
-    contextParts.push(...(data.recommendations || []).map(formatRecommendation))
+    if ((data.recommendations || []).length) {
+      contextParts.push(...(data.recommendations || []).map(formatRecommendation))
+    } else {
+      contextParts.push('No recommendations available.')
+    }
   } else if (intent === 'notification') {
     contextParts.push('Notifications')
-    contextParts.push(...(data.notifications || []).map(formatNotification))
+    if ((data.notifications || []).length) {
+      contextParts.push(...(data.notifications || []).map(formatNotification))
+    } else {
+      contextParts.push('No notifications found.')
+    }
   } else if (intent === 'document') {
     contextParts.push('Documents')
-    contextParts.push(...(data.documents || []).map(formatDocument))
+    if ((data.documents || []).length) {
+      contextParts.push(...(data.documents || []).map(formatDocument))
+    } else {
+      contextParts.push('No documents found.')
+    }
   } else if (intent === 'inbox') {
     const summary = buildInboxSummary(data.messages, data.inboxScope, data.viewerEmail, data.targetEmployee)
     contextParts.push(summary)
     contextParts.push('')
-    contextParts.push('Messages')
-    contextParts.push(...(data.messages || []).map(formatMessage))
+    if ((data.messages || []).length) {
+      contextParts.push('Messages')
+      contextParts.push(...(data.messages || []).map(formatMessage))
+    } else {
+      contextParts.push('No messages found.')
+    }
   } else {
     contextParts.push('Business Context')
     contextParts.push('Employees')

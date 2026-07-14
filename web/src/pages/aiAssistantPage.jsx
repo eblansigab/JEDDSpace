@@ -325,6 +325,7 @@ export default function AiAssistantPage() {
       }
       return
     }
+
     await runPrompt(item.message)
   }
 
