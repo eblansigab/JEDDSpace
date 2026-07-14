@@ -503,9 +503,9 @@ const ProfileSettings = () => {
             <p style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>
               Username: {profile?.username || 'Not set'}
             </p>
-            <p style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
+            {!isAdmin && (<p style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
               Username is managed by the administrator.
-            </p>
+            </p>)}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
               <StatusBadge status={accountStatus} />
             </div>
