@@ -251,12 +251,20 @@ const compactMessages = (messages = []) => {
     .join('\n')
 }
 
-const buildDataContext = ({ intent, data }) => {
+const buildDataContext = ({ intent, data = {} }) => {
   const contextParts = []
 
   if (intent === 'operations') {
     contextParts.push('Today\'s Operations Summary')
-    const row = formatOperations(data.operations)
+    const ops = data.operations || {}
+    const row = {
+      'Total Employees': ops.employees || 0,
+      'Active Jobs': ops.active_jobs || 0,
+      'Employees on Leave': ops.employees_on_leave || 0,
+      'Contracts Expiring Soon': ops.expiring_contracts || 0,
+      'Unread Notifications': ops.unread_notifications || 0,
+      'Scheduling Conflicts': ops.scheduling_conflicts || 0,
+    }
     contextParts.push(buildMarkdownTable([row]))
   } else if (intent === 'chat_logs') {
     contextParts.push('Previous AI Summaries')

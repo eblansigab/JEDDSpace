@@ -109,7 +109,8 @@ export default async function handler(req, res) {
     console.log('[AI]', JSON.stringify({ timestamp: new Date().toISOString(), action, stage: 'Completed' }))
     return ok(res, result?.data || {})
   } catch (error) {
+    const message = error?.message || String(error || 'Unknown error')
     logAIError(action, error, { stage: 'handler' })
-    return fail(res, 500, 'AI service is currently unavailable.')
+    return fail(res, 500, message)
   }
 }
