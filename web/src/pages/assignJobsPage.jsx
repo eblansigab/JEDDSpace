@@ -338,7 +338,7 @@ const AssignJobsPage = () => {
           ? row.notes.length > 40
             ? `${row.notes.slice(0, 40)}...`
             : row.notes
-          : 'No notes'
+          : '-'
     },
     {
       key: 'status',

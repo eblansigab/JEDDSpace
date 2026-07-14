@@ -537,7 +537,7 @@ const ProfileSettings = () => {
 
             <ProfileField label="Department">
               {isAdmin ? (
-                <select className="border p-2 rounded w-full" value={department} onChange={(event) => setDepartment(event.target.value)}>
+                <select className="border p-2 rounded w-full" value={department} onChange={(event) => setDepartment(event.target.value)} disabled>
                   {DEPARTMENT_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               ) : (
@@ -547,14 +547,14 @@ const ProfileSettings = () => {
 
             <ProfileField label="Position">
               {isAdmin ? (
-                <select className="border p-2 rounded w-full" value={position} onChange={(event) => setPosition(event.target.value)}>
+                <select className="border p-2 rounded w-full" value={position} onChange={(event) => setPosition(event.target.value)} disabled>
                   {POSITION_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               ) : (
                 <input className="border p-2 rounded w-full" value={position} readOnly />
               )}
             </ProfileField>
-
+{/*
             <ProfileField label="Account Status">
               {isAdmin ? (
                 <select className="border p-2 rounded w-full" value={registrationStatus} onChange={(event) => setRegistrationStatus(event.target.value)}>
@@ -566,10 +566,10 @@ const ProfileSettings = () => {
                 <input className="border p-2 rounded w-full" value={registrationStatus} readOnly />
               )}
             </ProfileField>
-
+*/}
             <ProfileField label="Employment Status">
               {isAdmin ? (
-                <select className="border p-2 rounded w-full" value={employmentStatus} onChange={(event) => setEmploymentStatus(event.target.value)}>
+                <select className="border p-2 rounded w-full" value={employmentStatus} onChange={(event) => setEmploymentStatus(event.target.value)} disabled>
                   <option value="active">active</option>
                   <option value="inactive">inactive</option>
                   <option value="resigned">resigned</option>

@@ -28,7 +28,8 @@ const ContractsPage = () => {
         setContracts(contractsData || [])
         setJobs(jobsData || [])
       } catch (error) {
-        await alertService.error(error.message || 'Failed to load contracts')
+        await alertService.error('Failed to load projects.')
+        console.error(error.message)
       } finally {
         setLoading(false)
       }
@@ -57,7 +58,7 @@ const ContractsPage = () => {
   return (
     <DashboardLayout>
       <main className="content">
-        <h3>Contracts</h3>
+        <h3>Projects</h3>
 
         {enrichedContracts.map((contract) => {
           const job = contract.job
