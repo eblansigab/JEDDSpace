@@ -159,7 +159,7 @@ const renderContent = (content) => {
     if (React.isValidElement(part)) {
       return <span key={index}>{part}</span>
     }
-    return <span key={index}>{part as string}</span>
+    return <span key={index}>{part}</span>
   })
 }
 
