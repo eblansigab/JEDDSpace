@@ -16,6 +16,7 @@ const AssignJobsPage = () => {
   const [jobs, setJobs] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isFormVisible, setIsFormVisible] = useState(false)
+  const [isEditFormVisible, setIsEditFormVisible] = useState(false)
 
   const [fieldWorkers, setFieldWorkers] = useState([])
   const [selectedEmployee, setSelectedEmployee] = useState('')
@@ -25,6 +26,23 @@ const AssignJobsPage = () => {
   const [notes, setNotes] = useState('')
   const [recommendations, setRecommendations] = useState([])
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
+
+  const [editingJobId, setEditingJobId] = useState(null)
+  const [editDestination, setEditDestination] = useState('')
+  const [editStartDate, setEditStartDate] = useState('')
+  const [editEndDate, setEditEndDate] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+
+  const getTodayString = () => new Date().toISOString().split('T')[0]
+
+  const isDateBeforeToday = (dateString) => {
+    if (!dateString) return false
+    const inputDate = new Date(dateString + 'T00:00:00')
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return inputDate < today
+  }
 
   const fetchJobs = async () => {
     try {
@@ -52,6 +70,16 @@ const AssignJobsPage = () => {
     setNotes('')
     setRecommendations([])
     setIsFormVisible(false)
+  }
+
+  const resetEditForm = () => {
+    setEditingJobId(null)
+    setEditDestination('')
+    setEditStartDate('')
+    setEditEndDate('')
+    setEditStatus('')
+    setEditNotes('')
+    setIsEditFormVisible(false)
   }
 
   const handleGetRecommendations = async () => {
@@ -97,8 +125,12 @@ const AssignJobsPage = () => {
         await alertService.error('Employee not found')
         return
       }
-      if(dateStart > new Date()){
+      if (isDateBeforeToday(startDate)) {
         await alertService.error("Start date can't be before today.")
+        return
+      }
+      if (isDateBeforeToday(endDate)) {
+        await alertService.error("End date can't be before today.")
         return
       }
       if (dateStart > dateEnd){
@@ -159,111 +191,67 @@ const AssignJobsPage = () => {
     }
   }
 
-  const handleEditJob = async (
-    job_id,
-    currentDestination,
-    currentNotes,
-    currentStartDate,
-    currentEndDate,
-    currentStatus
-  ) => {
-    const destinationResult = await alertService.input({
-      title: 'Edit Destination',
-      text: 'Choose the nearest NCR city for this job.',
-      input: 'select',
-      inputValue: currentDestination,
-      inputOptions: NCR_DESTINATION_OPTIONS.reduce((options, item) => ({ ...options, [item]: item }), {}),
-      confirmButtonText: 'Next'
-    })
-    if (!destinationResult.isConfirmed) return
-    const updatedDestination = destinationResult.value?.trim() || currentDestination
-    if (!updatedDestination) {
-      await alertService.warning('Destination cannot be empty')
+  const openEditModal = (job) => {
+    setEditingJobId(job.job_id)
+    setEditDestination(job.destination || '')
+    setEditStartDate(job.start_date || '')
+    setEditEndDate(job.end_date || '')
+    setEditStatus(job.status || 'pending')
+    setEditNotes(job.notes || '')
+    setIsEditFormVisible(true)
+  }
+
+  const handleUpdateJob = async () => {
+    if (!editingJobId) return
+
+    if (!editDestination || !editStartDate || !editEndDate) {
+      await alertService.warning('Please fill all required fields')
       return
     }
 
-    const startDateResult = await alertService.input({
-      title: 'Edit Start Date',
-      text: 'Leave blank to keep the current start date.',
-      input: 'date',
-      inputValue: currentStartDate,
-      allowEmpty: true,
-      confirmButtonText: 'Next'
-    })
-    if (!startDateResult.isConfirmed) return
-    const updatedStartDate = startDateResult.value?.trim() || currentStartDate
-    if (!updatedStartDate) {
-      await alertService.warning('Start date cannot be empty')
+    const dateStart = new Date(editStartDate)
+    const dateEnd = new Date(editEndDate)
+
+    if (isDateBeforeToday(editStartDate)) {
+      await alertService.error("Start date can't be before today.")
       return
     }
-
-    const endDateResult = await alertService.input({
-      title: 'Edit End Date',
-      text: 'Leave blank to keep the current end date.',
-      input: 'date',
-      inputValue: currentEndDate,
-      allowEmpty: true,
-      confirmButtonText: 'Next'
-    })
-    if (!endDateResult.isConfirmed) return
-    const updatedEndDate = endDateResult.value?.trim() || currentEndDate
-    if (!updatedEndDate) {
-      await alertService.warning('End date cannot be empty')
+    if (isDateBeforeToday(editEndDate)) {
+      await alertService.error("End date can't be before today.")
       return
     }
-
-    const statusResult = await alertService.input({
-      title: 'Edit Status',
-      text: 'Choose the current job status.',
-      input: 'select',
-      inputValue: currentStatus || 'pending',
-      inputOptions: JOB_STATUS_OPTIONS.reduce((options, item) => ({ ...options, [item]: item }), {}),
-      confirmButtonText: 'Next'
-    })
-    if (!statusResult.isConfirmed) return
-    const updatedStatus = statusResult.value?.trim() || currentStatus
-    if (!updatedStatus) {
-      await alertService.warning('Status cannot be empty')
+    if (dateStart > dateEnd) {
+      await alertService.error("Start date can't be after the end date.")
       return
     }
-
-    const notesResult = await alertService.input({
-      title: 'Edit Notes',
-      text: 'Enter travel notes or leave blank to keep current notes.',
-      input: 'textarea',
-      inputValue: currentNotes || '',
-      inputPlaceholder: 'Travel notes',
-      allowEmpty: true,
-      confirmButtonText: 'Save'
-    })
-    const newNotes = notesResult.isConfirmed ? notesResult.value : currentNotes
 
     try {
-      await jobService.update(job_id, {
-        destination: updatedDestination,
-        start_date: updatedStartDate,
-        end_date: updatedEndDate,
-        status: updatedStatus,
-        notes: newNotes?.trim() || null
+      await jobService.update(editingJobId, {
+        destination: editDestination,
+        start_date: editStartDate,
+        end_date: editEndDate,
+        status: editStatus,
+        notes: editNotes?.trim() || null
       })
 
       await Promise.allSettled([
         notificationService.createNotification({
           title: 'Job assignment updated',
-          message: `Job #${job_id} was updated.`,
+          message: `Job #${editingJobId} was updated.`,
           type: 'job_assignment',
           priority: 'Normal',
           userId: user?.id
         }),
         emailService.createEmailLog({
-          subject: `Job Assignment Updated: ${updatedDestination}`,
-          body: `Job #${job_id} was updated. Status: ${updatedStatus}.`,
+          subject: `Job Assignment Updated: ${editDestination}`,
+          body: `Job #${editingJobId} was updated. Status: ${editStatus}.`,
           type: 'job_assignment',
           userId: user?.id
         })
       ])
 
       await alertService.success('Job updated successfully')
+      resetEditForm()
       fetchJobs()
     } catch (error) {
       await alertService.error(error.message)
@@ -350,7 +338,7 @@ const AssignJobsPage = () => {
       title: 'Actions',
       render: (_, row) => (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Button variant="outline" style={{ minWidth: 80 }} onClick={() => handleEditJob(row.job_id, row.destination, row.notes, row.start_date, row.end_date, row.status)}>
+          <Button variant="outline" style={{ minWidth: 80 }} onClick={() => openEditModal(row)}>
             Edit
           </Button>
           <Button variant="primary" style={{ minWidth: 80 }} onClick={() => handleCompleteJob(row.job_id)}>
@@ -421,13 +409,13 @@ const AssignJobsPage = () => {
           <div>
             <label>Start Date</label>
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} 
-            min={new Date().toISOString().split("T")[0]}
+            min={getTodayString()}
             />
           </div>
           <div>
             <label>End Date</label>
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-            min={startDate?startDate:new Date().toISOString().split("T")[0]} />
+            min={startDate ? startDate : getTodayString()} />
           </div>
           <div>
             <label>Travel Notes (optional)</label>
@@ -481,6 +469,60 @@ const AssignJobsPage = () => {
               </div>
             </div>
           )}
+        </div>
+      </Modal>
+      <Modal
+        visible={isEditFormVisible}
+        title="Edit Job Assignment"
+        onClose={() => setIsEditFormVisible(false)}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <Button variant="outline" onClick={() => setIsEditFormVisible(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateJob}>Save Changes</Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 4, display: 'block' }}>Employee</label>
+            <input
+              type="text"
+              value={jobs.find((j) => String(j.job_id) === String(editingJobId))?.employee ? `${jobs.find((j) => String(j.job_id) === String(editingJobId)).employee.first_name} ${jobs.find((j) => String(j.job_id) === String(editingJobId)).employee.last_name}` : ''}
+              disabled
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, opacity: 0.7, backgroundColor: '#f9fafb' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 4, display: 'block' }}>Destination</label>
+            <select value={editDestination} onChange={(e) => setEditDestination(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }}>
+              <option value="" disabled>Select NCR city</option>
+              {NCR_DESTINATION_OPTIONS.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 4, display: 'block' }}>Start Date</label>
+            <input type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} min={getTodayString()} style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 4, display: 'block' }}>End Date</label>
+            <input type="date" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} min={editStartDate ? editStartDate : getTodayString()} style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 4, display: 'block' }}>Status</label>
+            <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }}>
+              {JOB_STATUS_OPTIONS.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 4, display: 'block' }}>Travel Notes</label>
+            <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Add itinerary details, important reminders, or travel notes" rows={4} style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, resize: 'vertical' }} />
+          </div>
         </div>
       </Modal>
       </DashboardLayout>

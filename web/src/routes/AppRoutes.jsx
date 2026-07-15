@@ -11,6 +11,7 @@ const EmailsPage = lazy(() => import("../pages/emailsPage"));
 const DocumentsPage = lazy(() => import("../pages/documentsPage"));
 const ProfilePage = lazy(() => import("../pages/profilePage"));
 const AdminDashboardPage = lazy(() => import("../pages/adminDashboardPage"));
+const RolePermissionManagementPage = lazy(() => import("../pages/rolePermissionManagementPage"));
 const ContractsPage = lazy(() => import("../pages/contractsPage"));
 const OfficialBusinessFormPage = lazy(() => import("../pages/officialBusinessFormPage"));
 const PostAnnouncement = lazy(() => import("../pages/postAnnouncementsPage"));
@@ -72,6 +73,7 @@ const InnerRoutes = () => {
           <Route path="/ai-chat-logs" element={<ProtectedRoute><AdminRoute><ApprovalGuard><PermissionRoute permission="AI_HISTORY"><AiChatLogsPage /></PermissionRoute></ApprovalGuard></AdminRoute></ProtectedRoute>} />
           <Route path="/ai-analytics" element={<ProtectedRoute><AdminRoute><ApprovalGuard><PermissionRoute permission="AI_ANALYTICS"><AiAnalyticsPage /></PermissionRoute></ApprovalGuard></AdminRoute></ProtectedRoute>} />
           <Route path="/forms-outlet" element={<ProtectedRoute><AdminRoute><ApprovalGuard><PermissionRoute permission="LEAVE_MANAGE"><FormsOutletPage /></PermissionRoute></ApprovalGuard></AdminRoute></ProtectedRoute>} />
+          <Route path="/manage-roles" element={<ProtectedRoute><AdminRoute><ApprovalGuard><PermissionRoute permission="EMP_ROLE"><RolePermissionManagementPage /></PermissionRoute></ApprovalGuard></AdminRoute></ProtectedRoute>} />
         </Routes>
       </Suspense>
     </>

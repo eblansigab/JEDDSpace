@@ -148,11 +148,7 @@ export default function AiAssistantPage() {
         description: 'Summarize uploaded documents.',
         message: 'List the uploaded documents.',
       },
-      {
-        label: 'Summarize Document',
-        description: 'Explain a specific document.',
-        message: 'Can you summarize the uploaded employee handbook?',
-      },
+     
       {
         label: 'Compare Contract',
         description: 'Compare uploaded contract with database.',
@@ -427,7 +423,7 @@ export default function AiAssistantPage() {
               <SuggestedPrompts prompts={quickPrompts} onSelect={handleSuggestedPrompt} />
 
               <div className="ai-assistant-note" style={{ marginTop: 12 }}>
-                The assistant builds prompts from JEDDSpace data before calling Groq, so answers stay grounded in your records.
+                Disclaimer: All prompts sent through this assistant will be stored within JEDD Technologies Corp. and will not be used to train other models.
               </div>
             </div>
           </aside>

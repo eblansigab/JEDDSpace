@@ -13,6 +13,7 @@ const AdminDashboardPage = () => {
   const canViewAIAnalytics = hasPermission('AI_ANALYTICS')
   const canViewAIChatLogs = hasPermission('AI_HISTORY')
   const canManageForms = hasPermission('LEAVE_MANAGE')
+  const canManageRoles = hasPermission('EMP_ROLE')
   return (
     <DashboardLayout>
         <main className="content">
@@ -195,6 +196,31 @@ const AdminDashboardPage = () => {
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1"/><path d="M16 16a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1"/><path d="M21 6a2 2 0 0 0-.586-1.414l-2-2A2 2 0 0 0 17 2h-3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1z"/></svg>
                 <span>Review</span>
+              </Link>
+
+            </div>)}
+
+            {/* Role & Permission Management */}
+            {canManageRoles && (<div className="admin-box">
+
+              <h3>
+                {/* Shield Icon */}
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-icon lucide-shield"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                &nbsp; Role & Permission Management
+              </h3>
+
+              <p>
+                Edit permissions for subordinate roles.
+              </p>
+
+              <Link
+                to="/manage-roles"
+                className="admin-action-btn"
+                title="Role & Permission Management"
+                aria-label="Role & Permission Management"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>Manage</span>
               </Link>
 
             </div>)}
