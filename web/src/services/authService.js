@@ -200,92 +200,196 @@ export const registerUser = async (
     throw new Error('Username is already taken.');
   }
 
-  const { data, error } = await signupClient.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${window.location.origin}/auth/callback`,
-    },
-  });
+  let authUserId = null
+  let signUpError = null
 
-  if (error) {
-    throw error;
+  try {
+    const result = await signupClient.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    authUserId = result?.data?.user?.id || null
+    signUpError = result?.error || null
+  } catch (error) {
+    signUpError = error
   }
 
+  const signUpErrorMessage = signUpError?.message || ''
+  const isUserAlreadyExists = signUpError?.code === 'user_already_exists' || /User already registered/.test(signUpErrorMessage)
 
+  if (isUserAlreadyExists) {
+    const { data: existingEmployee } = await supabaseClient
+      .from('employee')
+      .select('employee_id, user_id')
+      .eq('email', email)
+      .maybeSingle()
 
-  const authUserId = data?.user?.id;
-
-  if (authUserId) {
-    try {
-      const fallbackFirstName = firstName || email.split('@')[0] || 'Unknown'
-      const fallbackLastName = lastName || 'User'
-      const roleName = String(position || role || 'employee').trim() || 'employee'
-
-      let roleId = null
-      try {
-        const { data: roleRow } = await supabaseClient
-          .from('roles')
-          .select('role_id')
-          .eq('role_name', roleName)
-          .maybeSingle()
-        roleId = roleRow?.role_id || null
-      } catch {
-        // proceed without role_id if lookup fails
-      }
-
-      const { data, error: insertError } = await supabaseClient
-        .from('employee')
-        .insert([
-          {
-            first_name: fallbackFirstName,
-            last_name: fallbackLastName,
-            position: roleName,
-            department: department || 'general',
-            employee_type: 'staff',
-            role: roleName,
-            role_id: roleId,
-            user_id: authUserId,
-            email,
-            username: normalizedUsername,
-          },
-        ])
-        .select()
-        .single();
-
-      const createdEmployee = data;
-
-      if (!insertError && createdEmployee) {
-        clearPendingEmployee();
-        return { ...data, employeeCreated: true };
-      }
-
-      if (insertError) {
-        console.warn(
-          '[registerUser] Immediate employee insert failed. Will retry after verification.',
-          insertError
-        );
-      }
-    } catch (e) {
-      console.warn('[registerUser] Immediate employee insert threw error, falling back to post-verification creation:', e);
+    if (existingEmployee) {
+      return { ...existingEmployee, employeeCreated: true }
     }
-  } else {
-    console.warn('[registerUser] No authUserId returned from signUp. This usually means Confirm Email is enabled and the user is pending verification.');
+
+    const roleName = String(position || role || 'employee').trim() || 'employee'
+
+    let roleId = null
+    try {
+      const { data: roleRow } = await supabaseClient
+        .from('roles')
+        .select('role_id')
+        .eq('role_name', roleName)
+        .maybeSingle()
+      roleId = roleRow?.role_id || null
+    } catch {
+      // proceed without role_id if lookup fails
+    }
+
+    const { data: createdEmployee, error: createError } = await supabaseClient
+      .from('employee')
+      .insert([
+        {
+          first_name: firstName || email.split('@')[0] || 'Unknown',
+          last_name: lastName || 'User',
+          position: roleName,
+          department: department || 'general',
+          employee_type: 'staff',
+          role: roleName,
+          role_id: roleId,
+          email,
+          username: normalizedUsername,
+        },
+      ])
+      .select()
+      .single()
+
+    if (createError) {
+      console.warn('[registerUser] Failed to create employee for existing auth user:', createError)
+      savePendingEmployee({
+        email,
+        username: normalizedUsername,
+        firstName: firstName || email.split('@')[0] || 'Unknown',
+        lastName: lastName || 'User',
+        position: roleName,
+        department: department || 'general',
+        employeeType: 'staff',
+        role: roleName,
+        createdAt: Date.now(),
+      })
+      return { employeeCreated: false, pendingEmployee: true, authAlreadyExists: true }
+    }
+
+    clearPendingEmployee()
+    return { ...createdEmployee, employeeCreated: true }
   }
 
-  savePendingEmployee({
-    email,
-    username: normalizedUsername,
-    firstName: firstName || email.split('@')[0] || 'Unknown',
-    lastName: lastName || 'User',
-    position: position || role || 'employee',
-    department: department || 'general',
-    employeeType: 'staff',
-    role: String(position || role || 'employee').trim() || 'employee',
-    createdAt: Date.now(),
-  });
+  if (signUpError) {
+    throw signUpError
+  }
 
-  return { ...data, employeeCreated: false, pendingEmployee: true };
+  if (!authUserId) {
+    savePendingEmployee({
+      email,
+      username: normalizedUsername,
+      firstName: firstName || email.split('@')[0] || 'Unknown',
+      lastName: lastName || 'User',
+      position: position || role || 'employee',
+      department: department || 'general',
+      employeeType: 'staff',
+      role: String(position || role || 'employee').trim() || 'employee',
+      createdAt: Date.now(),
+    })
+
+    return { employeeCreated: false, pendingEmployee: true }
+  }
+
+  try {
+    const fallbackFirstName = firstName || email.split('@')[0] || 'Unknown'
+    const fallbackLastName = lastName || 'User'
+    const roleName = String(position || role || 'employee').trim() || 'employee'
+
+    let roleId = null
+    try {
+      const { data: roleRow } = await supabaseClient
+        .from('roles')
+        .select('role_id')
+        .eq('role_name', roleName)
+        .maybeSingle()
+      roleId = roleRow?.role_id || null
+    } catch {
+      // proceed without role_id if lookup fails
+    }
+
+    const { data: existingEmployee } = await supabaseClient
+      .from('employee')
+      .select('employee_id')
+      .eq('user_id', authUserId)
+      .maybeSingle()
+
+    if (existingEmployee) {
+      clearPendingEmployee()
+      return { ...existingEmployee, employeeCreated: true }
+    }
+
+    const { data, error: insertError } = await supabaseClient
+      .from('employee')
+      .insert([
+        {
+          first_name: fallbackFirstName,
+          last_name: fallbackLastName,
+          position: roleName,
+          department: department || 'general',
+          employee_type: 'staff',
+          role: roleName,
+          role_id: roleId,
+          user_id: authUserId,
+          email,
+          username: normalizedUsername,
+        },
+      ])
+      .select()
+      .single();
+
+    if (insertError) {
+      console.warn(
+        '[registerUser] Immediate employee insert failed. Will retry after verification.',
+        insertError
+      );
+      
+      savePendingEmployee({
+        email,
+        username: normalizedUsername,
+        firstName: fallbackFirstName,
+        lastName: fallbackLastName,
+        position: roleName,
+        department: department || 'general',
+        employeeType: 'staff',
+        role: roleName,
+        createdAt: Date.now(),
+      })
+
+      return { ...data, employeeCreated: false, pendingEmployee: true }
+    }
+
+    clearPendingEmployee()
+    return { ...data, employeeCreated: true }
+  } catch (e) {
+    console.warn('[registerUser] Employee creation threw error:', e)
+    
+    savePendingEmployee({
+      email,
+      username: normalizedUsername,
+      firstName: firstName || email.split('@')[0] || 'Unknown',
+      lastName: lastName || 'User',
+      position: position || role || 'employee',
+      department: department || 'general',
+      employeeType: 'staff',
+      role: String(position || role || 'employee').trim() || 'employee',
+      createdAt: Date.now(),
+    })
+
+    return { employeeCreated: false, pendingEmployee: true }
+  }
 };
 
 export const loginUser = async (email, password) => {

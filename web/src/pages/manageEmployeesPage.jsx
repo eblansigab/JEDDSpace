@@ -155,18 +155,19 @@ const ManageEmployeesPage = () => {
         normalizedUsername
       )
 
-      await Promise.allSettled([
-        notificationService.createNotification({
-          title: 'Employee record created',
-          message: `${trimmedFirstName} ${trimmedLastName} was added successfully.`,
-          type: 'employee_update',
-          priority: 'Normal',
-          userId: user?.id
-        })
-      ])
-
       if (result?.employeeCreated) {
+        await Promise.allSettled([
+          notificationService.createNotification({
+            title: 'Employee record created',
+            message: `${trimmedFirstName} ${trimmedLastName} was added successfully.`,
+            type: 'employee_update',
+            priority: 'Normal',
+            userId: user?.id
+          })
+        ])
         await alertService.success('Employee added successfully.')
+      } else if (result?.authAlreadyExists) {
+        await alertService.success('Auth account already exists. Employee profile is ready.')
       } else {
         await alertService.success('Auth account created. Employee profile will be created after email verification.')
       }
