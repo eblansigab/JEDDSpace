@@ -39,7 +39,8 @@ const ensureEmployeeRecord = async (user) => {
     const emailName = (user.email || '').split('@')[0] || ''
     const fallbackFirstName = meta.first_name || emailName || 'Unknown'
     const fallbackLastName = meta.last_name || 'User'
-    const roleName = String(meta.role || 'employee').toLowerCase() === 'admin' ? 'admin' : 'employee'
+    const rawRole = String(meta.role || 'employee').trim() || 'employee'
+    const roleName = rawRole.toLowerCase() === 'admin' ? 'admin' : rawRole
 
     let roleId = null
     try {
@@ -53,6 +54,8 @@ const ensureEmployeeRecord = async (user) => {
       // proceed without role_id if lookup fails
     }
 
+    const fallbackPosition = roleName || 'employee'
+
     const { data: inserted, error: insertError } = await supabaseClient
       .from('employee')
       .insert([
@@ -60,10 +63,10 @@ const ensureEmployeeRecord = async (user) => {
           user_id: user.id,
           first_name: fallbackFirstName,
           last_name: fallbackLastName,
-          position: meta.position || 'employee',
+          position: fallbackPosition,
           department: meta.department || 'general',
           employee_type: meta.employee_type || 'staff',
-          role: roleName,
+          role: fallbackPosition,
           role_id: roleId,
           email: user.email,
         },
