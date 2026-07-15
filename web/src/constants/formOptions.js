@@ -27,7 +27,7 @@ export const NCR_DESTINATION_OPTIONS = [
 export const JOB_STATUS_OPTIONS = ['open', 'closed', 'pending', 'in progress', 'cancelled', 'problem']
 
 export async function getPositions(){
-  const {data,error} = await supabaseClient.from("roles").select("role_name,hierarchy_level")
+  const {data,error} = await supabaseClient.from("roles").select("role_id,role_name,hierarchy_level")
   return data
 }
 

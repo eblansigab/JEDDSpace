@@ -8,7 +8,7 @@ import { notificationService } from '../services/notificationService'
 import { useAuth } from '../services/authContext'
 import { alertService } from '../utils/alertService'
 import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
-import { DEPARTMENT_OPTIONS, POSITION_OPTIONS, getPositions } from '../constants/formOptions'
+import { DEPARTMENT_OPTIONS, getPositions } from '../constants/formOptions'
 import { supabaseClient } from '../supabase/supabaseClient'
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
@@ -54,11 +54,6 @@ const ManageEmployeesPage = () => {
     }
   }
 
-  useEffect(() => {
-    fetchEmployees()
-    getPosition()
-  }, [])
-
   const getPosition = async()=>{
     const [positions, currentRole] = await Promise.all([
       getPositions(),
@@ -78,6 +73,11 @@ const ManageEmployeesPage = () => {
     })
     setPosition(filteredData)
   }
+
+  useEffect(() => {
+    fetchEmployees()
+    getPosition()
+  }, [])
 
   const updateForm = (field, value) => {
     setForm((current) => ({
@@ -136,14 +136,20 @@ const ManageEmployeesPage = () => {
       return
     }
 
+    const selectedRole = position.find((item) => item.role_name === form.position)
+    if (!selectedRole?.role_id) {
+      await alertService.warning('Invalid position selected.')
+      return
+    }
+
     try {
-      await registerUser(
+      const result = await registerUser(
         trimmedEmail,
         form.password,
         form.confirmPassword,
         trimmedFirstName,
         trimmedLastName,
-        form.position,
+        selectedRole.role_name,
         'employee',
         form.department,
         normalizedUsername
@@ -159,7 +165,12 @@ const ManageEmployeesPage = () => {
         })
       ])
 
-      await alertService.success('Employee added successfully.')
+      if (result?.employeeCreated) {
+        await alertService.success('Employee added successfully.')
+      } else {
+        await alertService.success('Auth account created. Employee profile will be created after email verification.')
+      }
+
       resetForm()
       setIsAddOpen(false)
       await fetchEmployees()
@@ -199,7 +210,12 @@ const ManageEmployeesPage = () => {
       return
     }
 
-    const targetPosition = position.find((item) => item.role_name === form.position)
+    const selectedRole = position.find((item) => item.role_name === form.position)
+    if (!selectedRole?.role_id) {
+      await alertService.warning('Invalid position selected.')
+      return
+    }
+
     const currentRoleHierarchy = profile?.role_id
       ? await supabaseClient
           .from('roles')
@@ -209,7 +225,7 @@ const ManageEmployeesPage = () => {
           .then((r) => r.data?.hierarchy_level)
       : null
 
-    if (targetPosition?.hierarchy_level && currentRoleHierarchy && targetPosition.hierarchy_level <= currentRoleHierarchy) {
+    if (selectedRole.hierarchy_level && currentRoleHierarchy && selectedRole.hierarchy_level <= currentRoleHierarchy) {
       await alertService.warning('Invalid position.')
       return
     }
@@ -220,7 +236,7 @@ const ManageEmployeesPage = () => {
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
         department: form.department,
-        position: form.position,
+        role_id: selectedRole.role_id,
         registration_status: form.registration_status,
         employment_status: form.employment_status,
       })
@@ -357,7 +373,7 @@ const ManageEmployeesPage = () => {
         }}
         onSave={handleAddEmployee}
         mode="add"
-        profile={profile}
+        position={position}
       />
 
       <EmployeeModal
@@ -371,7 +387,7 @@ const ManageEmployeesPage = () => {
         }}
         onSave={handleUpdateEmployee}
         mode="edit"
-        profile={profile}
+        position={position}
       />
     </DashboardLayout>
   )
@@ -383,7 +399,7 @@ const profileServiceInitials = (employee) => {
   return `${first}${last}`.toUpperCase() || 'U'
 }
 
-const EmployeeModal = ({ visible, title, form, onChange, onClose, onSave, mode,profile }) => (
+const EmployeeModal = ({ visible, title, form, onChange, onClose, onSave, mode, position }) => (
   <Modal
     visible={visible}
     title={title}
@@ -441,11 +457,10 @@ const EmployeeModal = ({ visible, title, form, onChange, onClose, onSave, mode,p
       <select value={form.department} onChange={(event) => onChange('department', event.target.value)}>
         {DEPARTMENT_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
       </select>
-      <select value={form.position} onChange={(event) => onChange('position', event.target.value)}>
-        {POSITION_OPTIONS.filter(item=>item.hierarchy_level>profile.role_id).map((item) => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)
-        }
-        
-      </select>
+          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Position / Role</label>
+          <select value={form.position} onChange={(event) => onChange('position', event.target.value)}>
+            {position.map((item) => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}
+          </select>
       <select value={form.registration_status} onChange={(event) => onChange('registration_status', event.target.value)}>
         <option value="pending">pending</option>
         <option value="approved">approved</option>

@@ -141,7 +141,7 @@ export const createEmployeeRecord = async (authUserId, employeeData) => {
 
   const fallbackFirstName = employeeData.firstName || employeeData.email?.split('@')[0] || 'Unknown'
   const fallbackLastName = employeeData.lastName || 'User'
-  const roleName = String(employeeData.role || '').toLowerCase() === 'admin' ? 'admin' : 'employee'
+  const roleName = String(employeeData.position || employeeData.role || 'employee').trim() || 'employee'
 
   let roleId = null
   try {
@@ -220,7 +220,7 @@ export const registerUser = async (
     try {
       const fallbackFirstName = firstName || email.split('@')[0] || 'Unknown'
       const fallbackLastName = lastName || 'User'
-      const roleName = String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee'
+      const roleName = String(position || role || 'employee').trim() || 'employee'
 
       let roleId = null
       try {
@@ -241,7 +241,7 @@ export const registerUser = async (
             first_name: fallbackFirstName,
             last_name: fallbackLastName,
             position: roleName,
-            department,
+            department: department || 'general',
             employee_type: 'staff',
             role: roleName,
             role_id: roleId,
@@ -262,7 +262,7 @@ export const registerUser = async (
 
       if (insertError) {
         console.warn(
-          '[registerUser] Immediate employee insert failed (likely FK timing with email confirmation). Will retry after verification.',
+          '[registerUser] Immediate employee insert failed. Will retry after verification.',
           insertError
         );
       }
@@ -278,10 +278,10 @@ export const registerUser = async (
     username: normalizedUsername,
     firstName: firstName || email.split('@')[0] || 'Unknown',
     lastName: lastName || 'User',
-    position: position || 'employee',
+    position: position || role || 'employee',
     department: department || 'general',
     employeeType: 'staff',
-    role: String(role || '').toLowerCase() === 'admin' ? 'admin' : 'employee',
+    role: String(position || role || 'employee').trim() || 'employee',
     createdAt: Date.now(),
   });
 
