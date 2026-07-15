@@ -5,7 +5,6 @@ import LoadingOverlay from "../components/LoadingOverlay";
 const LoginPage = lazy(() => import("../pages/loginPage"));
 const AuthCallbackPage = lazy(() => import("../pages/authCallbackPage"))
 const SignupPage = lazy(() => import("../pages/signupPage"));
-const Verify2FAPage = lazy(() => import("../pages/verify2faPage"));
 const CommonDashboardPage = lazy(() => import("../pages/commonDashboardPage"));
 const AnnouncementsPage = lazy(() => import("../pages/announcementsPage"));
 const EmailsPage = lazy(() => import("../pages/emailsPage"));
@@ -55,7 +54,6 @@ const InnerRoutes = () => {
           <Route path="/awaiting-approval" element={<AwaitingApprovalPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
-          <Route path="/verify-2fa" element={<ProtectedRoute><ApprovalGuard><Verify2FAPage /></ApprovalGuard></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><ApprovalGuard><CommonDashboardPage /></ApprovalGuard></ProtectedRoute>} />
           <Route path="/admin-dashboard" element={<ProtectedRoute><AdminRoute><ApprovalGuard><AdminDashboardPage /></ApprovalGuard></AdminRoute></ProtectedRoute>}/>
           <Route path="/employees" element={<ProtectedRoute><ApprovalGuard><EmployeesPage /></ApprovalGuard></ProtectedRoute>} />

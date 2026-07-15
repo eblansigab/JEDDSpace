@@ -2,8 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  beginTwoFactorSignIn,
-  isTwoFactorEnabled,
   loginWithUsername,
 } from '../services/authService';
 import { sessionService } from '../services/sessionService';
@@ -45,20 +43,13 @@ export function LoginPage() {
     try {
       const normalizedUsername = username.trim();
 
-      if (isTwoFactorEnabled) {
-        const result = await beginTwoFactorSignIn(normalizedUsername, password);
-        if (result?.code) {
-          navigate('/verify-2fa');
-          return;
-        }
-      } else {
-        const data = await loginWithUsername(normalizedUsername, password);
-        const userId = data?.user?.id;
+      const data = await loginWithUsername(normalizedUsername, password);
+      const userId = data?.user?.id;
 
-        if (userId) {
-          await sessionService.createSession(userId);
-        }
+      if (userId) {
+        await sessionService.createSession(userId);
       }
+
       navigate('/dashboard');
     } catch (err) {
       const message = err?.message || 'An error happened, please try again...';
