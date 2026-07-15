@@ -327,10 +327,33 @@ export const registerUser = async (
       // proceed without role_id if lookup fails
     }
 
+    let resolvedUserId = authUserId
+    if (!resolvedUserId) {
+      try {
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'resolve-user-id-by-email',
+            email,
+          }),
+        })
+
+        const result = await response.json().catch(() => null)
+        if (response.ok && result?.userId) {
+          resolvedUserId = result.userId
+        }
+      } catch {
+        // proceed without user_id if lookup fails
+      }
+    }
+
     const { data: existingEmployee } = await supabaseClient
       .from('employee')
       .select('employee_id')
-      .eq('user_id', authUserId)
+      .eq('user_id', resolvedUserId)
       .maybeSingle()
 
     if (existingEmployee) {
@@ -349,7 +372,7 @@ export const registerUser = async (
           employee_type: 'staff',
           role: roleName,
           role_id: roleId,
-          user_id: authUserId,
+          user_id: resolvedUserId,
           email,
           username: normalizedUsername,
         },

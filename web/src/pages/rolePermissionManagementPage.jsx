@@ -373,8 +373,6 @@ const RolePermissionManagementPage = () => {
                                 >
                                   <option value="ALL">All</option>
                                   <option value="DEPARTMENT">Department</option>
-                                  <option value="SUBORDINATE">Subordinate</option>
-                                  <option value="SELF">Self</option>
                                 </select>
                                 <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 6, fontSize: 12, color: '#374151', whiteSpace: 'nowrap' }}>
                                   <input

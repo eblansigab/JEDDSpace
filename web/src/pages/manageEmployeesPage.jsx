@@ -176,7 +176,8 @@ const ManageEmployeesPage = () => {
       setIsAddOpen(false)
       await fetchEmployees()
     } catch (error) {
-      await alertService.error(error.message || 'Failed to add employee.')
+      console.error(error.message)
+      await alertService.error('Failed to add employee.')
     }
   }
 

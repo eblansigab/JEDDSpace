@@ -7,7 +7,6 @@ const authConfig = {
   persistSession: true,
   autoRefreshToken: true,
   detectSessionInUrl: true,
-  // Avoid auth requests hanging when a stale Web Lock is held (common with localhost + multiple tabs)
   lock: async (_name, _acquireTimeout, fn) => fn(),
 }
 
@@ -15,17 +14,13 @@ export const supabaseClient = createClient(supabaseUrl, supabaseKey, {
   auth: authConfig,
 })
 
-/**
- * `signupClient` reuses the same Supabase client instance.
- *
- * Historically we created a second `createClient` here so that sign-up would
- * not disturb the admin's existing session, but that caused the
- * "Multiple GoTrueClient instances" warning because they share the same
- * storage key. We now reuse `supabaseClient` directly.
- *
- * If you need to call sign-up *without* affecting the current session, call
- * `supabaseClient.auth.signUp(...)` from a context where the admin is not
- * already signed in (e.g. a public registration page), or sign the admin out
- * temporarily and back in after the operation.
- */
-export const signupClient = supabaseClient
+const signupAuthConfig = {
+  persistSession: false,
+  autoRefreshToken: false,
+  detectSessionInUrl: false,
+  lock: async (_name, _acquireTimeout, fn) => fn(),
+}
+
+export const signupClient = createClient(supabaseUrl, supabaseKey, {
+  auth: signupAuthConfig,
+})
