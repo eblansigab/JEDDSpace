@@ -230,6 +230,27 @@ export const registerUser = async (
       // proceed without role_id if lookup fails
     }
 
+    let authUserIdFromServer = null
+    try {
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'resolve-user-id-by-email',
+          email,
+        }),
+      })
+
+      const result = await response.json().catch(() => null)
+      if (response.ok && result?.userId) {
+        authUserIdFromServer = result.userId
+      }
+    } catch {
+      // proceed without user_id if lookup fails
+    }
+
     const { data: createdEmployee, error: createError } = await supabaseClient
       .from('employee')
       .insert([
@@ -241,6 +262,7 @@ export const registerUser = async (
           employee_type: 'staff',
           role: roleName,
           role_id: roleId,
+          user_id: authUserIdFromServer,
           email,
           username: normalizedUsername,
         },
