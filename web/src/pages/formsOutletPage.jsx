@@ -97,7 +97,8 @@ const FormsOutletPage = () => {
       await alertService.success(`Form ${status} successfully`)
       await loadForms()
     } catch (error) {
-      await alertService.error(error.message || `Failed to update form status`)
+      console.error(error.message)
+      await alertService.error(`Failed to update form status`)
     }
   }
 

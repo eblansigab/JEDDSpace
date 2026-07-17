@@ -126,7 +126,7 @@ const PostAnnouncement = () => {
       loadNotifications()
     } catch (error) {
       console.error(error)
-      alertService.error(error.message || 'Unable to save announcement.', 'Save Failed')
+      alertService.error('Unable to save announcement.', 'Save Failed')
     } finally {
       setIsPublishing(false)
     }
@@ -137,7 +137,8 @@ const PostAnnouncement = () => {
       await notificationService.updatePriority(notificationId, nextPriority)
       loadNotifications()
     } catch (error) {
-      alertService.error(error.message || 'Unable to update priority.', 'Update Failed')
+      console.error(error.message)
+      alertService.error('Unable to update priority.', 'Update Failed')
     }
   }
 
@@ -147,7 +148,8 @@ const PostAnnouncement = () => {
       await alertService.success('Notification log marked as read.', 'Log Updated')
       loadNotifications()
     } catch (error) {
-      alertService.error(error.message || 'Unable to mark notifications as read.', 'Update Failed')
+      console.error(error.message)
+      alertService.error('Unable to mark notifications as read.', 'Update Failed')
     }
   }
 
@@ -165,7 +167,8 @@ const PostAnnouncement = () => {
       await alertService.success('Old notification logs were cleared.', 'Logs Cleared')
       loadNotifications()
     } catch (error) {
-      alertService.error(error.message || 'Unable to clear old notifications.', 'Clear Failed')
+      console.error(error.message)
+      alertService.error('Unable to clear old notifications.', 'Clear Failed')
     }
   }
 

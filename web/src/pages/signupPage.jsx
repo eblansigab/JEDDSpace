@@ -147,7 +147,8 @@ const SignUp = () => {
       setTouched({})
       setUsernameStatus('')
     } catch (error) {
-      await alertService.error(error.message || 'Registration failed. Please try again.')
+      console.error(error.message)
+      await alertService.error('Registration failed. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -158,7 +159,8 @@ const SignUp = () => {
       await resendVerficationEmail()
       await alertService.success('Verification email sent. Please check your inbox.')
     } catch (error) {
-      await alertService.error(error.message || 'Unable to resend verification email.')
+      console.error(error.message)
+      await alertService.error('Unable to resend verification email.')
     }
   }
 

@@ -57,7 +57,7 @@ const AnnouncementsPage = () => {
       setAnnouncements(data)
     } catch (error) {
       console.error(error)
-      alertService.error(error.message || 'Unable to load announcements.', 'Load Failed')
+      alertService.error('Unable to load announcements.', 'Load Failed')
     } finally {
       setLoading(false)
     }
@@ -102,7 +102,8 @@ const AnnouncementsPage = () => {
       setUserReactions((prev) => ({ ...prev, [announcementId]: reactionType }))
       await loadReactions(announcementId)
     } catch (error) {
-      await alertService.error(error.message || 'Unable to update reaction.', 'Reaction Failed')
+      console.log(error.message)
+      await alertService.error('Unable to update reaction.', 'Reaction Failed')
     } finally {
       setReactionLoading((prev) => ({ ...prev, [announcementId]: false }))
     }
@@ -179,7 +180,8 @@ const AnnouncementsPage = () => {
       await loadAnnouncements()
     } catch (error) {
       setIsSaving(false)
-      await alertService.error(error.message || 'Unable to update announcement.', 'Update Failed')
+      console.error(error.message)
+      await alertService.error('Unable to update announcement.', 'Update Failed')
     }
   }
 

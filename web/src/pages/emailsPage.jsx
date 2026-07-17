@@ -252,7 +252,8 @@ const EmailsPage = () => {
         loadThread(selectedMessage.email_id)
       }
     } catch (error) {
-      await alertService.error(error.message || 'Unable to send message.', 'Failed')
+      console.error(error.message)
+      await alertService.error('Unable to send message.', 'Failed')
     } finally {
       setIsSubmitting(false)
     }
@@ -302,7 +303,8 @@ const EmailsPage = () => {
       setUserReactions((prev) => ({ ...prev, [emailId]: reactionType }))
       await loadMessageReactions(emailId)
     } catch (error) {
-      await alertService.error(error.message || 'Unable to update reaction.', 'Reaction Failed')
+      console.error(error.message)
+      await alertService.error('Unable to update reaction.', 'Reaction Failed')
     } finally {
       setReactionLoading((prev) => ({ ...prev, [emailId]: false }))
     }

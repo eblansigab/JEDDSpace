@@ -104,7 +104,8 @@ const LeaveFormPage = () => {
       setReason('')
       setMedicalCertificate(null)
     } catch (error) {
-      await alertService.error(error.message || 'Failed to submit leave form.')
+      console.error(error.message)
+      await alertService.error('Failed to submit leave form.')
     } finally {
       setIsSubmitting(false)
     }

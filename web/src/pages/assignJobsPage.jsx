@@ -99,7 +99,8 @@ const AssignJobsPage = () => {
         await alertService.info('No recommendations available for the selected dates')
       }
     } catch (error) {
-      await alertService.error(error.message || 'Failed to get recommendations')
+      console.error(error.message)
+      await alertService.error('Failed to get recommendations')
     } finally {
       setLoadingRecommendations(false)
     }
