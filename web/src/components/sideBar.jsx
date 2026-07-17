@@ -8,15 +8,17 @@ import { emailService } from '../services/emailService'
 import { logoutUser } from '../services/authService'
 import { alertService } from '../utils/alertService'
 
+
 const Sidebar = () => {
   const navigate = useNavigate()
+  const {hasPermission} = usePermissions()
   const [showHRDropdown, setShowHRDropdown] = useState(false)
   const [unreadEmailCount, setUnreadEmailCount] = useState(0)
   const [avatarError, setAvatarError] = useState(false)
   const [theme, setTheme] = useState(localStorage.getItem('theme') || localStorage.getItem('jeddspace_theme') || 'light')
   const { profile, loading, user } = useAuth()
   const { hasAdminAccess } = usePermissions()
-  const [role, setRole] = useState(String(profile?.role || '').trim().toLowerCase() || '')
+  const [role, setRole] = useState(String(profile?.role || '').trim().toLowerCase() || '') 
 
   const applyTheme = (nextTheme) => {
     document.documentElement.dataset.theme = nextTheme
@@ -280,7 +282,7 @@ const Sidebar = () => {
           </Link>
         </li>
 
-        <li>
+        {profile.role_id!=1 && <li>
           <button type="button" className="drop-btn" onClick={() => setShowHRDropdown((isOpen) => !isOpen)} aria-expanded={showHRDropdown} title="HR Forms">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg>
             <span className="sidebar-link-text">HR Forms</span>
@@ -292,7 +294,7 @@ const Sidebar = () => {
               <li><Link to="/leave-form" onClick={closeMobileSidebar} title="Leave Form"><span className="sidebar-link-text">Leave Form</span></Link></li>
             </ul>
           )}
-        </li>
+        </li>}
 
         {isAdmin && (
           <li>
