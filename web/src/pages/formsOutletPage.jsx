@@ -44,7 +44,8 @@ const FormsOutletPage = () => {
       setLeaveForms(leaveData || [])
       setBusinessForms(businessData || [])
     } catch (error) {
-      await alertService.error(error.message || 'Failed to load forms')
+      console.error(error.message)
+      await alertService.error('Failed to load forms')
     } finally {
       setLoading(false)
     }

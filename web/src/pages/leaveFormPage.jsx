@@ -6,6 +6,7 @@ import { alertService } from '../utils/alertService'
 import { createLeaveForm } from '../services/messageService'
 import { documentService } from '../services/documentService'
 
+
 const LEAVE_TYPES = [
   { value: 'VL', label: 'Vacation Leave' },
   { value: 'SL', label: 'Sick Leave' },

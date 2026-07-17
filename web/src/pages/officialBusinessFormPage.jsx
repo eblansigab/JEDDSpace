@@ -2,8 +2,10 @@ import React, { useState } from 'react'
 import DashboardLayout from '../layouts/dashboardLayout'
 import { SendBusinessForm } from '../components/sendForm'
 import Swal from "sweetalert2";
+import { useAuth } from '../services/authContext';
 
 const OfficialBusinessFormPage = () => {
+    const {profile} = useAuth()
     const [project, setProject] = useState("")
     const [startDate, setStartDate] = useState("")
     const [endDate, setEndDate] = useState("")
@@ -33,14 +35,15 @@ const OfficialBusinessFormPage = () => {
 
                     if (!confirm.isConfirmed) return
 
-                    Swal.fire({
+                    //note: fix this fire feature cuz its stopping the entire code until the window is closed- if this cant be fixed remove it instead *wink
+                   /* Swal.fire({
                         title: 'Submitting...',
                         text: 'Please wait while we process your form.',
                         allowOutsideClick: false,
                         didOpen: () => { Swal.showLoading() }
-                    })
+                    })*/
 
-                    const success = await SendBusinessForm(project, startDate, endDate, address, car, driver, phone)
+                    const success = await SendBusinessForm(profile.employee_id,project, startDate, endDate, address, car, driver, phone)
 
                     if (success) {
                         Swal.fire({
