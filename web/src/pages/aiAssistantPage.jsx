@@ -12,7 +12,7 @@ import { getRecommendations } from '../services/recommendationService'
 const welcomeMessage = {
   role: 'assistant',
   content:
-    'I can answer questions about employees, jobs, leave requests, contracts, notifications, documents, and recommendations. You can also upload PDF, TXT, CSV, DOCX, XLSX, PNG, JPG, WEBP, MP3, WAV, or M4A files for analysis.',
+    'I can answer questions about employees, jobs, leave requests, projects, notifications, documents, and recommendations. You can also upload PDF, TXT, CSV, DOCX, XLSX, PNG, JPG, WEBP, MP3, WAV, or M4A files for analysis.',
 }
 
 const SESSION_STORAGE_KEY = 'jeddspace_ai_session_id'
@@ -124,9 +124,9 @@ export default function AiAssistantPage() {
         message: 'Show the employees on approved leave and summarize the leave details.',
       },
       {
-        label: 'Contract Summary',
-        description: 'Summarize the active contract list.',
-        message: 'Summarize the current contracts.',
+        label: 'Project Summary',
+        description: 'Summarize the active project list.',
+        message: 'Summarize the current projects.',
       },
       {
         label: 'Unread Notifications',
@@ -150,9 +150,9 @@ export default function AiAssistantPage() {
       },
      
       {
-        label: 'Compare Contract',
-        description: 'Compare uploaded contract with database.',
-        message: 'Check for conflicts between an uploaded contract and our existing contracts.',
+        label: 'Compare projects',
+        description: 'Compare uploaded projects with database.',
+        message: 'Check for conflicts between an uploaded project and our existing projects.',
       },
     ],
     []
@@ -385,7 +385,7 @@ export default function AiAssistantPage() {
       <main className="content">
         <PageHeader
           title="AI Assistant"
-          subtitle={`Ask about jobs, employees, leave, contracts, notifications, documents, or upload files for analysis.`}
+          subtitle={`Ask about jobs, employees, leave, projects, notifications, documents, or upload files for analysis.`}
           actions={[
             <select
               key="ai-session-select"
@@ -443,7 +443,7 @@ export default function AiAssistantPage() {
                 onChange={setPrompt}
                 onSend={() => runPrompt(prompt, true)}
                 loading={loading}
-                placeholder="Ask about employees, jobs, leave, contracts, notifications, documents, or upload files for analysis..."
+                placeholder="Ask about employees, jobs, leave, projects, notifications, documents, or upload files for analysis..."
                 attachments={attachments}
                 onAddAttachment={handleAddAttachment}
                 onRemoveAttachment={handleRemoveAttachment}
