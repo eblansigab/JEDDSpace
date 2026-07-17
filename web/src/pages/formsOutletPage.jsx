@@ -31,18 +31,22 @@ const FormsOutletPage = () => {
   const [businessForms, setBusinessForms] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [hierarchyLevel,setHierarchyLevel] = useState()
 
   const isAdmin = hasPermission('LEAVE_MANAGE')
 
   const loadForms = async () => {
     setLoading(true)
     try {
+      const {data,error} = await supabaseClient.from("roles").select("hierarchy_level").eq("role_id",profile.role_id)
+      setHierarchyLevel(data[0].hierarchy_level)
       const [leaveData, businessData] = await Promise.all([
         getLeaveForms(),
         getBusinessForms()
       ])
-      setLeaveForms(leaveData || [])
-      setBusinessForms(businessData || [])
+      setLeaveForms(leaveData.filter(id=>id.employee_id!=profile.employee_id && (id.employee!=null && id.employee.role.hierarchy_level>data[0].hierarchy_level)) || [])
+      setBusinessForms(businessData.filter(id=>id.employee_id!=profile.employee_id && (id.employee!=null && id.employee.role.hierarchy_level>data[0].hierarchy_level)) || [])
+      console.log(leaveData.filter(id=>(id.employee!=null && id.employee.role.hierarchy_level>data[0].hierarchy_level)))
     } catch (error) {
       console.error(error.message)
       await alertService.error('Failed to load forms')
@@ -51,7 +55,8 @@ const FormsOutletPage = () => {
     }
   }
 
-  useEffect(() => {
+
+  useEffect(() => { 
     loadForms()
   }, [])
 
