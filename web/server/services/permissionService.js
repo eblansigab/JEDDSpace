@@ -17,6 +17,14 @@ const CSV_PERMISSION_CODES = new Set([
   'AI_HISTORY',
   'AI_USERS',
   'AI_INTENTS',
+  'DOCUMENTS_ACCESS',
+  'PROJECTS_ACCESS',
+  'AI_ACCESS',
+  'ANNOUNCEMENTS_ACCESS',
+  'CONTRACTS_ACCESS',
+  'NOTIFICATIONS_ACCESS',
+  'REPORTS_ACCESS',
+  'ACCESS_ADMIN_DASHBOARD',
 ])
 
 const DB_KEY_TO_CSV_CODE = {
@@ -36,6 +44,14 @@ const DB_KEY_TO_CSV_CODE = {
   'AI Chat Logs.View Conversation History': 'AI_HISTORY',
   'AI Chat Logs.View User Activity': 'AI_USERS',
   'AI Chat Logs.View Intent Classification': 'AI_INTENTS',
+  'Application Access.Documents': 'DOCUMENTS_ACCESS',
+  'Application Access.Projects': 'PROJECTS_ACCESS',
+  'Application Access.AI Assistant': 'AI_ACCESS',
+  'Application Access.Announcements': 'ANNOUNCEMENTS_ACCESS',
+  'Application Access.Contracts': 'CONTRACTS_ACCESS',
+  'Application Access.Notifications': 'NOTIFICATIONS_ACCESS',
+  'Application Access.Reports': 'REPORTS_ACCESS',
+  'Application Access.Admin Dashboard': 'ACCESS_ADMIN_DASHBOARD',
 }
 
 const normalizePermissionKey = (rawKey) => {
@@ -48,13 +64,61 @@ const normalizePermissionKey = (rawKey) => {
 const PERMISSION_CACHE_TTL_MS = 5 * 60 * 1000
 const ROLE_CACHE_TTL_MS = 5 * 60 * 1000
 
+const buildPermission = (perm, scope = 'ALL') => {
+  const module = String(perm.module || '').trim()
+  const action = String(perm.action || '').trim()
+  const rawKey = module && action ? `${module}.${action}` : ''
+
+  return {
+    permission_id: perm.permission_id,
+    key: normalizePermissionKey(rawKey),
+    rawKey,
+    module,
+    action,
+    scope,
+  }
+}
+
 class PermissionService {
   constructor() {
     this.permissionCache = new Map()
     this.roleCache = new Map()
   }
 
-  async loadPermissionsByRoleId(roleId) {
+  async loadRoleByRoleId(roleId) {
+    if (!roleId) return null
+
+    const cacheKey = `role_${roleId}`
+    const now = Date.now()
+    const cached = this.roleCache.get(cacheKey)
+    if (cached && now - cached.ts < ROLE_CACHE_TTL_MS) {
+      return cached.role
+    }
+
+    const client = getSupabaseServerClient()
+    const { data, error } = await client
+      .from('roles')
+      .select('role_id, role_name, parent_role_id, hierarchy_level, is_protected')
+      .eq('role_id', roleId)
+      .maybeSingle()
+
+    if (error || !data) {
+      return null
+    }
+
+    const role = {
+      role_id: data.role_id,
+      role_name: data.role_name || 'employee',
+      parent_role_id: data.parent_role_id || null,
+      hierarchy_level: data.hierarchy_level || 0,
+      is_protected: data.is_protected === true,
+    }
+
+    this.roleCache.set(cacheKey, { role, ts: now })
+    return role
+  }
+
+  async loadPermissionsByRoleId(roleId, role = null) {
     if (!roleId) return []
 
     const now = Date.now()
@@ -64,36 +128,32 @@ class PermissionService {
     }
 
     const client = getSupabaseServerClient()
-    const [rolePermsResult, permissionsResult] = await Promise.all([
-      client
-        .from('role_permissions')
-        .select('permission_id, scope')
-        .eq('role_id', roleId),
-      client
-        .from('permissions')
-        .select('permission_id, module, action'),
-    ])
+    const roleInfo = role || await this.loadRoleByRoleId(roleId)
+    const permissionsResult = await client
+      .from('permissions')
+      .select('permission_id, module, action')
 
-    const rolePerms = rolePermsResult.data || []
     const allPermissions = permissionsResult.data || []
 
+    if (roleInfo?.is_protected === true) {
+      const permissions = allPermissions.map((perm) => buildPermission(perm, 'ALL'))
+      this.permissionCache.set(roleId, { permissions, ts: now })
+      return permissions
+    }
+
+    const rolePermsResult = await client
+      .from('role_permissions')
+      .select('permission_id, scope')
+      .eq('role_id', roleId)
+
+    const rolePerms = rolePermsResult.data || []
     const permissionMap = new Map(
       (allPermissions || []).map((perm) => [perm.permission_id, perm])
     )
 
     const permissions = rolePerms.map((row) => {
       const perm = permissionMap.get(row.permission_id) || {}
-      const module = String(perm.module || '').trim()
-      const action = String(perm.action || '').trim()
-      const rawKey = module && action ? `${module}.${action}` : ''
-      return {
-        permission_id: row.permission_id,
-        key: normalizePermissionKey(rawKey),
-        rawKey,
-        module,
-        action,
-        scope: row.scope || 'ALL',
-      }
+      return buildPermission({ ...perm, permission_id: row.permission_id }, row.scope || 'ALL')
     })
 
     this.permissionCache.set(roleId, { permissions, ts: now })
@@ -111,7 +171,7 @@ class PermissionService {
     const client = getSupabaseServerClient()
     const { data, error } = await client
       .from('employee')
-      .select('role_id, role, roles:role_id (role_name, parent_role_id, hierarchy_level)')
+      .select('role_id, role, roles:role_id (role_name, parent_role_id, hierarchy_level, is_protected)')
       .eq('employee_id', employeeId)
       .maybeSingle()
 
@@ -124,6 +184,7 @@ class PermissionService {
       role_name: data.roles?.role_name || data.role || 'employee',
       parent_role_id: data.roles?.parent_role_id || null,
       hierarchy_level: data.roles?.hierarchy_level || 0,
+      is_protected: data.roles?.is_protected === true,
     }
 
     this.roleCache.set(cacheKey, { role, ts: now })
@@ -133,27 +194,15 @@ class PermissionService {
   async getUserPermissions(employeeId) {
     const role = await this.loadRole(employeeId)
     if (!role || !role.role_id) return []
-    return this.loadPermissionsByRoleId(role.role_id)
+    return this.loadPermissionsByRoleId(role.role_id, role)
   }
 
   async hasAdminAccess(employeeId) {
     const role = await this.loadRole(employeeId)
     if (!role || !role.role_id) return false
 
-    try {
-      const client = getSupabaseServerClient()
-      const { count } = await client
-        .from('role_permissions')
-        .select('*', { count: 'exact', head: true })
-        .eq('role_id', role.role_id)
-
-      if (Number(count || 0) === 0) return false
-    } catch {
-      // proceed to permission check below
-    }
-
-    const perms = await this.loadPermissionsByRoleId(role.role_id)
-    return perms.some((p) => ADMIN_PERMISSION_CODES.has(p.key))
+    const perms = await this.loadPermissionsByRoleId(role.role_id, role)
+    return this.hasPermission(perms, 'ACCESS_ADMIN_DASHBOARD')
   }
 
   hasPermission(permissions, permissionKey) {

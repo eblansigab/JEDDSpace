@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from '../server/ai/supabaseClient.js'
+import { getRequestUserContext, getSupabaseServerClient } from '../server/ai/supabaseClient.js'
 import { fail, ok } from '../server/_shared/response.js'
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
@@ -84,6 +84,31 @@ export default async function handler(req, res) {
     } catch (error) {
       console.error('[AUTH] User ID resolution failed', { error: error?.message })
       return fail(res, 500, 'Authentication service is currently unavailable.')
+    }
+  }
+
+  if (action === 'current-permissions') {
+    try {
+      const viewer = await getRequestUserContext(req)
+      if (!viewer?.user?.id) {
+        return fail(res, 401, 'Authentication is required.')
+      }
+      if (!viewer?.employee?.employee_id) {
+        return fail(res, 403, 'Employee record not found.')
+      }
+
+      return ok(res, {
+        employee: {
+          employee_id: viewer.employee.employee_id,
+          role_id: viewer.employee.role_id,
+          role: viewer.employee.role,
+          hierarchy_level: viewer.employee.hierarchy_level,
+        },
+        permissions: viewer.permissions || [],
+      })
+    } catch (error) {
+      console.error('[AUTH] Current permissions lookup failed', { error: error?.message })
+      return fail(res, 500, 'Permission service is currently unavailable.')
     }
   }
 

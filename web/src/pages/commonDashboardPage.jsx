@@ -4,6 +4,7 @@ import DashboardLayout from '../layouts/dashboardLayout'
 import { Button } from '../components'
 import Modal from '../components/Modal'
 import { useAuth } from '../services/authContext'
+import { usePermissions } from '../contexts/PermissionContext'
 import { documentService } from '../services/documentService'
 import { emailService } from '../services/emailService'
 import { sessionService } from '../services/sessionService'
@@ -16,6 +17,7 @@ import { supabaseClient } from '../supabase/supabaseClient'
 
 const CommonDashboardPage = () => {
   const { user, profile } = useAuth()
+  const { hasPermission } = usePermissions()
   const fileInputRef = useRef(null)
   const [emailCount, setEmailCount] = useState(0)
   const [fileCount, setFileCount] = useState(0)
@@ -217,9 +219,11 @@ const CommonDashboardPage = () => {
                      <p style={{margin:'auto 0'}}><strong>{emailCount}</strong> messages logged</p>
                      <p style={{marginBottom:0}}><strong>{fileCount}</strong> files uploaded</p>
                    </div>
-                   <Link to="/ai-assistant" className="primary-btn" style={{ padding: '8px 12px', textDecoration: 'none' }}>
-                     Open AI Assistant
-                   </Link>
+                   {hasPermission('AI_ACCESS') && (
+                     <Link to="/ai-assistant" className="primary-btn" style={{ padding: '8px 12px', textDecoration: 'none' }}>
+                       Open AI Assistant
+                     </Link>
+                   )}
                  </div>
                  </div>
              )}
@@ -257,6 +261,7 @@ const CommonDashboardPage = () => {
              )}
            </section>
 
+          {hasPermission('DOCUMENTS_ACCESS') && (
           <section className={`dashboard-widget ${collapsedWidgets.files ? 'is-collapsed' : ''}`}>
             <div className="dashboard-widget-header">
               <div>
@@ -295,6 +300,7 @@ const CommonDashboardPage = () => {
               
               )}
             </section>
+          )}
           
 
           <section className={`dashboard-widget ${collapsedWidgets.calendar ? 'is-collapsed' : ''} calendar-widget`}>
