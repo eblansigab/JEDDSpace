@@ -7,7 +7,7 @@ import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
 import { supabaseClient } from '../supabase/supabaseClient'
 import ComposeMessageModal from '../components/messaging/ComposeMessageModal'
-import { getEmployeeDirectory, getThreadMessages, sendMessageWithAttachments, MESSAGE_REACTION_TYPES, addMessageReaction, getMessageReactionSummary, getMessageReactions, markMessageRead, getMessageReadReceipts } from '../services/messageService'
+import { getEmployeeDirectory, getThreadMessages, sendMessageWithAttachments, MESSAGE_REACTION_TYPES, addMessageReaction, getMessageReactionSummary, getMessageReactions, markMessageRead, getMessageReadReceipts, getMessageImages, uploadMessageImage, deleteMessageImage } from '../services/messageService'
 
 const EmailsPage = () => {
   const { user, profile } = useAuth()
@@ -28,6 +28,7 @@ const EmailsPage = () => {
   const [userReactions, setUserReactions] = useState({})
   const [reactionLoading, setReactionLoading] = useState({})
   const [readReceipts, setReadReceipts] = useState([])
+  const [messageImages, setMessageImages] = useState({})
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768)
@@ -144,9 +145,11 @@ const EmailsPage = () => {
   // Select a message and automatically mark it as read if unread and sent to current user
   const handleSelectMessage = async (msg) => {
     setSelectedMessage(msg)
+    setThreadMessages([])
     await loadThread(msg.email_id)
     await loadMessageReactions(msg.email_id)
     await loadReadReceipts(msg.email_id)
+    await loadMessageImages(msg.email_id)
     const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const recipientClean = String(msg.recipient_email || msg.recipient || '').trim().toLowerCase()
 
@@ -203,18 +206,30 @@ const EmailsPage = () => {
     setComposeReplyTo(null)
   }
 
-  const handleComposeSubmit = async ({ recipient, subject, body, file = null }) => {
+  const handleComposeSubmit = async ({ recipient, subject, body, files = [] }) => {
     setIsSubmitting(true)
     try {
-      await sendMessageWithAttachments({
+      const primaryFile = files[0] || null
+      const additionalFiles = files.slice(1)
+
+      const createdEmail = await sendMessageWithAttachments({
         senderId: profile?.employee_id,
         recipientEmail: recipient,
         subject,
         messageBody: body,
-        file,
+        file: primaryFile,
         folder: 'inbox',
         replyToEmailId: composeReplyTo
       })
+
+      const emailId = createdEmail?.email_id || composeReplyTo
+      for (const file of additionalFiles) {
+        try {
+          await uploadMessageImage(emailId, file)
+        } catch (imageError) {
+          console.error('[EmailsPage] Failed to upload additional image:', imageError)
+        }
+      }
 
       if (recipient === 'all') {
         await Promise.allSettled(
@@ -292,6 +307,32 @@ const EmailsPage = () => {
     } catch (error) {
       console.error('[EmailsPage] Error loading read receipts:', error)
       setReadReceipts([])
+    }
+  }
+
+  const loadMessageImages = async (emailId) => {
+    try {
+      const images = await getMessageImages(emailId)
+      setMessageImages((prev) => ({ ...prev, [emailId]: images }))
+    } catch (error) {
+      console.error('[EmailsPage] Error loading message images:', error)
+      setMessageImages((prev) => ({ ...prev, [emailId]: [] }))
+    }
+  }
+
+  const handleDeleteMessageImage = async (emailAttachmentId) => {
+    try {
+      await deleteMessageImage(emailAttachmentId)
+      setMessageImages((prev) => {
+        const updated = { ...prev }
+        for (const emailId in updated) {
+          updated[emailId] = updated[emailId].filter((img) => img.email_attachment_id !== emailAttachmentId)
+        }
+        return updated
+      })
+      await alertService.success('Image removed from view.', 'Removed')
+    } catch (error) {
+      await alertService.error(error.message || 'Unable to remove image.', 'Error')
     }
   }
 
@@ -637,35 +678,56 @@ const EmailsPage = () => {
                                  <strong>Sender:</strong> {getSenderName(threadMsg.sender_id)} &nbsp;|&nbsp; <strong>Recipient:</strong> {getRecipientName(threadMsg.recipient_email)} &nbsp;|&nbsp; {threadMsg.created_at ? new Date(threadMsg.created_at).toLocaleString() : ''}
                               </div>
                             )}  
-                           {threadMsg.message_body || threadMsg.body || 'No message body.'}
-                         </div>
-                          {isOriginal && selectedMessage.attachment_url ? (
-                            <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', border: '1px dashed #d1d5db', backgroundColor: '#f9fafb' }}>
-                              <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '8px', color: '#374151' }}>
-                                Attachment
-                              </div>
-                              <a
-                                href={selectedMessage.attachment_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
-                                  padding: '8px 10px',
-                                  borderRadius: '6px',
-                                  border: '1px solid #e5e7eb',
-                                  backgroundColor: '#fff',
-                                  textDecoration: 'none',
-                                  color: '#2563eb',
-                                  fontSize: '13px'
-                                }}
-                              >
-                                {selectedMessage.attachment_url.split('/').pop()}
-                              </a>
-                            </div>
-                          ) : null}
-                          {isOriginal && (
+                            {threadMsg.message_body || threadMsg.body || 'No message body.'}
+                          </div>
+                           {isOriginal && (() => {
+                             const primaryImage = selectedMessage.attachment_url
+                             const additionalImages = messageImages[selectedMessage.email_id] || []
+                             const allImages = [
+                               ...(primaryImage ? [{ image_url: primaryImage, email_attachment_id: null, file_name: primaryImage.split('/').pop() }] : []),
+                               ...additionalImages
+                             ]
+
+                             if (allImages.length === 0) return null
+
+                             return (
+                               <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', border: '1px dashed #d1d5db', backgroundColor: '#f9fafb' }}>
+                                 <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '8px', color: '#374151' }}>
+                                   Images
+                                 </div>
+                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                   {allImages.map((img, idx) => (
+                                     <div key={img.email_attachment_id || idx} style={{ position: 'relative', display: 'inline-block' }}>
+                                       <img
+                                         src={img.image_url}
+                                         alt={img.file_name || `Image ${idx + 1}`}
+                                         style={{ maxWidth: '240px', maxHeight: '240px', borderRadius: '6px', border: '1px solid #e5e7eb', objectFit: 'cover' }}
+                                       />
+                                       <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', gap: '4px' }}>
+                                         <button
+                                           onClick={(e) => { e.stopPropagation(); handleDeleteMessageImage(img.email_attachment_id) }}
+                                           title="Remove image from view"
+                                           style={{
+                                             padding: '2px 6px',
+                                             borderRadius: '4px',
+                                             border: 'none',
+                                             backgroundColor: 'rgba(239, 68, 68, 0.9)',
+                                             color: '#fff',
+                                             cursor: 'pointer',
+                                             fontSize: '11px',
+                                             fontWeight: '600'
+                                           }}
+                                         >
+                                           ✕
+                                         </button>
+                                       </div>
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
+                             )
+                           })()}
+                           {isOriginal && (
                             <div style={{ marginTop: 16 }} onClick={(event) => event.stopPropagation()}>
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                                  {MESSAGE_REACTION_TYPES.map((reaction) => {

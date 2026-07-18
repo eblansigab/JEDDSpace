@@ -23,6 +23,7 @@ const PostAnnouncement = () => {
   const [isPublishing, setIsPublishing] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
+  const [announcementImages, setAnnouncementImages] = useState([])
 
   const canCreateAnnouncements = hasPermission('ANN_CREATE')
   const announcementScope = getScope('ANN_CREATE') || 'ALL'
@@ -76,6 +77,17 @@ const PostAnnouncement = () => {
     setPriority('Normal')
     setVisibilityScope('ORGANIZATION')
     setVisibilityTarget('')
+    setAnnouncementImages([])
+  }
+
+  const handleImageChange = (event) => {
+    const files = Array.from(event.target.files || [])
+    setAnnouncementImages((prev) => [...prev, ...files])
+    event.target.value = ''
+  }
+
+  const handleRemoveImage = (index) => {
+    setAnnouncementImages((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handlePublish = async () => {
@@ -93,7 +105,7 @@ const PostAnnouncement = () => {
     setIsPublishing(true)
 
     try {
-      await announcementService.createAnnouncement({
+      const created = await announcementService.createAnnouncement({
         title: trimmedTitle,
         body: trimmedContent,
         status,
@@ -101,6 +113,17 @@ const PostAnnouncement = () => {
         visibilityTarget: visibilityScope === 'ORGANIZATION' ? null : visibilityTarget || null,
         userId: user?.id
       })
+
+      const announcementId = created?.announcement_id || created?.id
+      if (announcementId && announcementImages.length > 0) {
+        await Promise.allSettled(
+          announcementImages.map((file) =>
+            announcementService.uploadAnnouncementImage(announcementId, file).catch((err) => {
+              console.error('[PostAnnouncement] Failed to upload image:', err)
+            })
+          )
+        )
+      }
 
       if (status === 'Published') {
         await Promise.allSettled([
@@ -215,6 +238,18 @@ const PostAnnouncement = () => {
         <StatusBadge status={status} />
       </div>
       <p style={{ whiteSpace: 'pre-wrap' }}>{content || '[Announcement Content]'}</p>
+      {announcementImages.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: 12 }}>
+          {announcementImages.map((file, idx) => (
+            <img
+              key={idx}
+              src={URL.createObjectURL(file)}
+              alt={file.name}
+              style={{ maxWidth: '320px', maxHeight: '320px', borderRadius: 8, border: '1px solid #e5e7eb', objectFit: 'cover' }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 
@@ -257,16 +292,123 @@ const PostAnnouncement = () => {
               onChange={(event) => setTitle(event.target.value)}
             />
 
-            <label className="block mb-1">Content</label>
-            <textarea
-              rows="8"
-              className="border p-2 rounded w-full mb-4"
-              placeholder="Write your announcement here..."
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-            />
+             <label className="block mb-1">Content</label>
+             <textarea
+               rows="8"
+               className="border p-2 rounded w-full mb-4"
+               placeholder="Write your announcement here..."
+               value={content}
+               onChange={(event) => setContent(event.target.value)}
+             />
 
-            <label className="block mb-1">Status</label>
+              <label className="block mb-1">Images</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageChange}
+                style={{ display: 'none' }}
+                id="announcement-image-upload"
+              />
+              <label
+                htmlFor="announcement-image-upload"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  padding: '28px 20px',
+                  borderRadius: '10px',
+                  border: '2px dashed #cbd5e1',
+                  backgroundColor: '#f8fafc',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  marginBottom: '12px',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+                {announcementImages.length > 0 ? `Add more images (${announcementImages.length} selected)` : 'Click to upload announcement images'}
+              </label>
+              {announcementImages.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: 16 }}>
+                  {announcementImages.map((file, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        position: 'relative',
+                        display: 'inline-block',
+                        borderRadius: '10px',
+                        overflow: 'hidden',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: '#ffffff',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                        width: '140px'
+                      }}
+                    >
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        style={{ width: '140px', height: '140px', objectFit: 'cover', display: 'block' }}
+                      />
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)'
+                      }} />
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        padding: '6px 10px',
+                        fontSize: '11px',
+                        color: '#fff',
+                        fontWeight: '500',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {file.name}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(index)}
+                        style={{
+                          position: 'absolute',
+                          top: '6px',
+                          right: '6px',
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          backgroundColor: 'rgba(239, 68, 68, 0.9)',
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '700',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          lineHeight: 1,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                        }}
+                        title="Remove image"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+             <label className="block mb-1">Status</label>
             <select value={status} onChange={(event) => setStatus(event.target.value)} className="border p-2 rounded w-full mb-4">
               {ANNOUNCEMENT_STATUSES.map((item) => (
                 <option key={item} value={item}>{item}</option>

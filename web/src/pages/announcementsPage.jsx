@@ -35,6 +35,13 @@ const AnnouncementsPage = () => {
   const [reactionSummaries, setReactionSummaries] = useState({})
   const [userReactions, setUserReactions] = useState({})
   const [reactionLoading, setReactionLoading] = useState({})
+  const [announcementImages, setAnnouncementImages] = useState({})
+  const [comments, setComments] = useState({})
+  const [commentText, setCommentText] = useState({})
+  const [commentImage, setCommentImage] = useState({})
+  const [commentReactionSummaries, setCommentReactionSummaries] = useState({})
+  const [commentUserReactions, setCommentUserReactions] = useState({})
+  const [commentReactionLoading, setCommentReactionLoading] = useState({})
   const isAdmin = hasPermission('ANN_MANAGE')
 
   const viewer = useMemo(() => {
@@ -106,6 +113,106 @@ const AnnouncementsPage = () => {
       await alertService.error('Unable to update reaction.', 'Reaction Failed')
     } finally {
       setReactionLoading((prev) => ({ ...prev, [announcementId]: false }))
+    }
+  }
+
+  const loadAnnouncementImages = async (announcementId) => {
+    try {
+      const images = await announcementService.getAnnouncementImages(announcementId)
+      setAnnouncementImages((prev) => ({ ...prev, [announcementId]: images }))
+    } catch (error) {
+      console.error('[AnnouncementsPage] Error loading images:', error)
+      setAnnouncementImages((prev) => ({ ...prev, [announcementId]: [] }))
+    }
+  }
+
+  const loadComments = async (announcementId) => {
+    try {
+      const data = await announcementService.getComments(announcementId)
+      setComments((prev) => ({ ...prev, [announcementId]: data }))
+    } catch (error) {
+      console.error('[AnnouncementsPage] Error loading comments:', error)
+      setComments((prev) => ({ ...prev, [announcementId]: [] }))
+    }
+  }
+
+  const loadCommentReactions = async (commentId) => {
+    try {
+      const [summary, list] = await Promise.all([
+        announcementService.getCommentReactionSummary(commentId),
+        announcementService.getCommentReactions(commentId),
+      ])
+      setCommentReactionSummaries((prev) => ({ ...prev, [commentId]: summary }))
+      if (profile?.employee_id && list.length > 0) {
+        const mine = list.find((r) => r.employee_id === profile.employee_id)
+        if (mine) {
+          setCommentUserReactions((prev) => ({ ...prev, [commentId]: mine.reaction_type }))
+        }
+      }
+    } catch (error) {
+      console.error('[AnnouncementsPage] Error loading comment reactions:', error)
+    }
+  }
+
+  const handleCommentImageChange = (announcementId, file) => {
+    setCommentImage((prev) => ({ ...prev, [announcementId]: file }))
+  }
+
+  const handleCommentPaste = (announcementId) => (event) => {
+    const items = event.clipboardData?.items || []
+    const imageItem = Array.from(items).find((item) => item.type.startsWith('image/'))
+    if (imageItem) {
+      event.preventDefault()
+      const file = imageItem.getAsFile()
+      if (file) {
+        handleCommentImageChange(announcementId, file)
+      }
+    }
+  }
+
+  const handleSubmitComment = async (announcementId) => {
+    const text = String(commentText[announcementId] || '').trim()
+    const file = commentImage[announcementId] || null
+
+    if (!text && !file) {
+      await alertService.warning('Please enter a comment or attach an image.')
+      return
+    }
+
+    try {
+      await announcementService.createComment(announcementId, text, file)
+      setCommentText((prev) => ({ ...prev, [announcementId]: '' }))
+      setCommentImage((prev) => ({ ...prev, [announcementId]: null }))
+      await loadComments(announcementId)
+    } catch (error) {
+      await alertService.error(error.message || 'Unable to post comment.', 'Comment Failed')
+    }
+  }
+
+  const handleDeleteComment = async (commentId, announcementId) => {
+    try {
+      await announcementService.deleteComment(commentId)
+      setComments((prev) => ({
+        ...prev,
+        [announcementId]: (prev[announcementId] || []).filter((c) => c.comment_id !== commentId)
+      }))
+      await alertService.success('Comment deleted.', 'Deleted')
+    } catch (error) {
+      await alertService.error(error.message || 'Unable to delete comment.', 'Error')
+    }
+  }
+
+  const handleCommentReaction = async (commentId, reactionType) => {
+    if (!profile?.employee_id) return
+    setCommentReactionLoading((prev) => ({ ...prev, [commentId]: true }))
+    try {
+      await announcementService.addCommentReaction(commentId, reactionType)
+      setCommentUserReactions((prev) => ({ ...prev, [commentId]: reactionType }))
+      await loadCommentReactions(commentId)
+    } catch {
+      await alertService.error('Unable to update reaction.', 'Reaction Failed')
+    } finally {
+      setCommentReactionLoading((prev) => ({ ...prev, [commentId]: false }))
     }
   }
 
@@ -189,6 +296,9 @@ const AnnouncementsPage = () => {
     if (profile?.employee_id) {
       await announcementService.markViewed(announcement.announcement_id || announcement.id, profile.employee_id)
     }
+    const announcementId = announcement.announcement_id || announcement.id
+    await loadAnnouncementImages(announcementId)
+    await loadComments(announcementId)
   }
 
   const openViews = async (announcement) => {
@@ -286,6 +396,18 @@ const AnnouncementsPage = () => {
                 </div>
               </div>
               <p>{item.body}</p>
+              {announcementImages[item.announcement_id || item.id]?.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: 10 }}>
+                  {announcementImages[item.announcement_id || item.id].map((img, idx) => (
+                    <img
+                      key={idx}
+                      src={img.image_url}
+                      alt={img.file_name || `Announcement image ${idx + 1}`}
+                      style={{ maxWidth: '320px', maxHeight: '320px', borderRadius: '8px', border: '1px solid #e5e7eb', objectFit: 'cover' }}
+                    />
+                  ))}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }} onClick={(event) => event.stopPropagation()}>
                 {ANNOUNCEMENT_REACTION_TYPES.map((reaction) => {
                   const count = reactionSummaries[item.announcement_id || item.id]?.[reaction.value] || 0
@@ -307,12 +429,165 @@ const AnnouncementsPage = () => {
                         fontWeight: isActive ? '600' : '500',
                         opacity: reactionLoading[item.announcement_id || item.id] ? 0.7 : 1,
                       }}
-                     >
-                       {reaction.icon}
-                       {count > 0 && <span style={{ marginLeft: 4, fontSize: 12 }}>{count}</span>}
-                     </button>
+                    >
+                      {reaction.icon}
+                      {count > 0 && <span style={{ marginLeft: 4, fontSize: 12 }}>{count}</span>}
+                    </button>
                   )
                 })}
+              </div>
+              <div style={{ marginTop: 12, borderTop: '1px solid #f1f5f9', paddingTop: 12 }} onClick={(event) => event.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Comments</h4>
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>{(comments[item.announcement_id || item.id] || []).length}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {(comments[item.announcement_id || item.id] || []).map((comment) => (
+                    <div key={comment.comment_id} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', backgroundColor: '#fff' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <div>
+                          <span style={{ fontWeight: 600, fontSize: 13 }}>{comment.employee_name}</span>
+                          {comment.department && (
+                            <span style={{ marginLeft: 8, fontSize: 12, color: '#6b7280' }}>· {comment.department}</span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>{new Date(comment.created_at).toLocaleString()}</span>
+                          {comment.employee_id === profile?.employee_id && (
+                            <button
+                              onClick={() => handleDeleteComment(comment.comment_id, item.announcement_id || item.id)}
+                              style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {comment.comment_text && (
+                        <p style={{ margin: '0 0 8px', fontSize: 14, lineHeight: 1.5 }}>{comment.comment_text}</p>
+                      )}
+                      {comment.image_url && (
+                        <div style={{ marginBottom: 8 }}>
+                          <img
+                            src={comment.image_url}
+                            alt="Comment image"
+                            style={{ maxWidth: '240px', maxHeight: '240px', borderRadius: 6, border: '1px solid #e5e7eb', objectFit: 'cover' }}
+                          />
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} onClick={(event) => event.stopPropagation()}>
+                        {ANNOUNCEMENT_REACTION_TYPES.map((reaction) => {
+                          const count = commentReactionSummaries[comment.comment_id]?.[reaction.value] || 0
+                          const isActive = commentUserReactions[comment.comment_id] === reaction.value
+                          return (
+                            <button
+                              key={reaction.value}
+                              onClick={() => handleCommentReaction(comment.comment_id, reaction.value)}
+                              disabled={commentReactionLoading[comment.comment_id]}
+                              title={reaction.label}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 12,
+                                border: isActive ? '1px solid #2563eb' : '1px solid #d1d5db',
+                                backgroundColor: isActive ? 'rgba(37, 99, 235, 0.1)' : '#fff',
+                                color: isActive ? '#2563eb' : '#374151',
+                                cursor: commentReactionLoading[comment.comment_id] ? 'not-allowed' : 'pointer',
+                                fontSize: 11,
+                                fontWeight: isActive ? '600' : '500',
+                                opacity: commentReactionLoading[comment.comment_id] ? 0.7 : 1,
+                              }}
+                            >
+                              {reaction.icon}
+                              {count > 0 && <span style={{ marginLeft: 3, fontSize: 11 }}>{count}</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                    <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+                      <input
+                        type="text"
+                        value={commentText[item.announcement_id || item.id] || ''}
+                        onChange={(e) => setCommentText((prev) => ({ ...prev, [item.announcement_id || item.id]: e.target.value }))}
+                        onPaste={handleCommentPaste(item.announcement_id || item.id)}
+                        placeholder="Write a comment... (paste an image with Ctrl+V)"
+                        style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
+                      />
+                      <input
+                        id={`comment-image-${item.announcement_id || item.id}`}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleCommentImageChange(item.announcement_id || item.id, e.target.files?.[0] || null)}
+                        style={{ display: 'none' }}
+                      />
+                      <label
+                        htmlFor={`comment-image-${item.announcement_id || item.id}`}
+                        style={{
+                          position: 'absolute',
+                          right: 8,
+                          top: '13%',
+                          transform: 'translateY(-50%)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '6px',
+                          border: '1px solid transparent',
+                          backgroundColor: commentImage[item.announcement_id || item.id] ? '#dbeafe' : 'transparent',
+                          color: commentImage[item.announcement_id || item.id] ? '#2563eb' : '#94a3b8',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          lineHeight: 1
+                        }}
+                        title="Attach image to comment"
+                      >
+                        {commentImage[item.announcement_id || item.id] ? '🖼️' : '📷'}
+                      </label>
+                    </div>
+                    <Button size="sm" onClick={() => handleSubmitComment(item.announcement_id || item.id)}>Post</Button>
+                  </div>
+                  {commentImage[item.announcement_id || item.id] && (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginTop: '8px',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      backgroundColor: '#f8fafc'
+                    }}>
+                      <img
+                        src={URL.createObjectURL(commentImage[item.announcement_id || item.id])}
+                        alt="Comment preview"
+                        style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px' }}
+                      />
+                      <span style={{ fontSize: '12px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                        {commentImage[item.announcement_id || item.id]?.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCommentImageChange(item.announcement_id || item.id, null)}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          fontWeight: '700',
+                          padding: '0 2px',
+                          lineHeight: 1
+                        }}
+                        title="Remove image"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}

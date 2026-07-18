@@ -3,6 +3,12 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { createClient } from '@supabase/supabase-js'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { dirname, join } from 'node:path'
+import Busboy from '@fastify/busboy'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
 
@@ -287,17 +293,144 @@ const createAuthDevMiddleware = (env) => {
   }
 }
 
+const sprint2ApiPaths = {
+  '/api/messageImages/': join(__dirname, 'api', 'messageImages.js'),
+  '/api/announcementImages/': join(__dirname, 'api', 'announcementImages.js'),
+  '/api/announcementComments/': join(__dirname, 'api', 'announcementComments.js'),
+}
+
+const wrapRes = (res) => {
+  const json = (body) => {
+    res.setHeader('Content-Type', 'application/json')
+    res.end(JSON.stringify(body))
+  }
+
+  return {
+    status: (code) => {
+      res.statusCode = code
+      return { json }
+    },
+    json,
+    end: (body) => res.end(body),
+  }
+}
+
+const parseRequestBody = async (req) => {
+  const contentType = String(req.headers['content-type'] || '')
+
+  if (contentType.includes('multipart/form-data')) {
+    const busboy = new Busboy({ headers: req.headers })
+    const fields = {}
+    const files = []
+
+    await new Promise((resolve, reject) => {
+      busboy.on('field', (name, value) => {
+        fields[name] = value
+      })
+      busboy.on('file', (name, stream, filename, encoding, mimeType) => {
+        const chunks = []
+        stream.on('data', (chunk) => chunks.push(chunk))
+        stream.on('end', () => {
+          const buffer = Buffer.concat(chunks)
+          const file = new File([buffer], filename, { type: mimeType })
+          files.push(file)
+        })
+      })
+      busboy.on('finish', resolve)
+      busboy.on('error', reject)
+      req.pipe(busboy)
+    })
+
+    return { ...fields, files, file: files[0] || null }
+  }
+
+  if (contentType.includes('application/json')) {
+    const chunks = []
+    for await (const chunk of req) {
+      chunks.push(chunk)
+    }
+    const raw = Buffer.concat(chunks).toString('utf8')
+    try {
+      return JSON.parse(raw || '{}')
+    } catch {
+      return {}
+    }
+  }
+
+  return {}
+}
+
+const createSprint2ApiMiddleware = async () => {
+  const modules = await Promise.all(
+    Object.entries(sprint2ApiPaths).map(async ([prefix, absolutePath]) => {
+      try {
+        const mod = await import(pathToFileURL(absolutePath).href)
+        return { prefix, handler: mod.default }
+      } catch (error) {
+        console.error(`[SPRINT2 API] Failed to load ${absolutePath}:`, error)
+        return { prefix, handler: null }
+      }
+    })
+  )
+
+  const handlers = new Map(modules.filter((m) => m.handler).map((m) => [m.prefix, m.handler]))
+
+  return async (req, res, next) => {
+    if (!req.url) {
+      next()
+      return
+    }
+
+    for (const [prefix, handler] of handlers) {
+      if (req.url.startsWith(prefix)) {
+        try {
+          if (req.method === 'POST') {
+            req.body = await parseRequestBody(req)
+          }
+
+          const wrappedRes = wrapRes(res)
+          await handler(req, wrappedRes)
+
+          if (!res.writableEnded) {
+            res.end()
+          }
+          return
+        } catch (error) {
+          console.error(`[SPRINT2 API] ${prefix} error:`, error)
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ success: false, error: 'Sprint 2 API service is currently unavailable.' }))
+          return
+        }
+      }
+    }
+
+    next()
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+
+  if (env.SUPABASE_SERVICE_ROLE_KEY) {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY
+  }
+  if (env.SUPABASE_URL) {
+    process.env.SUPABASE_URL = env.SUPABASE_URL
+  }
 
   return {
     plugins: [
       react(),
       {
         name: 'jeddspace-auth-dev-api',
-        configureServer(server) {
-          server.middlewares.use(createAuthDevMiddleware(env))
+        configureServer: async (server) => {
+          const authMiddleware = createAuthDevMiddleware(env)
+          server.middlewares.use(authMiddleware)
+
+          const sprint2Middleware = await createSprint2ApiMiddleware()
+          server.middlewares.use(sprint2Middleware)
         },
       },
     ],

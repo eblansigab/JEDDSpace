@@ -1,3 +1,4 @@
+/* eslint-disable preserve-caught-error */
 import { supabaseClient } from '../supabase/supabaseClient'
 
 export const MESSAGE_REACTION_TYPES = [
@@ -338,5 +339,161 @@ export const getMessageReadReceipts = async (emailId) => {
       department: employee.department || '',
     }
   })
+}
+
+export const getMessageImages = async (emailId) => {
+  const { data: { session } } = await supabaseClient.auth.getSession()
+  const token = session?.access_token
+  if (!token) throw new Error('No authentication token available.')
+
+  try {
+    const response = await fetch(`/api/messageImages/${emailId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    const result = await response.json()
+    if (!response.ok || !result.success) {
+      throw new Error(result?.error || `Failed to load images (${response.status})`)
+    }
+
+    return result.data || []
+  } catch (error) {
+    console.error('[messageService] API fallback to direct query:', error.message)
+    try {
+      const { data, error: supabaseError } = await supabaseClient
+        .from('email_attachment')
+        .select('email_attachment_id, email_id, file_name, file_type, file_size, file_path, created_at')
+        .eq('email_id', emailId)
+        .order('created_at', { ascending: true })
+
+      if (supabaseError) {
+        console.warn('[messageService] email_attachment table unavailable:', supabaseError.message)
+        return []
+      }
+
+      return (data || []).map((row) => ({
+        email_attachment_id: row.email_attachment_id,
+        email_id: row.email_id,
+        image_url: row.file_path,
+        file_name: row.file_name,
+        file_type: row.file_type,
+        file_size: row.file_size,
+        created_at: row.created_at,
+      }))
+    } catch (fallbackError) {
+      console.error('[messageService] Fallback image load failed:', fallbackError.message)
+      return []
+    }
+  }
+}
+
+export const uploadMessageImage = async (emailId, file) => {
+  const { data: { session } } = await supabaseClient.auth.getSession()
+  const token = session?.access_token
+  if (!token) throw new Error('No authentication token available.')
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const response = await fetch(`/api/messageImages/${emailId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    })
+
+    const result = await response.json()
+    if (!response.ok || !result.success) {
+      throw new Error(result?.error || `Failed to upload image (${response.status})`)
+    }
+
+    return result.data
+  } catch (error) {
+    console.error('[messageService] API fallback to direct upload:', error.message)
+    const fileName = `message_${emailId}_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+    const { error: uploadError } = await supabaseClient.storage
+      .from('document')
+      .upload(fileName, file)
+
+    if (uploadError) {
+      throw new Error('Failed to upload image.', { cause: uploadError })
+    }
+
+    const { data: publicUrlData } = await supabaseClient.storage
+      .from('document')
+      .getPublicUrl(fileName)
+
+    const imageUrl = publicUrlData?.publicUrl || null
+    if (!imageUrl) {
+      throw new Error('Failed to get image URL.')
+    }
+
+    try {
+      const { error: insertError } = await supabaseClient
+        .from('email_attachment')
+        .insert({
+          email_id: emailId,
+          file_name: file.name,
+          file_type: file.type || 'image',
+          file_size: file.size,
+          file_path: imageUrl,
+        })
+
+      if (insertError) {
+        console.warn('[messageService] email_attachment insert failed:', insertError.message)
+      }
+    } catch (insertError) {
+      console.warn('[messageService] email_attachment table unavailable:', insertError.message)
+    }
+
+    return {
+      email_attachment_id: null,
+      email_id: emailId,
+      image_url: imageUrl,
+      file_name: file.name,
+      file_type: file.type,
+      file_size: file.size,
+    }
+  }
+}
+
+export const deleteMessageImage = async (emailAttachmentId) => {
+  const { data: { session } } = await supabaseClient.auth.getSession()
+  const token = session?.access_token
+  if (!token) throw new Error('No authentication token available.')
+
+  try {
+    const response = await fetch(`/api/messageImages/${emailAttachmentId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ emailAttachmentId }),
+    })
+
+    const result = await response.json()
+    if (!response.ok || !result.success) {
+      throw new Error(result?.error || `Failed to delete image (${response.status})`)
+    }
+
+    return result.data
+  } catch (error) {
+    console.error('[messageService] API fallback to direct delete:', error.message)
+    try {
+      const { error: deleteError } = await supabaseClient
+        .from('email_attachment')
+        .delete()
+        .eq('email_attachment_id', emailAttachmentId)
+
+      if (deleteError) {
+        console.warn('[messageService] email_attachment delete failed:', deleteError.message)
+      }
+    } catch (deleteError) {
+      console.warn('[messageService] email_attachment table unavailable:', deleteError.message)
+    }
+
+    return { success: true }
+  }
 }
 

@@ -1,3 +1,4 @@
+/* eslint-disable preserve-caught-error */
 import { supabaseClient } from '../supabase/supabaseClient'
 
 export const ANNOUNCEMENT_STATUSES = ['Published', 'Draft', 'Archived']
@@ -81,10 +82,9 @@ export const announcementService = {
       return announcements
     }
 
-    const isAdmin = Boolean(viewer.isAdmin)
     const userDepartment = String(viewer.employee?.department || '').trim().toLowerCase()
     const userRoleId = viewer.employee?.role_id ?? null
-    const scope = String(viewer.scope || '').trim().toUpperCase()
+    const isAdmin = Boolean(viewer.isAdmin)
 
     return announcements.filter((item) => {
       const visibilityScope = String(item.visibility_scope || 'ORGANIZATION').toUpperCase()
@@ -115,10 +115,9 @@ export const announcementService = {
   },
 
   async getAvailableAudiences(viewer) {
-    const isAdmin = Boolean(viewer.isAdmin)
-    const scope = String(viewer.scope || '').trim().toUpperCase()
     const userDepartment = String(viewer.employee?.department || '').trim()
     const userRoleId = viewer.employee?.role_id ?? null
+    const scope = String(viewer.scope || '').trim().toUpperCase()
 
     const canAccess = (allowed) => allowed.some((s) => s === scope || s === 'ALL')
 
@@ -230,6 +229,411 @@ export const announcementService = {
       summary[type] = (summary[type] || 0) + 1
       return summary
     }, {})
+  },
+
+  async getAnnouncementImages(announcementId) {
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('No authentication token available.');
+
+    try {
+      const response = await fetch(`/api/announcementImages/${announcementId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result?.error || `Failed to load images (${response.status})`)
+      }
+
+      return result.data || []
+    } catch (error) {
+      console.error('[announcementService] API fallback to direct query:', error.message)
+      try {
+        const { data, error: supabaseError } = await supabaseClient
+          .from('announcement_images')
+          .select('announcement_image_id, announcement_id, image_url, created_at')
+          .eq('announcement_id', announcementId)
+          .order('created_at', { ascending: true })
+
+        if (supabaseError) {
+          console.warn('[announcementService] announcement_images unavailable:', supabaseError.message)
+          return []
+        }
+
+        return data || []
+      } catch (fallbackError) {
+        console.error('[announcementService] Fallback image load failed:', fallbackError.message)
+        return []
+      }
+    }
+  },
+
+  async uploadAnnouncementImage(announcementId, file) {
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('No authentication token available.');
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await fetch(`/api/announcementImages/${announcementId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result?.error || `Failed to upload image (${response.status})`)
+      }
+
+      return result.data
+    } catch (error) {
+      console.error('[announcementService] API fallback to direct upload:', error.message)
+      const fileName = `announcement_${announcementId}_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+      const { error: uploadError } = await supabaseClient.storage
+        .from('document')
+        .upload(fileName, file)
+
+      if (uploadError) {
+        throw new Error('Failed to upload image.', { cause: uploadError })
+      }
+
+      const { data: publicUrlData } = supabaseClient.storage
+        .from('document')
+        .getPublicUrl(fileName)
+
+      const imageUrl = publicUrlData?.publicUrl || null
+      if (!imageUrl) {
+        throw new Error('Failed to get image URL.')
+      }
+
+      const { error: insertError } = await supabaseClient
+        .from('announcement_images')
+        .insert({
+          announcement_id: announcementId,
+          image_url: imageUrl,
+        })
+
+      if (insertError) {
+        console.warn('[announcementService] announcement_images insert failed:', insertError.message)
+      }
+
+      return {
+        announcement_image_id: null,
+        announcement_id: announcementId,
+        image_url: imageUrl,
+        created_at: new Date().toISOString(),
+      }
+    }
+  },
+
+  async getComments(announcementId) {
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('No authentication token available.');
+
+    try {
+      const response = await fetch(`/api/announcementComments/${announcementId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result?.error || `Failed to load comments (${response.status})`)
+      }
+
+      return result.data || []
+    } catch (error) {
+      console.error('[announcementService] API fallback to direct query:', error.message)
+      try {
+        const { data, error: supabaseError } = await supabaseClient
+          .from('announcement_comments')
+          .select('comment_id, announcement_id, employee_id, comment_text, image_url, created_at, updated_at, employee:employee_id (first_name, last_name, department)')
+          .eq('announcement_id', announcementId)
+          .order('created_at', { ascending: true })
+
+        if (supabaseError) {
+          console.warn('[announcementService] announcement_comments unavailable:', supabaseError.message)
+          return []
+        }
+
+        return (data || []).map((row) => {
+          const employee = row.employee || {}
+          return {
+            comment_id: row.comment_id,
+            announcement_id: row.announcement_id,
+            employee_id: row.employee_id,
+            comment_text: row.comment_text,
+            image_url: row.image_url,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            employee_name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown',
+            department: employee.department || '',
+          }
+        })
+      } catch (fallbackError) {
+        console.error('[announcementService] Fallback comments load failed:', fallbackError.message)
+        return []
+      }
+    }
+  },
+
+  async createComment(announcementId, commentText, file = null) {
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('No authentication token available.');
+
+    const formData = new FormData()
+    formData.append('commentText', commentText)
+    if (file) {
+      formData.append('file', file)
+    }
+
+    try {
+      const response = await fetch(`/api/announcementComments/${announcementId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result?.error || `Failed to create comment (${response.status})`)
+      }
+
+      return result.data
+    } catch (error) {
+      console.error('[announcementService] API fallback to direct insert:', error.message)
+      const { data: { user } } = await supabaseClient.auth.getUser()
+      const { data: employee } = await supabaseClient
+        .from('employee')
+        .select('employee_id')
+        .eq('user_id', user?.id)
+        .maybeSingle()
+
+      let imageUrl = null
+      if (file) {
+        const fileName = `comment_${announcementId}_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+        const { error: uploadError } = await supabaseClient.storage
+          .from('document')
+          .upload(fileName, file)
+
+        if (!uploadError) {
+          const { data: publicUrlData } = supabaseClient.storage
+            .from('document')
+            .getPublicUrl(fileName)
+          imageUrl = publicUrlData?.publicUrl || null
+        }
+      }
+
+      const { data, error: insertError } = await supabaseClient
+        .from('announcement_comments')
+        .insert({
+          announcement_id: announcementId,
+          employee_id: employee?.employee_id,
+          comment_text: commentText,
+          image_url: imageUrl,
+        })
+        .select('comment_id, announcement_id, employee_id, comment_text, image_url, created_at, updated_at, employee:employee_id (first_name, last_name, department)')
+        .single()
+
+      if (insertError) {
+        throw new Error('Failed to create comment.', { cause: insertError })
+      }
+
+      const emp = data.employee || {}
+      return {
+        comment_id: data.comment_id,
+        announcement_id: data.announcement_id,
+        employee_id: data.employee_id,
+        comment_text: data.comment_text,
+        image_url: data.image_url,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        employee_name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 'Unknown',
+        department: emp.department || '',
+      }
+    }
+  },
+
+  async deleteComment(commentId) {
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('No authentication token available.')
+
+    try {
+      const response = await fetch(`/api/announcementComments/delete`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ commentId }),
+      })
+
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result?.error || `Failed to delete comment (${response.status})`)
+      }
+
+      return result.data
+    } catch (error) {
+      console.error('[announcementService] API fallback to direct delete:', error.message)
+      const { data: { user } } = await supabaseClient.auth.getUser()
+      const { data: employee } = await supabaseClient
+        .from('employee')
+        .select('employee_id')
+        .eq('user_id', user?.id)
+        .maybeSingle()
+
+      const { data: comment } = await supabaseClient
+        .from('announcement_comments')
+        .select('comment_id, employee_id')
+        .eq('comment_id', commentId)
+        .maybeSingle()
+
+      if (!comment || comment.employee_id !== employee?.employee_id) {
+        throw new Error('You can only delete your own comments.')
+      }
+
+      const { error: deleteError } = await supabaseClient
+        .from('announcement_comments')
+        .delete()
+        .eq('comment_id', commentId)
+
+      if (deleteError) {
+        throw new Error('Failed to delete comment.', { cause: deleteError })
+      }
+
+      return { success: true }
+    }
+  },
+
+  async addCommentReaction(commentId, reactionType) {
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('No authentication token available.')
+
+    try {
+      const response = await fetch(`/api/announcementComments/${commentId}/reactions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reactionType }),
+      })
+
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result?.error || `Failed to add reaction (${response.status})`)
+      }
+
+      return result.data
+    } catch (error) {
+      console.error('[announcementService] API fallback to direct upsert:', error.message)
+      const { data: { user } } = await supabaseClient.auth.getUser()
+      const { data: employee } = await supabaseClient
+        .from('employee')
+        .select('employee_id')
+        .eq('user_id', user?.id)
+        .maybeSingle()
+
+      const { error: upsertError } = await supabaseClient
+        .from('comment_reactions')
+        .upsert(
+          { comment_id: commentId, employee_id: employee?.employee_id, reaction_type: reactionType, updated_at: new Date().toISOString() },
+          { onConflict: ['comment_id', 'employee_id'] }
+        )
+
+      if (upsertError) {
+        throw new Error('Failed to save reaction.', { cause: upsertError })
+      }
+
+      return { success: true }
+    }
+  },
+
+  async getCommentReactions(commentId) {
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('No authentication token available.')
+
+    try {
+      const response = await fetch(`/api/announcementComments/${commentId}/reactions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result?.error || `Failed to load reactions (${response.status})`)
+      }
+
+      return result.data || []
+    } catch (error) {
+      console.error('[announcementService] API fallback to direct query:', error.message)
+      const { data, error: supabaseError } = await supabaseClient
+        .from('comment_reactions')
+        .select('comment_reaction_id, comment_id, employee_id, reaction_type, created_at, updated_at, employee:employee_id (first_name, last_name, department)')
+        .eq('comment_id', commentId)
+        .order('updated_at', { ascending: false })
+
+      if (supabaseError) {
+        return []
+      }
+
+      return (data || []).map((row) => {
+        const employee = row.employee || {}
+        return {
+          comment_reaction_id: row.comment_reaction_id,
+          comment_id: row.comment_id,
+          employee_id: row.employee_id,
+          reaction_type: row.reaction_type,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          employee_name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown',
+          department: employee.department || '',
+        }
+      })
+    }
+  },
+
+  async getCommentReactionSummary(commentId) {
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('No authentication token available.')
+
+    try {
+      const response = await fetch(`/api/announcementComments/${commentId}/summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result?.error || `Failed to load reaction summary (${response.status})`)
+      }
+
+      return result.data || {}
+    } catch (error) {
+      console.error('[announcementService] API fallback to direct query:', error.message)
+      const { data, error: supabaseError } = await supabaseClient
+        .from('comment_reactions')
+        .select('reaction_type')
+        .eq('comment_id', commentId)
+
+      if (supabaseError) {
+        return {}
+      }
+
+      return (data || []).reduce((summary, row) => {
+        const type = row.reaction_type || 'unknown'
+        summary[type] = (summary[type] || 0) + 1
+        return summary
+      }, {})
+    }
   },
 }
 
