@@ -45,7 +45,7 @@ export const getRequestUserContext = async (req) => {
 
   const { data: employee, error: employeeError } = await client
     .from('employee')
-    .select('employee_id, user_id, first_name, last_name, position, department, employee_type, role, employment_status, is_archived, role_id, roles:role_id (role_name, parent_role_id, hierarchy_level)')
+    .select('employee_id, user_id, first_name, last_name, position, department, employee_type, role, employment_status, is_archived, role_id, roles:role_id (role_name, parent_role_id, hierarchy_level, is_protected)')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -60,7 +60,7 @@ export const getRequestUserContext = async (req) => {
   })()
 
   const isAdminByPermission = Boolean(
-    employeePermissions.some((p) => p.module === 'admin' && p.action === 'manage')
+    employeePermissions.some((p) => p.key === 'ACCESS_ADMIN_DASHBOARD')
   )
 
   const viewer = {
@@ -85,6 +85,7 @@ export const getRequestUserContext = async (req) => {
           is_archived: employee.is_archived,
           parent_role_id: employee.roles?.parent_role_id || null,
           hierarchy_level: employee.roles?.hierarchy_level || 0,
+          is_protected: employee.roles?.is_protected === true,
         }
       : null,
     role: String(employee?.roles?.role_name || employee?.role || 'employee').toLowerCase(),

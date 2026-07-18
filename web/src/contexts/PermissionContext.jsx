@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { supabaseClient } from '../supabase/supabaseClient'
 
 const ADMIN_PERMISSION_CODES = new Set([
@@ -18,6 +18,14 @@ const ADMIN_PERMISSION_CODES = new Set([
   'AI_HISTORY',
   'AI_USERS',
   'AI_INTENTS',
+  'DOCUMENTS_ACCESS',
+  'PROJECTS_ACCESS',
+  'AI_ACCESS',
+  'ANNOUNCEMENTS_ACCESS',
+  'CONTRACTS_ACCESS',
+  'NOTIFICATIONS_ACCESS',
+  'REPORTS_ACCESS',
+  'ACCESS_ADMIN_DASHBOARD',
 ])
 
 const DB_KEY_TO_CSV_CODE = {
@@ -37,6 +45,14 @@ const DB_KEY_TO_CSV_CODE = {
   'AI Chat Logs.View Conversation History': 'AI_HISTORY',
   'AI Chat Logs.View User Activity': 'AI_USERS',
   'AI Chat Logs.View Intent Classification': 'AI_INTENTS',
+  'Application Access.Documents': 'DOCUMENTS_ACCESS',
+  'Application Access.Projects': 'PROJECTS_ACCESS',
+  'Application Access.AI Assistant': 'AI_ACCESS',
+  'Application Access.Announcements': 'ANNOUNCEMENTS_ACCESS',
+  'Application Access.Contracts': 'CONTRACTS_ACCESS',
+  'Application Access.Notifications': 'NOTIFICATIONS_ACCESS',
+  'Application Access.Reports': 'REPORTS_ACCESS',
+  'Application Access.Admin Dashboard': 'ACCESS_ADMIN_DASHBOARD',
 }
 
 const normalizePermissionKey = (rawKey) => {
@@ -58,7 +74,6 @@ const PermissionContext = createContext({
 export const PermissionProvider = ({ children }) => {
   const [permissions, setPermissions] = useState([])
   const [loading, setLoading] = useState(true)
-  const adminPermissionCountRef = useRef(0)
 
   useEffect(() => {
     let mounted = true
@@ -72,90 +87,36 @@ export const PermissionProvider = ({ children }) => {
         if (!userId) {
           if (mounted) {
             setPermissions([])
-            adminPermissionCountRef.current = 0
             setLoading(false)
           }
           return
         }
 
-        const { data: employee, error } = await supabaseClient
-          .from('employee')
-          .select('employee_id, role_id')
-          .eq('user_id', userId)
-          .maybeSingle()
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ action: 'current-permissions' }),
+        })
 
-        if (error || !employee?.employee_id) {
-          console.warn('[PermissionContext] Employee lookup failed.', { userId, employee, error })
-          if (mounted) {
-            setPermissions([])
-            adminPermissionCountRef.current = 0
-            setLoading(false)
-          }
-          return
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok || result?.success === false) {
+          throw new Error(result?.error || 'Failed to load permissions.')
         }
 
-        console.log('[PermissionContext] Loaded employee for user_id:', userId, 'employee_id:', employee.employee_id, 'role_id:', employee.role_id)
-
-        if (!employee.role_id) {
-          console.warn('[PermissionContext] Employee has no role_id.', { employeeId: employee.employee_id })
-          if (mounted) {
-            setPermissions([])
-            adminPermissionCountRef.current = 0
-            setLoading(false)
-          }
-          return
-        }
-
-        const [rolePermsResult, permissionsResult] = await Promise.all([
-          supabaseClient
-            .from('role_permissions')
-            .select('permission_id, scope')
-            .eq('role_id', employee.role_id),
-          supabaseClient
-            .from('permissions')
-            .select('permission_id, module, action'),
-        ])
-
-        const rolePerms = rolePermsResult.data || []
-        const permError = rolePermsResult.error
-        const allPermissions = permissionsResult.data || []
-        const permissionsError = permissionsResult.error
-
-        console.log('[PermissionContext] employee.role_id raw value:', employee.role_id, 'type:', typeof employee.role_id)
-        console.log('[PermissionContext] Raw role_permissions query result:', JSON.stringify(rolePerms))
-        console.log('[PermissionContext] Raw permissions query result count:', allPermissions.length)
-
-        const permissionMap = new Map(
-          (allPermissions || []).map((perm) => [perm.permission_id, perm])
-        )
-
-        const rolePermissionCount = rolePerms.length
-        if (mounted) {
-          adminPermissionCountRef.current = rolePermissionCount
-        }
-
-        console.log('[PermissionContext] role_permissions count:', rolePermissionCount)
-        console.log('[PermissionContext] permissions table count:', allPermissions.length)
-        console.log('Permission Error:', permError)
-        console.log('Permissions Table Error:', permissionsError)
-
-        if (permError) {
-          console.warn('[PermissionContext] role_permissions query failed.', permError)
-        }
-
-        const userPermissions = rolePerms.map((row) => {
-          const perm = permissionMap.get(row.permission_id) || {}
+        const userPermissions = (result?.permissions || result?.data?.permissions || []).map((perm) => {
           const module = String(perm.module || '').trim()
           const action = String(perm.action || '').trim()
-          const rawKey = module && action ? `${module}.${action}` : ''
-          const csvCode = normalizePermissionKey(rawKey)
+          const rawKey = perm.rawKey || (module && action ? `${module}.${action}` : '')
           return {
-            permission_id: row.permission_id,
-            key: csvCode,
+            ...perm,
+            key: perm.key || normalizePermissionKey(rawKey),
             rawKey,
             module,
             action,
-            scope: row.scope || 'ALL',
+            scope: perm.scope || 'ALL',
           }
         })
 
@@ -168,7 +129,6 @@ export const PermissionProvider = ({ children }) => {
         console.error('[PermissionContext] Failed to load permissions:', err)
         if (mounted) {
           setPermissions([])
-          adminPermissionCountRef.current = 0
           setLoading(false)
         }
       }
@@ -194,8 +154,7 @@ export const PermissionProvider = ({ children }) => {
   const hasAnyPermission = () => permissions.length > 0
 
   const hasAdminAccess = () => {
-    if (adminPermissionCountRef.current === 0) return false
-    return permissions.some((p) => ADMIN_PERMISSION_CODES.has(p.key))
+    return permissions.some((p) => p.key === 'ACCESS_ADMIN_DASHBOARD' || p.rawKey === 'Application Access.Admin Dashboard')
   }
   
 

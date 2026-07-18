@@ -1,5 +1,6 @@
-import { getSupabaseServerClient } from '../server/ai/supabaseClient.js'
+import { getRequestUserContext, getSupabaseServerClient } from '../server/ai/supabaseClient.js'
 import { fail, ok } from '../server/_shared/response.js'
+import { permissionService } from '../server/services/permissionService.js'
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
 
@@ -84,6 +85,58 @@ export default async function handler(req, res) {
     } catch (error) {
       console.error('[AUTH] User ID resolution failed', { error: error?.message })
       return fail(res, 500, 'Authentication service is currently unavailable.')
+    }
+  }
+
+  if (action === 'current-permissions') {
+    try {
+      const viewer = await getRequestUserContext(req)
+      if (!viewer?.user?.id) {
+        return fail(res, 401, 'Authentication is required.')
+      }
+      if (!viewer?.employee?.employee_id) {
+        return fail(res, 403, 'Employee record not found.')
+      }
+
+      return ok(res, {
+        employee: {
+          employee_id: viewer.employee.employee_id,
+          role_id: viewer.employee.role_id,
+          role: viewer.employee.role,
+          hierarchy_level: viewer.employee.hierarchy_level,
+        },
+        permissions: viewer.permissions || [],
+      })
+    } catch (error) {
+      console.error('[AUTH] Current permissions lookup failed', { error: error?.message })
+      return fail(res, 500, 'Permission service is currently unavailable.')
+    }
+  }
+
+  if (action === 'manageable-roles') {
+    try {
+      const viewer = await getRequestUserContext(req)
+      if (!viewer?.user?.id) {
+        return fail(res, 401, 'Authentication is required.')
+      }
+      if (!permissionService.hasPermission(viewer.permissions || [], 'EMP_ROLE')) {
+        return fail(res, 403, 'Role management access required.')
+      }
+
+      const currentHierarchyLevel = viewer.employee?.hierarchy_level ?? 0
+      const client = getSupabaseServerClient()
+      const { data, error } = await client
+        .from('roles')
+        .select('role_id, role_name, hierarchy_level')
+        .gt('hierarchy_level', currentHierarchyLevel)
+        .order('hierarchy_level', { ascending: true })
+        .order('role_name', { ascending: true })
+
+      if (error) throw error
+      return ok(res, { roles: data || [] })
+    } catch (error) {
+      console.error('[AUTH] Manageable roles lookup failed', { error: error?.message })
+      return fail(res, 500, 'Role service is currently unavailable.')
     }
   }
 

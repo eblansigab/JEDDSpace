@@ -18,6 +18,7 @@ const signupAuthConfig = {
   persistSession: false,
   autoRefreshToken: false,
   detectSessionInUrl: false,
+  storageKey: 'jeddspace-signup-auth-token',
   lock: async (_name, _acquireTimeout, fn) => fn(),
 }
 

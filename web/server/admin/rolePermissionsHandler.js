@@ -14,7 +14,7 @@ export const handleListRolePermissions = async ({ viewer, targetRoleId = null })
   const [rolesResult, permissionsResult] = await Promise.all([
     client
       .from('roles')
-      .select('role_id, role_name, description, hierarchy_level, parent_role_id')
+      .select('*')
       .gt('hierarchy_level', currentHierarchyLevel)
       .order('hierarchy_level', { ascending: false }),
     client
@@ -38,6 +38,7 @@ export const handleListRolePermissions = async ({ viewer, targetRoleId = null })
     description: role.description,
     hierarchy_level: role.hierarchy_level,
     parent_role_id: role.parent_role_id,
+    is_protected: role.is_protected === true || role.hierarchy_level === 1,
   }))
 
   const allPermissions = (permissionsResult.data || []).map((perm) => ({
@@ -110,14 +111,29 @@ export const handleSaveRolePermissions = async ({ viewer, payload }) => {
     return { status: 403, error: 'You cannot edit your own role permissions.' }
   }
 
-  const { data: targetRole, error: targetRoleError } = await client
-    .from('roles')
-    .select('role_id, hierarchy_level')
-    .eq('role_id', targetRoleId)
-    .maybeSingle()
+  let targetRole
+  let targetRoleError
+
+  try {
+    const result = await client
+      .from('roles')
+      .select('*')
+      .eq('role_id', targetRoleId)
+      .maybeSingle()
+
+    targetRole = result.data
+    targetRoleError = result.error
+  } catch (queryError) {
+    targetRole = null
+    targetRoleError = queryError
+  }
 
   if (targetRoleError || !targetRole) {
     return { status: 404, error: 'Target role not found.' }
+  }
+
+  if (targetRole.is_protected === true || targetRole.hierarchy_level === 1) {
+    return { status: 403, error: 'This role is protected and cannot be modified.' }
   }
 
   const targetHierarchyLevel = targetRole.hierarchy_level ?? 0

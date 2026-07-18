@@ -1,4 +1,5 @@
 import { supabaseClient } from '../supabase/supabaseClient'
+import { withRoleDerivedFields } from '../utils/roleMetadata'
 
 const syncRoleFields = async (employeeData, existingRoleId = null) => {
   const roleId = employeeData.role_id || existingRoleId
@@ -17,9 +18,7 @@ const syncRoleFields = async (employeeData, existingRoleId = null) => {
   }
 
   return {
-    ...employeeData,
-    position: roleRow.role_name,
-    role: roleRow.role_name,
+    ...withRoleDerivedFields(employeeData, roleRow.role_name),
   }
 }
 

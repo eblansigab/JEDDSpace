@@ -1,5 +1,15 @@
 import { supabaseClient } from '../supabase/supabaseClient'
 
+const SAVE_DEBOUNCE_MS = 400
+
+const debounce = (fn, delay) => {
+  let timer
+  return (...args) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), delay)
+  }
+}
+
 export const rolePermissionService = {
   async getCurrentEmployee() {
     const { data: { session } } = await supabaseClient.auth.getSession()
@@ -29,7 +39,7 @@ export const rolePermissionService = {
 
     const { data, error } = await supabaseClient
       .from('roles')
-      .select('role_id, role_name, description, hierarchy_level, parent_role_id')
+      .select('*')
       .gt('hierarchy_level', current.hierarchy_level)
       .order('hierarchy_level', { ascending: false })
 
@@ -41,6 +51,7 @@ export const rolePermissionService = {
       description: role.description,
       hierarchy_level: role.hierarchy_level,
       parent_role_id: role.parent_role_id,
+      is_protected: role.is_protected === true || role.hierarchy_level === 1,
     }))
   },
 
@@ -74,12 +85,20 @@ export const rolePermissionService = {
       throw new Error('Role not found or not manageable.')
     }
 
-    const { data: rolePerms, error } = await supabaseClient
-      .from('role_permissions')
-      .select('permission_id, scope')
-      .eq('role_id', targetRole.role_id)
+    const [{ data: rolePerms, error: rolePermsError }, { count: permissionCount }] = await Promise.all([
+      supabaseClient
+        .from('role_permissions')
+        .select('permission_id, scope')
+        .eq('role_id', targetRole.role_id),
+      supabaseClient
+        .from('employee')
+        .select('*', { count: 'exact', head: true })
+        .eq('role_id', targetRole.role_id)
+        .eq('is_archived', false)
+        .eq('employment_status', 'active'),
+    ])
 
-    if (error) throw error
+    if (rolePermsError) throw rolePermsError
 
     const permMap = new Map(allPermissions.map((p) => [p.permission_id, p]))
 
@@ -89,6 +108,7 @@ export const rolePermissionService = {
       manageableRoles,
       allPermissions,
       selectedRoleId: targetRole.role_id,
+      isProtected: targetRole.is_protected || false,
       selectedRolePermissions: (rolePerms || []).map((row) => {
         const perm = permMap.get(row.permission_id) || {}
         return {
@@ -97,6 +117,12 @@ export const rolePermissionService = {
           scope: row.scope || 'ALL',
         }
       }),
+      roleStats: {
+        permissionCount: rolePerms?.length || 0,
+        usersAssigned: Number(permissionCount || 0),
+        hierarchyLevel: targetRole.hierarchy_level,
+        isProtected: targetRole.is_protected === true || targetRole.hierarchy_level === 1,
+      },
     }
   },
 
@@ -109,7 +135,7 @@ export const rolePermissionService = {
 
     const { data: targetRole, error: targetRoleError } = await supabaseClient
       .from('roles')
-      .select('hierarchy_level')
+      .select('*')
       .eq('role_id', targetRoleId)
       .single()
 
@@ -119,6 +145,10 @@ export const rolePermissionService = {
 
     if (targetRole.hierarchy_level <= current.hierarchy_level) {
       throw new Error('You cannot edit a role at or above your hierarchy level.')
+    }
+
+    if (targetRole.is_protected === true || targetRole.hierarchy_level === 1) {
+      throw new Error('This role is protected and cannot be modified.')
     }
 
     const validUpdates = permissionUpdates
@@ -147,6 +177,24 @@ export const rolePermissionService = {
     return {
       role_id: targetRoleId,
       updatedCount: validUpdates.length,
+    }
+  },
+
+  createAutoSave(targetRoleId, onSuccess, onFailure) {
+    const save = debounce(async (permissionUpdates) => {
+      try {
+        const result = await this.saveRolePermissions(targetRoleId, permissionUpdates)
+        if (onSuccess) onSuccess(result)
+        return { success: true }
+      } catch (error) {
+        if (onFailure) onFailure(error)
+        return { success: false, error: error.message }
+      }
+    }, SAVE_DEBOUNCE_MS)
+
+    return {
+      save,
+      cancel: () => {},
     }
   },
 }

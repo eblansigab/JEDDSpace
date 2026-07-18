@@ -3,13 +3,14 @@ import { permissionService, VALID_SCOPES } from './permissionService.js'
 
 const mockSupabaseData = {
   roles: {
-    admin: { role_id: 1, role_name: 'admin', hierarchy_level: 1 },
-    employee: { role_id: 2, role_name: 'employee', hierarchy_level: 2 },
+    admin: { role_id: 1, role_name: 'admin', hierarchy_level: 1, is_protected: true },
+    employee: { role_id: 2, role_name: 'employee', hierarchy_level: 2, is_protected: false },
   },
   permissions: [
     { permission_id: 1, module: 'Employee Management', action: 'Add Employee' },
     { permission_id: 2, module: 'Announcements', action: 'Manage Announcements' },
     { permission_id: 3, module: 'AI Chat Logs', action: 'View Conversation History' },
+    { permission_id: 4, module: 'Application Access', action: 'Admin Dashboard' },
   ],
 }
 
@@ -37,7 +38,7 @@ describe('PermissionService', () => {
             select: () => ({
               eq: () => ({
                 maybeSingle: () => Promise.resolve({
-                  data: { role_id: 1, roles: mockSupabaseData.roles.admin },
+                  data: { role_id: 2, roles: mockSupabaseData.roles.employee },
                   error: null,
                 }),
               }),
@@ -46,9 +47,11 @@ describe('PermissionService', () => {
         }
         if (table === 'role_permissions') {
           return {
-            select: () => Promise.resolve({
-              data: rolePermissions,
-              error: null,
+            select: () => ({
+              eq: () => Promise.resolve({
+                data: rolePermissions,
+                error: null,
+              }),
             }),
           }
         }
@@ -82,6 +85,60 @@ describe('PermissionService', () => {
     expect(perms[0].action).toBe('Add Employee')
     expect(perms[1].key).toBe('ANN_MANAGE')
     expect(perms[1].scope).toBe('SELF')
+  })
+
+  test('returns every permission with ALL scope for protected roles without role_permissions rows', async () => {
+    const mockClient = {
+      from: (table) => {
+        if (table === 'employee') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: () => Promise.resolve({
+                  data: { role_id: 1, roles: mockSupabaseData.roles.admin },
+                  error: null,
+                }),
+              }),
+            }),
+          }
+        }
+        if (table === 'role_permissions') {
+          return {
+            select: () => ({
+              eq: () => Promise.resolve({
+                data: [],
+                error: null,
+              }),
+            }),
+          }
+        }
+        if (table === 'permissions') {
+          return {
+            select: () => Promise.resolve({
+              data: mockSupabaseData.permissions,
+              error: null,
+            }),
+          }
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+        }
+      },
+    }
+
+    vi.doMock('../ai/supabaseClient.js', () => ({
+      getSupabaseServerClient: () => mockClient,
+    }))
+
+    const { permissionService: freshService } = await import('./permissionService.js')
+    const perms = await freshService.getUserPermissions(1)
+    expect(perms).toHaveLength(mockSupabaseData.permissions.length)
+    expect(perms.every((perm) => perm.scope === 'ALL')).toBe(true)
+    expect(perms.some((perm) => perm.key === 'ACCESS_ADMIN_DASHBOARD')).toBe(true)
   })
 
   test('returns empty array for missing role', async () => {
@@ -133,7 +190,7 @@ describe('PermissionService', () => {
     expect(permissionService.hasAnyPermission([])).toBe(false)
   })
 
-  test('hasAdminAccess returns true when user has any permission', async () => {
+  test('hasAdminAccess returns true when user has Admin Dashboard access', async () => {
     const mockClient = {
       from: (table) => {
         if (table === 'employee') {
@@ -141,7 +198,7 @@ describe('PermissionService', () => {
             select: () => ({
               eq: () => ({
                 maybeSingle: () => Promise.resolve({
-                  data: { employee_id: 1, role_id: 1 },
+                  data: { employee_id: 1, role_id: 2, roles: mockSupabaseData.roles.employee },
                   error: null,
                 }),
               }),
@@ -150,9 +207,11 @@ describe('PermissionService', () => {
         }
         if (table === 'role_permissions') {
           return {
-            select: () => Promise.resolve({
-              data: [{ permission_id: 1, scope: 'ALL' }],
-              error: null,
+            select: () => ({
+              eq: () => Promise.resolve({
+                data: [{ permission_id: 4, scope: 'ALL' }],
+                error: null,
+              }),
             }),
           }
         }
@@ -183,7 +242,7 @@ describe('PermissionService', () => {
     expect(result).toBe(true)
   })
 
-  test('hasAdminAccess returns true for role with role_permissions even without loaded permission details', async () => {
+  test('hasAdminAccess returns false for role_permissions without Admin Dashboard access', async () => {
     const mockClient = {
       from: (table) => {
         if (table === 'employee') {
@@ -191,7 +250,7 @@ describe('PermissionService', () => {
             select: () => ({
               eq: () => ({
                 maybeSingle: () => Promise.resolve({
-                  data: { employee_id: 2, role_id: 5 },
+                  data: { employee_id: 2, role_id: 2, roles: mockSupabaseData.roles.employee },
                   error: null,
                 }),
               }),
@@ -200,9 +259,11 @@ describe('PermissionService', () => {
         }
         if (table === 'role_permissions') {
           return {
-            select: () => Promise.resolve({
-              data: [{ permission_id: 1, scope: 'ALL' }],
-              error: null,
+            select: () => ({
+              eq: () => Promise.resolve({
+                data: [{ permission_id: 1, scope: 'ALL' }],
+                error: null,
+              }),
             }),
           }
         }
@@ -230,7 +291,7 @@ describe('PermissionService', () => {
 
     const { permissionService: freshService } = await import('./permissionService.js')
     const result = await freshService.hasAdminAccess(2)
-    expect(result).toBe(true)
+    expect(result).toBe(false)
   })
 
   test('hasAdminAccess returns false for role without role_permissions', async () => {
@@ -250,9 +311,11 @@ describe('PermissionService', () => {
         }
         if (table === 'role_permissions') {
           return {
-            select: () => Promise.resolve({
-              data: [],
-              error: null,
+            select: () => ({
+              eq: () => Promise.resolve({
+                data: [],
+                error: null,
+              }),
             }),
           }
         }
