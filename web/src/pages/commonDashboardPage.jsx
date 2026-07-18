@@ -182,7 +182,8 @@ const CommonDashboardPage = () => {
       await alertService.success(`${file.name} has been added to your document uploads.`, 'File Uploaded')
       await loadDashboardSummary()
     } catch (error) {
-      await alertService.error(error.message || 'Unable to upload file.', 'Upload Failed')
+      console.error(error.message)
+      await alertService.error('Unable to upload file.', 'Upload Failed')
     } finally {
       setIsUploading(false)
       event.target.value = ''

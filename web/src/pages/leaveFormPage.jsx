@@ -6,6 +6,7 @@ import { alertService } from '../utils/alertService'
 import { createLeaveForm } from '../services/messageService'
 import { documentService } from '../services/documentService'
 
+
 const LEAVE_TYPES = [
   { value: 'VL', label: 'Vacation Leave' },
   { value: 'SL', label: 'Sick Leave' },
@@ -103,7 +104,8 @@ const LeaveFormPage = () => {
       setReason('')
       setMedicalCertificate(null)
     } catch (error) {
-      await alertService.error(error.message || 'Failed to submit leave form.')
+      console.error(error.message)
+      await alertService.error('Failed to submit leave form.')
     } finally {
       setIsSubmitting(false)
     }

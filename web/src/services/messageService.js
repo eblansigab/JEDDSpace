@@ -193,7 +193,10 @@ export const getLeaveForms = async () => {
         first_name,
         last_name,
         department,
-        position
+        position,
+        role:role_id(
+          hierarchy_level
+        )
       )
     `)
     .order('created_at', { ascending: false })
@@ -225,7 +228,10 @@ export const getBusinessForms = async () => {
         first_name,
         last_name,
         department,
-        position
+        position,
+        role:role_id(
+          hierarchy_level
+        )
       )
     `)
     .order('created_at', { ascending: false })

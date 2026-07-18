@@ -1,8 +1,8 @@
 import { supabaseClient } from "../supabase/supabaseClient";
 
-export async function SendBusinessForm(project,startDate,endDate,address,car,driver,phone){
+export async function SendBusinessForm(employee_id,project,startDate,endDate,address,car,driver,phone){
     const {data,error} = await supabaseClient.from("businessform").insert({
-        project_name:project,start_date:startDate,end_date:endDate,location:address,company_car:car,driver_name:driver,phone_num:phone
+        employee_id:employee_id,project_name:project,start_date:startDate,end_date:endDate,location:address,company_car:car,driver_name:driver,phone_num:phone
     })
 
     if(error) {

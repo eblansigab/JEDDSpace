@@ -198,7 +198,8 @@ export default function NotificationBell() {
       await notificationService.markAllRead()
       setNotifications((current) => current.map((item) => ({ ...item, is_read: true })))
     } catch (error) {
-      await alertService.error(error.message || 'Unable to mark alerts as read.', 'Update Failed')
+      console.error(error.message)
+      await alertService.error('Unable to mark alerts as read.', 'Update Failed')
     }
   }
 

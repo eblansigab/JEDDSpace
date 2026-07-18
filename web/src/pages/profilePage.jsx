@@ -214,7 +214,8 @@ const ProfileSettings = () => {
 
       await alertService.success('Profile details updated successfully.')
     } catch (error) {
-      await alertService.error(error.message || 'Failed to update profile details.')
+      console.error(error.message)
+      await alertService.error('Failed to update profile details.')
     }
   }
 
@@ -232,7 +233,8 @@ const ProfileSettings = () => {
       setAvatarImgError(false)
       await alertService.success('Profile picture updated successfully.')
     } catch (error) {
-      await alertService.error(error.message || 'Failed to upload profile picture.')
+      console.error(error.message)
+      await alertService.error('Failed to upload profile picture.')
       setAvatarPreview(null)
     } finally {
       setIsUploadingAvatar(false)
@@ -258,7 +260,8 @@ const ProfileSettings = () => {
       setAvatarPreview(null)
       await alertService.success('Profile picture removed.')
     } catch (error) {
-      await alertService.error(error.message || 'Failed to remove profile picture.')
+      console.error(error.message)
+      await alertService.error('Failed to remove profile picture.')
     }
   }
 
@@ -278,7 +281,8 @@ const ProfileSettings = () => {
       setNewPassword('')
       await alertService.success('Password updated successfully.')
     } catch (error) {
-      await alertService.error(error.message || 'Failed to update password.')
+      console.error(error.message)
+      await alertService.error('Failed to update password.')
     }
   }
 
@@ -319,7 +323,8 @@ const ProfileSettings = () => {
       await logoutAllDevices()
       navigate('/')
     } catch (error) {
-      await alertService.error(error.message || 'Unable to logout all devices.')
+      console.error(error.message)
+      await alertService.error('Unable to logout all devices.')
     }
   }
 
@@ -358,7 +363,8 @@ const ProfileSettings = () => {
       setActiveSessions(prev => prev.filter(s => s.session_id !== sessionId))
       await alertService.success(`Access for ${deviceName} has been revoked successfully.`)
     } catch (error) {
-      await alertService.error(error.message || 'Failed to revoke device session.')
+      console.error(error.message)
+      await alertService.error('Failed to revoke device session.')
     }
   }
 
@@ -394,7 +400,8 @@ const ProfileSettings = () => {
       saveAuditLogs(updatedLogs)
       await alertService.success('API key regenerated successfully.')
     } catch (error) {
-      await alertService.error(error.message || 'Failed to update API key.')
+      console.error(error.message)
+      await alertService.error('Failed to update API key.')
     }
   }
 

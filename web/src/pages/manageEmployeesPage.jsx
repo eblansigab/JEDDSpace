@@ -278,7 +278,8 @@ const ManageEmployeesPage = () => {
       await alertService.success('Employee archived.')
       await fetchEmployees()
     } catch (error) {
-      await alertService.error(error.message || 'Failed to archive employee.')
+      console.error(error.message)
+      await alertService.error('Failed to archive employee.')
     }
   }
 
