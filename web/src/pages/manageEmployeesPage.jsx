@@ -8,14 +8,24 @@ import { notificationService } from '../services/notificationService'
 import { useAuth } from '../services/authContext'
 import { alertService } from '../utils/alertService'
 import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
-import { DEPARTMENT_OPTIONS, getPositions } from '../constants/formOptions'
+import { getPositions } from '../constants/formOptions'
 import { supabaseClient } from '../supabase/supabaseClient'
+import { getDepartmentForRole } from '../utils/roleMetadata'
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
 
 const normalizeUsername = (value) => String(value || '').trim().toLowerCase()
 
 const getEmployeeName = (employee) => `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unnamed Employee'
+
+const hydrateEmployeeRoleFields = (employee) => {
+  const roleName = employee.position || employee.role || ''
+  const shouldDeriveDepartment = !employee.department || String(employee.department).toLowerCase() === 'general'
+  return {
+    ...employee,
+    department: shouldDeriveDepartment ? getDepartmentForRole(roleName, employee.department || '') : employee.department,
+  }
+}
 
 const createEmptyForm = () => ({
   first_name: '',
@@ -47,42 +57,52 @@ const ManageEmployeesPage = () => {
         employeeId: profile.employee_id,
       } : null
       const data = await employeeService.getManageable(viewer)
-      setEmployees(data || [])
+      setEmployees((data || []).map(hydrateEmployeeRoleFields))
     } catch (error) {
       console.error('[ManageEmployees] Fetch employees failed', error)
       await alertService.error('Failed to load employees.')
     }
   }
 
-  const getPosition = async()=>{
-    const [positions, currentRole] = await Promise.all([
-      getPositions(),
-      profile?.role_id
-        ? supabaseClient
-            .from('roles')
-            .select('hierarchy_level')
-            .eq('role_id', profile.role_id)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-    ])
+  const getPosition = async () => {
+    if (!profile?.role_id) {
+      setPosition([])
+      return
+    }
 
-    const currentHierarchyLevel = currentRole?.data?.hierarchy_level
-    const filteredData = positions.filter((level) => {
-      if (!currentHierarchyLevel) return true
-      return level.hierarchy_level > currentHierarchyLevel
-    })
-    setPosition(filteredData)
+    try {
+      const [positions, currentRole] = await Promise.all([
+        getPositions(),
+        supabaseClient
+          .from('roles')
+          .select('hierarchy_level')
+          .eq('role_id', profile.role_id)
+          .maybeSingle(),
+      ])
+
+      const currentHierarchyLevel = currentRole?.data?.hierarchy_level
+      const filteredData = (positions || []).filter((level) => {
+        if (!currentHierarchyLevel) return true
+        return level.hierarchy_level > currentHierarchyLevel
+      })
+
+      setPosition(filteredData)
+    } catch (error) {
+      console.error('[ManageEmployees] Failed to load roles for dropdown.', error)
+      setPosition([])
+    }
   }
 
   useEffect(() => {
     fetchEmployees()
     getPosition()
-  }, [])
+  }, [profile?.role_id])
 
   const updateForm = (field, value) => {
     setForm((current) => ({
       ...current,
       [field]: field === 'username' ? normalizeUsername(value) : value,
+      ...(field === 'position' ? { department: getDepartmentForRole(value) } : {}),
     }))
   }
 
@@ -151,7 +171,7 @@ const ManageEmployeesPage = () => {
         trimmedLastName,
         selectedRole.role_name,
         'employee',
-        form.department,
+        getDepartmentForRole(selectedRole.role_name),
         normalizedUsername
       )
 
@@ -188,7 +208,7 @@ const ManageEmployeesPage = () => {
       first_name: employee.first_name || '',
       last_name: employee.last_name || '',
       username: employee.username || '',
-      department: employee.department || 'general',
+      department: getDepartmentForRole(employee.position || employee.role, employee.department || 'General'),
       position: employee.position || 'employee',
       registration_status: employee.registration_status || 'approved',
       employment_status: employee.employment_status || 'active',
@@ -237,7 +257,7 @@ const ManageEmployeesPage = () => {
         username: normalizedUsername,
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
-        department: form.department,
+        department: getDepartmentForRole(selectedRole.role_name),
         role_id: selectedRole.role_id,
         registration_status: form.registration_status,
         employment_status: form.employment_status,
@@ -457,13 +477,18 @@ const EmployeeModal = ({ visible, title, form, onChange, onClose, onSave, mode, 
           />
         </>
       )}
-      <select value={form.department} onChange={(event) => onChange('department', event.target.value)}>
-        {DEPARTMENT_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Role</label>
+      <select value={form.position} onChange={(event) => onChange('position', event.target.value)}>
+        <option value="" disabled>Select role</option>
+        {position.map((item) => <option key={item.role_id || item.role_name} value={item.role_name}>{item.role_name}</option>)}
       </select>
-          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Position / Role</label>
-          <select value={form.position} onChange={(event) => onChange('position', event.target.value)}>
-            {position.map((item) => <option key={item.role_name} value={item.role_name}>{item.role_name}</option>)}
-          </select>
+      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Department</label>
+      <input
+        type="text"
+        value={form.department || getDepartmentForRole(form.position)}
+        readOnly
+        aria-label="Department derived from role"
+      />
       <select value={form.registration_status} onChange={(event) => onChange('registration_status', event.target.value)}>
         <option value="pending">pending</option>
         <option value="approved">approved</option>

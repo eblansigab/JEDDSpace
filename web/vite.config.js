@@ -82,6 +82,13 @@ const buildPermission = (perm, scope = 'ALL') => {
   }
 }
 
+const hasPermission = (permissions, permissionKey) => {
+  const normalized = normalizePermissionKey(permissionKey)
+  return (permissions || []).some((permission) =>
+    permission.key === normalized || permission.rawKey === permissionKey
+  )
+}
+
 const readJsonBody = async (req) => {
   const chunks = []
 
@@ -171,6 +178,37 @@ const loadCurrentPermissions = async (client, req) => {
   }
 }
 
+const loadManageableRoles = async (client, req) => {
+  const permissionResult = await loadCurrentPermissions(client, req)
+  if (permissionResult.status !== 200) {
+    return permissionResult
+  }
+
+  const permissions = permissionResult.body?.permissions || []
+  if (!hasPermission(permissions, 'EMP_ROLE')) {
+    return { status: 403, body: { success: false, error: 'Role management access required.' } }
+  }
+
+  const currentHierarchyLevel = permissionResult.body?.employee?.hierarchy_level || 0
+  const { data, error } = await client
+    .from('roles')
+    .select('role_id, role_name, hierarchy_level')
+    .gt('hierarchy_level', currentHierarchyLevel)
+    .order('hierarchy_level', { ascending: true })
+    .order('role_name', { ascending: true })
+
+  if (error) throw error
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      roles: data || [],
+      data: { roles: data || [] },
+    },
+  }
+}
+
 const createAuthDevMiddleware = (env) => {
   const supabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL || 'https://eoxjathcdzhvdnqifgny.supabase.co'
   const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
@@ -203,6 +241,12 @@ const createAuthDevMiddleware = (env) => {
 
       if (body?.action === 'current-permissions') {
         const result = await loadCurrentPermissions(client, req)
+        sendJson(res, result.status, result.body)
+        return
+      }
+
+      if (body?.action === 'manageable-roles') {
+        const result = await loadManageableRoles(client, req)
         sendJson(res, result.status, result.body)
         return
       }

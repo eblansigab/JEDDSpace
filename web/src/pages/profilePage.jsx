@@ -12,7 +12,7 @@ import { profileService } from '../services/profileService'
 import { sessionService } from '../services/sessionService'
 import { alertService } from '../utils/alertService'
 import { usePermissions } from '../contexts/PermissionContext'
-import { supabaseClient } from '../supabase/supabaseClient'
+import { getDepartmentForRole } from '../utils/roleMetadata'
 
 const THEME_KEY = 'jeddspace_theme'
 const STANDARD_THEME_KEY = 'theme'
@@ -105,8 +105,13 @@ const ProfileSettings = () => {
     setUsername(profile.username || '')
     setFirstName(profile.first_name || '')
     setLastName(profile.last_name || '')
-    setDepartment(profile.department || '')
-    setPosition(profile.position || '')
+    const profilePosition = profile.position || profile.role || ''
+    setDepartment(
+      !profile.department || String(profile.department).toLowerCase() === 'general'
+        ? getDepartmentForRole(profilePosition, profile.department || '')
+        : profile.department
+    )
+    setPosition(profilePosition)
     setRegistrationStatus(profile.registration_status || 'approved')
     setEmploymentStatus(profile.employment_status)
   }, [profile])

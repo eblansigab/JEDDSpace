@@ -1,4 +1,5 @@
 import { supabaseClient, signupClient } from '../supabase/supabaseClient';
+import { getDepartmentForRole } from '../utils/roleMetadata';
 
 const PENDING_EMPLOYEE_KEY = 'jeddspace_pending_employee';
 
@@ -127,6 +128,7 @@ export const createEmployeeRecord = async (authUserId, employeeData) => {
   const fallbackFirstName = employeeData.firstName || employeeData.email?.split('@')[0] || 'Unknown'
   const fallbackLastName = employeeData.lastName || 'User'
   const roleName = String(employeeData.position || employeeData.role || 'employee').trim() || 'employee'
+  const derivedDepartment = getDepartmentForRole(roleName, employeeData.department || 'General')
 
   let roleId = null
   try {
@@ -147,7 +149,7 @@ export const createEmployeeRecord = async (authUserId, employeeData) => {
         first_name: fallbackFirstName,
         last_name: fallbackLastName,
         position: roleName,
-        department: employeeData.department || 'general',
+        department: derivedDepartment,
         employee_type: employeeData.employeeType || 'staff',
         role: roleName,
         role_id: roleId,
@@ -217,6 +219,7 @@ export const registerUser = async (
     }
 
     const roleName = String(position || role || 'employee').trim() || 'employee'
+    const derivedDepartment = getDepartmentForRole(roleName, department || 'General')
 
     let roleId = null
     try {
@@ -258,7 +261,7 @@ export const registerUser = async (
           first_name: firstName || email.split('@')[0] || 'Unknown',
           last_name: lastName || 'User',
           position: roleName,
-          department: department || 'general',
+          department: derivedDepartment,
           employee_type: 'staff',
           role: roleName,
           role_id: roleId,
@@ -278,7 +281,7 @@ export const registerUser = async (
         firstName: firstName || email.split('@')[0] || 'Unknown',
         lastName: lastName || 'User',
         position: roleName,
-        department: department || 'general',
+        department: derivedDepartment,
         employeeType: 'staff',
         role: roleName,
         createdAt: Date.now(),
@@ -295,15 +298,16 @@ export const registerUser = async (
   }
 
   if (!authUserId) {
+    const pendingRoleName = String(position || role || 'employee').trim() || 'employee'
     savePendingEmployee({
       email,
       username: normalizedUsername,
       firstName: firstName || email.split('@')[0] || 'Unknown',
       lastName: lastName || 'User',
-      position: position || role || 'employee',
-      department: department || 'general',
+      position: pendingRoleName,
+      department: getDepartmentForRole(pendingRoleName, department || 'General'),
       employeeType: 'staff',
-      role: String(position || role || 'employee').trim() || 'employee',
+      role: pendingRoleName,
       createdAt: Date.now(),
     })
 
@@ -314,6 +318,7 @@ export const registerUser = async (
     const fallbackFirstName = firstName || email.split('@')[0] || 'Unknown'
     const fallbackLastName = lastName || 'User'
     const roleName = String(position || role || 'employee').trim() || 'employee'
+    const derivedDepartment = getDepartmentForRole(roleName, department || 'General')
 
     let roleId = null
     try {
@@ -368,7 +373,7 @@ export const registerUser = async (
           first_name: fallbackFirstName,
           last_name: fallbackLastName,
           position: roleName,
-          department: department || 'general',
+          department: derivedDepartment,
           employee_type: 'staff',
           role: roleName,
           role_id: roleId,
@@ -392,7 +397,7 @@ export const registerUser = async (
         firstName: fallbackFirstName,
         lastName: fallbackLastName,
         position: roleName,
-        department: department || 'general',
+        department: derivedDepartment,
         employeeType: 'staff',
         role: roleName,
         createdAt: Date.now(),
@@ -405,16 +410,17 @@ export const registerUser = async (
     return { ...data, employeeCreated: true }
   } catch (e) {
     console.warn('[registerUser] Employee creation threw error:', e)
+    const pendingRoleName = String(position || role || 'employee').trim() || 'employee'
     
     savePendingEmployee({
       email,
       username: normalizedUsername,
       firstName: firstName || email.split('@')[0] || 'Unknown',
       lastName: lastName || 'User',
-      position: position || role || 'employee',
-      department: department || 'general',
+      position: pendingRoleName,
+      department: getDepartmentForRole(pendingRoleName, department || 'General'),
       employeeType: 'staff',
-      role: String(position || role || 'employee').trim() || 'employee',
+      role: pendingRoleName,
       createdAt: Date.now(),
     })
 

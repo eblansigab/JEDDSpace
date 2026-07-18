@@ -6,6 +6,7 @@ import {
 } from 'react'
 
 import { supabaseClient } from '../supabase/supabaseClient'
+import { withRoleDerivedFields } from '../utils/roleMetadata'
 
 const AuthContext = createContext()
 
@@ -64,7 +65,7 @@ const ensureEmployeeRecord = async (user) => {
           first_name: fallbackFirstName,
           last_name: fallbackLastName,
           position: fallbackPosition,
-          department: meta.department || 'general',
+          department: meta.department || 'General',
           employee_type: meta.employee_type || 'staff',
           role: fallbackPosition,
           role_id: roleId,
@@ -119,10 +120,10 @@ export const AuthProvider = ({ children }) => {
           console.error('[AuthContext] Error loading employee profile:', error)
           if (mounted) setProfile(null)
         } else if (data) {
-          if (mounted) setProfile(data)
+          if (mounted) setProfile(withRoleDerivedFields(data))
         } else {
           const created = await ensureEmployeeRecord(currentUser)
-          if (mounted) setProfile(created)
+          if (mounted) setProfile(created ? withRoleDerivedFields(created) : created)
         }
       } else if (mounted) {
         setProfile(null)
