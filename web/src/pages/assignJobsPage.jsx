@@ -274,9 +274,9 @@ const AssignJobsPage = () => {
 
   const handleDeleteJob = async (job_id) => {
     const confirmDelete = await alertService.confirm({
-      title: 'Delete this job?',
+      title: 'Archive this job?',
       text: 'This action cannot be undone.',
-      confirmButtonText: 'Delete',
+      confirmButtonText: 'Archive',
       cancelButtonText: 'Cancel'
     })
 
@@ -284,10 +284,11 @@ const AssignJobsPage = () => {
 
     try {
       await jobService.remove(job_id)
-      await alertService.success('Job deleted')
+      await alertService.success('Job archived.')
       fetchJobs()
     } catch (error) {
       await alertService.error(error.message)
+      await alertService.error("Please try again.","Archive failed")
     }
   }
 
@@ -346,7 +347,7 @@ const AssignJobsPage = () => {
             Complete
           </Button>
           <Button variant="danger" style={{ minWidth: 80 }} onClick={() => handleDeleteJob(row.job_id)}>
-            Delete
+            Archive
           </Button>
         </div>
       )

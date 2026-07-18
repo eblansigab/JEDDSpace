@@ -40,6 +40,7 @@ export const jobService = {
     return data
   },
 
+  //side note: might have to change this to where it still can be seen in the database but is archived in the website to it cant be seen
   async remove(jobId) {
     const { data, error } = await supabaseClient
       .from('job')
