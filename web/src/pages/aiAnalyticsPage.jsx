@@ -151,7 +151,7 @@ export default function AiAnalyticsPage() {
                     <ul className="admin-list">
                       {analytics.topUsers.map((user) => (
                         <li key={user.userId}>
-                          <span>{user.name}</span>
+                          <span>{user.name} </span>
                           <span>{user.count}  prompts</span>
                         </li>
                       ))}

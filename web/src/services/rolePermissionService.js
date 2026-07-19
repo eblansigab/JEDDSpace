@@ -64,13 +64,24 @@ export const rolePermissionService = {
 
     if (error) throw error
 
-    return (data || []).map((perm) => ({
-      permission_id: perm.permission_id,
-      module: perm.module,
-      action: perm.action,
-      description: perm.description,
-      rawKey: `${perm.module}.${perm.action}`,
-    }))
+    const disabledCommentPermissions = new Set([
+      'Announcements.Comment on Announcements',
+      'Announcements.Comment with Images',
+      'Announcements.React to Comments',
+    ])
+
+    return (data || [])
+      .map((perm) => {
+        const rawKey = `${perm.module}.${perm.action}`
+        return {
+          permission_id: perm.permission_id,
+          module: perm.module,
+          action: perm.action,
+          description: perm.description,
+          rawKey,
+        }
+      })
+      .filter((perm) => !disabledCommentPermissions.has(perm.rawKey))
   },
 
   async getRolePermissions(roleId) {
