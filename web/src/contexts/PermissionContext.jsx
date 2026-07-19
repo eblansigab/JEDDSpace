@@ -103,6 +103,14 @@ export const PermissionProvider = ({ children }) => {
 
         const result = await response.json().catch(() => ({}))
         if (!response.ok || result?.success === false) {
+          if (response.status === 401) {
+            if (mounted) {
+              setPermissions([])
+              setLoading(false)
+            }
+            return
+          }
+
           throw new Error(result?.error || 'Failed to load permissions.')
         }
 
