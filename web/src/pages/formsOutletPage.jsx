@@ -88,7 +88,7 @@ const FormsOutletPage = () => {
         await notificationService.createNotification({
           title: `${formTypeLabel} ${actionLabel}`,
           message,
-          type: 'employee_update',
+          type: table === 'leaveform' ? 'leave_form' : 'business_form',
           userId: profile?.user_id,
           notifyTo: employeeId
         })

@@ -128,8 +128,8 @@ export const getThreadMessages = async (rootEmailId) => {
 export const createLeaveForm = async ({ employeeId, startDate, endDate, type, reason, createdBy }) => {
   const payload = {
     employee_id: employeeId,
-    start_date: startDate,
-    end_date: endDate,
+    start_date: startDate || null,
+    end_date: endDate || null,
     type,
     reason,
     status: 'pending',
@@ -153,8 +153,8 @@ export const createLeaveForm = async ({ employeeId, startDate, endDate, type, re
 export const createBusinessForm = async ({ employeeId, startDate, endDate, location, companyCar, driverName, phoneNum, createdBy, projectId = null }) => {
   const payload = {
     employee_id: employeeId,
-    start_date: startDate,
-    end_date: endDate,
+    start_date: startDate || null,
+    end_date: endDate || null,
     location,
     company_car: companyCar,
     driver_name: driverName,

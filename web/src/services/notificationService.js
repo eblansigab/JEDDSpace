@@ -6,7 +6,7 @@ export const NOTIFICATION_TYPES = [
   'general',
   'announcement',
   'job_assignment',
-  'employee_update',
+  'message',
   'leave_form',
   'business_form',
 ]

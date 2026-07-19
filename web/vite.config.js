@@ -305,14 +305,16 @@ const wrapRes = (res) => {
     res.end(JSON.stringify(body))
   }
 
-  return {
+  const wrapped = {
     status: (code) => {
       res.statusCode = code
-      return { json }
+      return wrapped
     },
     json,
     end: (body) => res.end(body),
   }
+
+  return wrapped
 }
 
 const parseRequestBody = async (req) => {

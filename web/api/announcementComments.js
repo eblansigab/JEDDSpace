@@ -1,3 +1,6 @@
+// TEMPORARILY DISABLED: Announcement comments are hidden from the frontend for the final defense.
+// This API route remains registered and functional for easy restoration after defense.
+// To restore: re-enable comment UI in AnnouncementsPage and remove the early returns in announcementService.js
 import { getRequestUserContext } from '../server/ai/supabaseClient.js'
 import { announcementCommentService } from '../server/services/announcementCommentService.js'
 import { fail, ok } from '../server/_shared/response.js'

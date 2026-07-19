@@ -36,12 +36,14 @@ const AnnouncementsPage = () => {
   const [userReactions, setUserReactions] = useState({})
   const [reactionLoading, setReactionLoading] = useState({})
   const [announcementImages, setAnnouncementImages] = useState({})
-  const [comments, setComments] = useState({})
-  const [commentText, setCommentText] = useState({})
-  const [commentImage, setCommentImage] = useState({})
-  const [commentReactionSummaries, setCommentReactionSummaries] = useState({})
-  const [commentUserReactions, setCommentUserReactions] = useState({})
-  const [commentReactionLoading, setCommentReactionLoading] = useState({})
+  // TEMPORARILY DISABLED: Announcement comments are hidden for the final defense.
+  // The state and handlers below are preserved for easy restoration.
+  // const [comments, setComments] = useState({})
+  // const [commentText, setCommentText] = useState({})
+  // const [commentImage, setCommentImage] = useState({})
+  // const [commentReactionSummaries, setCommentReactionSummaries] = useState({})
+  // const [commentUserReactions, setCommentUserReactions] = useState({})
+  // const [commentReactionLoading, setCommentReactionLoading] = useState({})
   const isAdmin = hasPermission('ANN_MANAGE')
 
   const viewer = useMemo(() => {
@@ -126,95 +128,96 @@ const AnnouncementsPage = () => {
     }
   }
 
-  const loadComments = async (announcementId) => {
-    try {
-      const data = await announcementService.getComments(announcementId)
-      setComments((prev) => ({ ...prev, [announcementId]: data }))
-    } catch (error) {
-      console.error('[AnnouncementsPage] Error loading comments:', error)
-      setComments((prev) => ({ ...prev, [announcementId]: [] }))
-    }
-  }
+  // TEMPORARILY DISABLED: Comment functionality disabled for final defense
+  // const loadComments = async (announcementId) => {
+  //   try {
+  //     const data = await announcementService.getComments(announcementId)
+  //     setComments((prev) => ({ ...prev, [announcementId]: data }))
+  //   } catch (error) {
+  //     console.error('[AnnouncementsPage] Error loading comments:', error)
+  //     setComments((prev) => ({ ...prev, [announcementId]: [] }))
+  //   }
+  // }
 
-  const loadCommentReactions = async (commentId) => {
-    try {
-      const [summary, list] = await Promise.all([
-        announcementService.getCommentReactionSummary(commentId),
-        announcementService.getCommentReactions(commentId),
-      ])
-      setCommentReactionSummaries((prev) => ({ ...prev, [commentId]: summary }))
-      if (profile?.employee_id && list.length > 0) {
-        const mine = list.find((r) => r.employee_id === profile.employee_id)
-        if (mine) {
-          setCommentUserReactions((prev) => ({ ...prev, [commentId]: mine.reaction_type }))
-        }
-      }
-    } catch (error) {
-      console.error('[AnnouncementsPage] Error loading comment reactions:', error)
-    }
-  }
+  // const loadCommentReactions = async (commentId) => {
+  //   try {
+  //     const [summary, list] = await Promise.all([
+  //       announcementService.getCommentReactionSummary(commentId),
+  //       announcementService.getCommentReactions(commentId),
+  //     ])
+  //     setCommentReactionSummaries((prev) => ({ ...prev, [commentId]: summary }))
+  //     if (profile?.employee_id && list.length > 0) {
+  //       const mine = list.find((r) => r.employee_id === profile.employee_id)
+  //       if (mine) {
+  //         setCommentUserReactions((prev) => ({ ...prev, [commentId]: mine.reaction_type }))
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error('[AnnouncementsPage] Error loading comment reactions:', error)
+  //   }
+  // }
 
-  const handleCommentImageChange = (announcementId, file) => {
-    setCommentImage((prev) => ({ ...prev, [announcementId]: file }))
-  }
+  // const handleCommentImageChange = (announcementId, file) => {
+  //   setCommentImage((prev) => ({ ...prev, [announcementId]: file }))
+  // }
 
-  const handleCommentPaste = (announcementId) => (event) => {
-    const items = event.clipboardData?.items || []
-    const imageItem = Array.from(items).find((item) => item.type.startsWith('image/'))
-    if (imageItem) {
-      event.preventDefault()
-      const file = imageItem.getAsFile()
-      if (file) {
-        handleCommentImageChange(announcementId, file)
-      }
-    }
-  }
+  // const handleCommentPaste = (announcementId) => (event) => {
+  //   const items = event.clipboardData?.items || []
+  //   const imageItem = Array.from(items).find((item) => item.type.startsWith('image/'))
+  //   if (imageItem) {
+  //     event.preventDefault()
+  //     const file = imageItem.getAsFile()
+  //     if (file) {
+  //       handleCommentImageChange(announcementId, file)
+  //     }
+  //   }
+  // }
 
-  const handleSubmitComment = async (announcementId) => {
-    const text = String(commentText[announcementId] || '').trim()
-    const file = commentImage[announcementId] || null
+  // const handleSubmitComment = async (announcementId) => {
+  //   const text = String(commentText[announcementId] || '').trim()
+  //   const file = commentImage[announcementId] || null
 
-    if (!text && !file) {
-      await alertService.warning('Please enter a comment or attach an image.')
-      return
-    }
+  //   if (!text && !file) {
+  //     await alertService.warning('Please enter a comment or attach an image.')
+  //     return
+  //   }
 
-    try {
-      await announcementService.createComment(announcementId, text, file)
-      setCommentText((prev) => ({ ...prev, [announcementId]: '' }))
-      setCommentImage((prev) => ({ ...prev, [announcementId]: null }))
-      await loadComments(announcementId)
-    } catch (error) {
-      await alertService.error(error.message || 'Unable to post comment.', 'Comment Failed')
-    }
-  }
+  //   try {
+  //     await announcementService.createComment(announcementId, text, file)
+  //     setCommentText((prev) => ({ ...prev, [announcementId]: '' }))
+  //     setCommentImage((prev) => ({ ...prev, [announcementId]: null }))
+  //     await loadComments(announcementId)
+  //   } catch (error) {
+  //     await alertService.error(error.message || 'Unable to post comment.', 'Comment Failed')
+  //   }
+  // }
 
-  const handleDeleteComment = async (commentId, announcementId) => {
-    try {
-      await announcementService.deleteComment(commentId)
-      setComments((prev) => ({
-        ...prev,
-        [announcementId]: (prev[announcementId] || []).filter((c) => c.comment_id !== commentId)
-      }))
-      await alertService.success('Comment deleted.', 'Deleted')
-    } catch (error) {
-      await alertService.error(error.message || 'Unable to delete comment.', 'Error')
-    }
-  }
+  // const handleDeleteComment = async (commentId, announcementId) => {
+  //   try {
+  //     await announcementService.deleteComment(commentId)
+  //     setComments((prev) => ({
+  //       ...prev,
+  //       [announcementId]: (prev[announcementId] || []).filter((c) => c.comment_id !== commentId)
+  //     }))
+  //     await alertService.success('Comment deleted.', 'Deleted')
+  //   } catch (error) {
+  //     await alertService.error(error.message || 'Unable to delete comment.', 'Error')
+  //   }
+  // }
 
-  const handleCommentReaction = async (commentId, reactionType) => {
-    if (!profile?.employee_id) return
-    setCommentReactionLoading((prev) => ({ ...prev, [commentId]: true }))
-    try {
-      await announcementService.addCommentReaction(commentId, reactionType)
-      setCommentUserReactions((prev) => ({ ...prev, [commentId]: reactionType }))
-      await loadCommentReactions(commentId)
-    } catch {
-      await alertService.error('Unable to update reaction.', 'Reaction Failed')
-    } finally {
-      setCommentReactionLoading((prev) => ({ ...prev, [commentId]: false }))
-    }
-  }
+  // const handleCommentReaction = async (commentId, reactionType) => {
+  //   if (!profile?.employee_id) return
+  //   setCommentReactionLoading((prev) => ({ ...prev, [commentId]: true }))
+  //   try {
+  //     await announcementService.addCommentReaction(commentId, reactionType)
+  //     setCommentUserReactions((prev) => ({ ...prev, [commentId]: reactionType }))
+  //     await loadCommentReactions(commentId)
+  //   } catch {
+  //     await alertService.error('Unable to update reaction.', 'Reaction Failed')
+  //   } finally {
+  //     setCommentReactionLoading((prev) => ({ ...prev, [commentId]: false }))
+  //   }
+  // }
 
   useEffect(() => {
     loadAnnouncements()
@@ -298,7 +301,8 @@ const AnnouncementsPage = () => {
     }
     const announcementId = announcement.announcement_id || announcement.id
     await loadAnnouncementImages(announcementId)
-    await loadComments(announcementId)
+    // Comments disabled for final defense
+    // await loadComments(announcementId)
   }
 
   const openViews = async (announcement) => {
@@ -436,7 +440,8 @@ const AnnouncementsPage = () => {
                   )
                 })}
               </div>
-              <div style={{ marginTop: 12, borderTop: '1px solid #f1f5f9', paddingTop: 12 }} onClick={(event) => event.stopPropagation()}>
+              {/* TEMPORARILY DISABLED: Comment section hidden for final defense */}
+              {/* <div style={{ marginTop: 12, borderTop: '1px solid #f1f5f9', paddingTop: 12 }} onClick={(event) => event.stopPropagation()}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Comments</h4>
                   <span style={{ fontSize: 12, color: '#6b7280' }}>{(comments[item.announcement_id || item.id] || []).length}</span>
@@ -588,7 +593,7 @@ const AnnouncementsPage = () => {
                     </div>
                   )}
                 </div>
-              </div>
+              </div> */}
             </div>
           ))}
         </main>

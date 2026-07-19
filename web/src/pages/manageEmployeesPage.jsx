@@ -180,7 +180,7 @@ const ManageEmployeesPage = () => {
           notificationService.createNotification({
             title: 'Employee record created',
             message: `${trimmedFirstName} ${trimmedLastName} was added successfully.`,
-            type: 'employee_update',
+            type: 'general',
             priority: 'Normal',
             userId: user?.id
           })
@@ -267,7 +267,7 @@ const ManageEmployeesPage = () => {
         notificationService.createNotification({
           title: 'Employee record updated',
           message: `${getEmployeeName(editingEmployee)} was updated.`,
-          type: 'employee_update',
+          type: 'general',
           priority: 'Normal',
           userId: user?.id
         })
