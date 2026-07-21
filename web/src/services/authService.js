@@ -102,7 +102,7 @@ export const clearPendingEmployeeData = () => clearPendingEmployee();
  * Creates the employee record after the user has verified their email.
  * Called from AuthCallbackPage when verification succeeds.
  */
-export const createEmployeeRecord = async (authUserId, employeeData) => {
+export const createEmployeeRecord = async (authUserId, employeeData, selectedRoleIds = null) => {
   if (!authUserId) {
     throw new Error('Auth user ID is required to create employee record.');
   }
@@ -162,6 +162,27 @@ export const createEmployeeRecord = async (authUserId, employeeData) => {
     .single();
 
   if (insertError) throw insertError;
+
+  const roleIds = Array.isArray(selectedRoleIds) && selectedRoleIds.length > 0
+    ? selectedRoleIds.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+    : (roleId ? [roleId] : [])
+
+  if (roleIds.length > 0 && data?.employee_id) {
+    try {
+      await supabaseClient
+        .from('employee_roles')
+        .insert(
+          roleIds.map((rid) => ({
+            employee_id: data.employee_id,
+            role_id: rid,
+            assigned_by: authUserId,
+          }))
+        )
+    } catch (roleErr) {
+      console.error('[createEmployeeRecord] Failed to write employee_roles:', roleErr);
+    }
+  }
+
   return data;
 };
 
@@ -174,7 +195,8 @@ export const registerUser = async (
   position,
   role,
   department,
-  username
+  username,
+  selectedRoleIds = null
 ) => {
   const normalizedUsername = validateUsername(username);
 
@@ -284,6 +306,7 @@ export const registerUser = async (
         department: derivedDepartment,
         employeeType: 'staff',
         role: roleName,
+        selectedRoleIds,
         createdAt: Date.now(),
       })
       return { employeeCreated: false, pendingEmployee: true, authAlreadyExists: true }
@@ -308,6 +331,7 @@ export const registerUser = async (
       department: getDepartmentForRole(pendingRoleName, department || 'General'),
       employeeType: 'staff',
       role: pendingRoleName,
+      selectedRoleIds,
       createdAt: Date.now(),
     })
 
@@ -400,6 +424,7 @@ export const registerUser = async (
         department: derivedDepartment,
         employeeType: 'staff',
         role: roleName,
+        selectedRoleIds,
         createdAt: Date.now(),
       })
 
@@ -421,6 +446,7 @@ export const registerUser = async (
       department: getDepartmentForRole(pendingRoleName, department || 'General'),
       employeeType: 'staff',
       role: pendingRoleName,
+      selectedRoleIds,
       createdAt: Date.now(),
     })
 

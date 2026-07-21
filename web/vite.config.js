@@ -297,6 +297,7 @@ const sprint2ApiPaths = {
   '/api/messageImages/': join(__dirname, 'api', 'messageImages.js'),
   '/api/announcementImages/': join(__dirname, 'api', 'announcementImages.js'),
   '/api/announcementComments/': join(__dirname, 'api', 'announcementComments.js'),
+  '/api/admin/employee-roles': join(__dirname, 'api', 'admin', 'employee-roles.js'),
 }
 
 const wrapRes = (res) => {

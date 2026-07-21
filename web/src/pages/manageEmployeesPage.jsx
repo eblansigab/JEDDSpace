@@ -10,7 +10,8 @@ import { alertService } from '../utils/alertService'
 import { Button, Modal, PageHeader, SearchBar, StatusBadge, Table } from '../components'
 import { getPositions } from '../constants/formOptions'
 import { supabaseClient } from '../supabase/supabaseClient'
-import { getDepartmentForRole } from '../utils/roleMetadata'
+import { getDepartmentForRole, getRoleGroup } from '../utils/roleMetadata'
+import { employeeRolesService } from '../services/employeeRolesService'
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
 
@@ -35,9 +36,7 @@ const createEmptyForm = () => ({
   password: '',
   confirmPassword: '',
   department: '',
-  position: '',
-  registration_status: 'approved',
-  employment_status: 'active',
+  selectedRoleIds: [],
 })
 
 const ManageEmployeesPage = () => {
@@ -48,7 +47,9 @@ const ManageEmployeesPage = () => {
   const [editingEmployee, setEditingEmployee] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [form, setForm] = useState(createEmptyForm)
-  const [position,setPosition] = useState([])
+  const [availableRoles, setAvailableRoles] = useState([])
+  const [adminRoles, setAdminRoles] = useState([])
+  const [engineeringRoles, setEngineeringRoles] = useState([])
 
   const fetchEmployees = async () => {
     try {
@@ -64,9 +65,11 @@ const ManageEmployeesPage = () => {
     }
   }
 
-  const getPosition = async () => {
+  const loadAvailableRoles = async () => {
     if (!profile?.role_id) {
-      setPosition([])
+      setAvailableRoles([])
+      setAdminRoles([])
+      setEngineeringRoles([])
       return
     }
 
@@ -81,28 +84,95 @@ const ManageEmployeesPage = () => {
       ])
 
       const currentHierarchyLevel = currentRole?.data?.hierarchy_level
-      const filteredData = (positions || []).filter((level) => {
+      const filteredData = (positions || []).filter((role) => {
         if (!currentHierarchyLevel) return true
-        return level.hierarchy_level > currentHierarchyLevel
+        return role.hierarchy_level > currentHierarchyLevel
       })
 
-      setPosition(filteredData)
+      setAvailableRoles(filteredData)
+      setAdminRoles(filteredData.filter((role) => getRoleGroup(role.role_name) === 'Admin'))
+      setEngineeringRoles(filteredData.filter((role) => getRoleGroup(role.role_name) === 'Engineering'))
     } catch (error) {
       console.error('[ManageEmployees] Failed to load roles for dropdown.', error)
-      setPosition([])
+      setAvailableRoles([])
+      setAdminRoles([])
+      setEngineeringRoles([])
     }
   }
 
   useEffect(() => {
     fetchEmployees()
-    getPosition()
+    loadAvailableRoles()
   }, [profile?.role_id])
+
+  const isVpSelected = (selectedIds) =>
+    availableRoles.some(
+      (role) =>
+        selectedIds.includes(role.role_id) &&
+        (role.is_protected === true || role.hierarchy_level === 1)
+    )
+
+  const groupOfSelected = (selectedIds) => {
+    const groups = new Set(
+      selectedIds
+        .map((id) => availableRoles.find((role) => role.role_id === id)?.role_name)
+        .filter(Boolean)
+        .map((name) => getRoleGroup(name))
+        .filter(Boolean)
+    )
+    return groups.size === 1 ? Array.from(groups)[0] : null
+  }
+
+  const toggleRole = (roleId) => {
+    setForm((current) => {
+      const selected = current.selectedRoleIds.includes(roleId)
+      let next = selected
+        ? current.selectedRoleIds.filter((id) => id !== roleId)
+        : [...current.selectedRoleIds, roleId]
+
+      if (!selected) {
+        const role = availableRoles.find((r) => r.role_id === roleId)
+        if (role && (role.is_protected === true || role.hierarchy_level === 1)) {
+          next = [roleId]
+        } else if (isVpSelected(next)) {
+          next = next.filter((id) => {
+            const r = availableRoles.find((x) => x.role_id === id)
+            return r && (r.is_protected === true || r.hierarchy_level === 1)
+          })
+        } else {
+          const lockedGroup = groupOfSelected([roleId])
+          if (lockedGroup) {
+            next = next.filter((id) => {
+              const r = availableRoles.find((x) => x.role_id === id)
+              return r && getRoleGroup(r.role_name) === lockedGroup
+            })
+          }
+        }
+      }
+
+      const primaryId = next.length
+        ? next.reduce((lowest, id) =>
+            (availableRoles.find((r) => r.role_id === id)?.hierarchy_level ?? Infinity) <
+            (availableRoles.find((r) => r.role_id === lowest)?.hierarchy_level ?? Infinity)
+              ? id
+              : lowest
+          )
+        : null
+      const primaryRole = availableRoles.find((r) => r.role_id === primaryId)
+      const derivedDepartment = primaryRole
+        ? getRoleGroup(primaryRole.role_name) === 'Admin'
+          ? 'Administration'
+          : 'Engineering'
+        : ''
+
+      return { ...current, selectedRoleIds: next, department: derivedDepartment }
+    })
+  }
 
   const updateForm = (field, value) => {
     setForm((current) => ({
       ...current,
       [field]: field === 'username' ? normalizeUsername(value) : value,
-      ...(field === 'position' ? { department: getDepartmentForRole(value) } : {}),
     }))
   }
 
@@ -156,11 +226,18 @@ const ManageEmployeesPage = () => {
       return
     }
 
-    const selectedRole = position.find((item) => item.role_name === form.position)
-    if (!selectedRole?.role_id) {
-      await alertService.warning('Invalid position selected.')
+    if (form.selectedRoleIds.length === 0) {
+      await alertService.warning('Please select at least one role.')
       return
     }
+
+    const primaryId = form.selectedRoleIds.reduce((lowest, id) =>
+      (availableRoles.find((r) => r.role_id === id)?.hierarchy_level ?? Infinity) <
+      (availableRoles.find((r) => r.role_id === lowest)?.hierarchy_level ?? Infinity)
+        ? id
+        : lowest
+    )
+    const primaryRole = availableRoles.find((item) => item.role_id === primaryId)
 
     try {
       const result = await registerUser(
@@ -169,10 +246,11 @@ const ManageEmployeesPage = () => {
         form.confirmPassword,
         trimmedFirstName,
         trimmedLastName,
-        selectedRole.role_name,
+        primaryRole.role_name,
         'employee',
-        getDepartmentForRole(selectedRole.role_name),
-        normalizedUsername
+        getDepartmentForRole(primaryRole.role_name),
+        normalizedUsername,
+        form.selectedRoleIds
       )
 
       if (result?.employeeCreated) {
@@ -185,11 +263,16 @@ const ManageEmployeesPage = () => {
             userId: user?.id
           })
         ])
+        try {
+          await employeeRolesService.saveEmployeeRoles(result.employee_id, form.selectedRoleIds)
+        } catch (roleErr) {
+          console.error('[ManageEmployees] Failed to save additional roles:', roleErr)
+        }
         await alertService.success('Employee added successfully.')
       } else if (result?.authAlreadyExists) {
         await alertService.success('Auth account already exists. Employee profile is ready.')
       } else {
-        await alertService.success('Auth account created. Employee profile will be created after email verification.')
+        await alertService.success('Auth account created. Multi-role assignment will be applied automatically after email verification.')
       }
 
       resetForm()
@@ -201,17 +284,38 @@ const ManageEmployeesPage = () => {
     }
   }
 
-  const openEditEmployee = (employee) => {
+  const openEditEmployee = async (employee) => {
     setEditingEmployee(employee)
+
+    let existingRoleIds = []
+    try {
+      existingRoleIds = await employeeRolesService.getEmployeeRoles(employee.employee_id)
+    } catch (err) {
+      console.error('[ManageEmployees] Failed to load employee roles:', err)
+    }
+    if (existingRoleIds.length === 0 && employee.role_id) {
+      existingRoleIds = [employee.role_id]
+    }
+
+    const primaryId = existingRoleIds.length
+      ? existingRoleIds.reduce((lowest, id) =>
+          (availableRoles.find((r) => r.role_id === id)?.hierarchy_level ?? Infinity) <
+          (availableRoles.find((r) => r.role_id === lowest)?.hierarchy_level ?? Infinity)
+            ? id
+            : lowest
+        )
+      : null
+    const primaryRole = availableRoles.find((r) => r.role_id === primaryId)
+
     setForm({
       ...createEmptyForm(),
       first_name: employee.first_name || '',
       last_name: employee.last_name || '',
       username: employee.username || '',
-      department: getDepartmentForRole(employee.position || employee.role, employee.department || 'General'),
-      position: employee.position || 'employee',
-      registration_status: employee.registration_status || 'approved',
-      employment_status: employee.employment_status || 'active',
+      department: primaryRole
+        ? (getRoleGroup(primaryRole.role_name) === 'Admin' ? 'Administration' : 'Engineering')
+        : (employee.department || ''),
+      selectedRoleIds: existingRoleIds,
     })
     setIsEditOpen(true)
   }
@@ -232,35 +336,30 @@ const ManageEmployeesPage = () => {
       return
     }
 
-    const selectedRole = position.find((item) => item.role_name === form.position)
-    if (!selectedRole?.role_id) {
-      await alertService.warning('Invalid position selected.')
+    if (form.selectedRoleIds.length === 0) {
+      await alertService.warning('Please select at least one role.')
       return
     }
 
-    const currentRoleHierarchy = profile?.role_id
-      ? await supabaseClient
-          .from('roles')
-          .select('hierarchy_level')
-          .eq('role_id', profile.role_id)
-          .maybeSingle()
-          .then((r) => r.data?.hierarchy_level)
-      : null
-
-    if (selectedRole.hierarchy_level && currentRoleHierarchy && selectedRole.hierarchy_level <= currentRoleHierarchy) {
-      await alertService.warning('Invalid position.')
+    const primaryId = form.selectedRoleIds.reduce((lowest, id) =>
+      (availableRoles.find((r) => r.role_id === id)?.hierarchy_level ?? Infinity) <
+      (availableRoles.find((r) => r.role_id === lowest)?.hierarchy_level ?? Infinity)
+        ? id
+        : lowest
+    )
+    const primaryRole = availableRoles.find((r) => r.role_id === primaryId)
+    if (!primaryRole) {
+      await alertService.warning('Invalid role selection.')
       return
     }
 
     try {
+      await employeeRolesService.saveEmployeeRoles(editingEmployee.employee_id, form.selectedRoleIds)
+
       await employeeService.update(editingEmployee.employee_id, {
         username: normalizedUsername,
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
-        department: getDepartmentForRole(selectedRole.role_name),
-        role_id: selectedRole.role_id,
-        registration_status: form.registration_status,
-        employment_status: form.employment_status,
       })
 
       await Promise.allSettled([
@@ -390,13 +489,15 @@ const ManageEmployeesPage = () => {
         title="Add Employee"
         form={form}
         onChange={updateForm}
+        onToggleRole={toggleRole}
         onClose={() => {
           setIsAddOpen(false)
           resetForm()
         }}
         onSave={handleAddEmployee}
         mode="add"
-        position={position}
+        adminRoles={adminRoles}
+        engineeringRoles={engineeringRoles}
       />
 
       <EmployeeModal
@@ -404,13 +505,15 @@ const ManageEmployeesPage = () => {
         title="Edit Employee"
         form={form}
         onChange={updateForm}
+        onToggleRole={toggleRole}
         onClose={() => {
           setIsEditOpen(false)
           resetForm()
         }}
         onSave={handleUpdateEmployee}
         mode="edit"
-        position={position}
+        adminRoles={adminRoles}
+        engineeringRoles={engineeringRoles}
       />
     </DashboardLayout>
   )
@@ -422,86 +525,164 @@ const profileServiceInitials = (employee) => {
   return `${first}${last}`.toUpperCase() || 'U'
 }
 
-const EmployeeModal = ({ visible, title, form, onChange, onClose, onSave, mode, position }) => (
-  <Modal
-    visible={visible}
-    title={title}
-    onClose={onClose}
-    footer={
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <Button variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={onSave}>Save</Button>
-      </div>
-    }
+const RoleCheckbox = ({ role, checked, disabled, isPrimary, onChange }) => (
+  <label
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '6px 8px',
+      borderRadius: 6,
+      opacity: disabled ? 0.4 : 1,
+      background: checked ? '#f1edff' : 'transparent',
+      cursor: disabled ? 'not-allowed' : 'pointer',
+    }}
   >
-    <div style={{ display: 'grid', gap: 12 }}>
-      <input
-        type="text"
-        placeholder="First Name"
-        value={form.first_name}
-        onChange={(event) => onChange('first_name', event.target.value)}
-      />
-      <input
-        type="text"
-        placeholder="Last Name"
-        value={form.last_name}
-        onChange={(event) => onChange('last_name', event.target.value)}
-      />
-      <input
-        type="text"
-        placeholder="Username"
-        value={form.username}
-        onChange={(event) => onChange('username', event.target.value)}
-      />
-      {mode === 'add' && (
-        <>
-          <input
-            type="email"
-            placeholder="Account setup email"
-            value={form.email}
-            onChange={(event) => onChange('email', event.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={(event) => onChange('password', event.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Confirm Password"
-            value={form.confirmPassword}
-            onChange={(event) => onChange('confirmPassword', event.target.value)}
-          />
-        </>
-      )}
-      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Role</label>
-      <select value={form.position} onChange={(event) => onChange('position', event.target.value)}>
-        <option value="" disabled>Select role</option>
-        {position.map((item) => <option key={item.role_id || item.role_name} value={item.role_name}>{item.role_name}</option>)}
-      </select>
-      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Department</label>
-      <input
-        type="text"
-        value={form.department || getDepartmentForRole(form.position)}
-        readOnly
-        aria-label="Department derived from role"
-      />
-      <select value={form.registration_status} onChange={(event) => onChange('registration_status', event.target.value)}>
-        <option value="pending">pending</option>
-        <option value="approved">approved</option>
-        <option value="rejected">rejected</option>
-      </select>
-      <select value={form.employment_status} onChange={(event) => onChange('employment_status', event.target.value)}>
-        <option value="active">active</option>
-        <option value="inactive">inactive</option>
-        <option value="resigned">resigned</option>
-        <option value="terminated">terminated</option>
-      </select>
-    </div>
-  </Modal>
+    <input
+      type="checkbox"
+      checked={checked}
+      disabled={disabled}
+      onChange={() => onChange(role.role_id)}
+    />
+    <span>{role.role_name}</span>
+    {isPrimary && (
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: '#fff',
+          background: '#1E0977',
+          borderRadius: 10,
+          padding: '2px 8px',
+        }}
+      >
+        PRIMARY
+      </span>
+    )}
+  </label>
 )
+
+const EmployeeModal = ({ visible, title, form, onChange, onToggleRole, onClose, onSave, mode, adminRoles, engineeringRoles }) => {
+  const allRoles = [...(adminRoles || []), ...(engineeringRoles || [])]
+  const selectedIds = form.selectedRoleIds || []
+  const vpSelected = selectedIds.some((id) => {
+    const role = [...adminRoles, ...engineeringRoles].find((r) => r.role_id === id)
+    return role && (role.is_protected === true || role.hierarchy_level === 1)
+  })
+  const selectedGroup = (() => {
+    const groups = new Set(
+      selectedIds
+        .map((id) => [...adminRoles, ...engineeringRoles].find((r) => r.role_id === id)?.role_name)
+        .filter(Boolean)
+        .map((name) => getRoleGroup(name))
+        .filter(Boolean)
+    )
+    return groups.size === 1 ? Array.from(groups)[0] : null
+  })()
+
+  const primaryRoleId = selectedIds.length
+    ? selectedIds.reduce((lowest, id) =>
+        (allRoles.find((r) => r.role_id === id)?.hierarchy_level ?? Infinity) <
+        (allRoles.find((r) => r.role_id === lowest)?.hierarchy_level ?? Infinity)
+          ? id
+          : lowest
+      , selectedIds[0])
+    : null
+
+  const renderGroup = (label, roles) => {
+    if (!roles || roles.length === 0) return null
+    return (
+      <div style={{ display: 'grid', gap: 4 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{label}</label>
+        {roles.map((role) => {
+          const checked = selectedIds.includes(role.role_id)
+          const isPrimary = role.role_id === primaryRoleId
+          const disabled =
+            vpSelected ||
+            (selectedGroup && getRoleGroup(role.role_name) !== selectedGroup)
+          return (
+            <RoleCheckbox
+              key={role.role_id}
+              role={role}
+              checked={checked}
+              disabled={disabled}
+              isPrimary={isPrimary}
+              onChange={onToggleRole}
+            />
+          )
+        })}
+      </div>
+    )
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      title={title}
+      onClose={onClose}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={onSave}>Save</Button>
+        </div>
+      }
+    >
+      <div style={{ display: 'grid', gap: 12 }}>
+        <input
+          type="text"
+          placeholder="First Name"
+          value={form.first_name}
+          onChange={(event) => onChange('first_name', event.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Last Name"
+          value={form.last_name}
+          onChange={(event) => onChange('last_name', event.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Username"
+          value={form.username}
+          onChange={(event) => onChange('username', event.target.value)}
+        />
+        {mode === 'add' && (
+          <>
+            <input
+              type="email"
+              placeholder="Account setup email"
+              value={form.email}
+              onChange={(event) => onChange('email', event.target.value)}
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={form.password}
+              onChange={(event) => onChange('password', event.target.value)}
+            />
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              value={form.confirmPassword}
+              onChange={(event) => onChange('confirmPassword', event.target.value)}
+            />
+          </>
+        )}
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Roles</label>
+        {renderGroup('Admin Roles', adminRoles)}
+        {renderGroup('Engineering Roles', engineeringRoles)}
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Department</label>
+        <input
+          type="text"
+          value={form.department || ''}
+          readOnly
+          aria-label="Department derived from primary role"
+        />
+      </div>
+    </Modal>
+  )
+}
 
 export default ManageEmployeesPage

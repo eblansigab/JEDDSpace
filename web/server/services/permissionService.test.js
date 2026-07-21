@@ -363,6 +363,140 @@ describe('PermissionService', () => {
   })
 })
 
+describe('PermissionService multi-role union', () => {
+  beforeEach(() => {
+    permissionService.invalidateCache()
+    vi.resetModules()
+  })
+
+  const buildMultiRoleClient = (employeeRoleIds, rolePermsMap) => ({
+    from: (table) => {
+      if (table === 'employee_roles') {
+        return {
+          select: () => ({
+            eq: () => Promise.resolve({
+              data: employeeRoleIds.map((role_id) => ({ role_id })),
+              error: null,
+            }),
+          }),
+        }
+      }
+      if (table === 'role_permissions') {
+        return {
+          select: () => ({
+            eq: (field, value) => Promise.resolve({
+              data: rolePermsMap[value] || [],
+              error: null,
+            }),
+          }),
+        }
+      }
+      if (table === 'permissions') {
+        return {
+          select: () => Promise.resolve({
+            data: mockSupabaseData.permissions,
+            error: null,
+          }),
+        }
+      }
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: () => Promise.resolve({ data: null, error: null }),
+          }),
+        }),
+      }
+    },
+  })
+
+  test('merges permissions across two roles by permission_id', async () => {
+    const rolePermsMap = {
+      2: [buildRolePermissionRow(1, 'ALL'), buildRolePermissionRow(2, 'SELF')],
+      3: [buildRolePermissionRow(3, 'ALL')],
+    }
+    vi.doMock('../ai/supabaseClient.js', () => ({
+      getSupabaseServerClient: () => buildMultiRoleClient([2, 3], rolePermsMap),
+    }))
+    const { permissionService: freshService } = await import('./permissionService.js')
+    const perms = await freshService.getUserPermissions(1)
+    expect(perms).toHaveLength(3)
+    expect(perms.map((p) => p.key).sort()).toEqual(['AI_HISTORY', 'ANN_MANAGE', 'EMP_ADD'])
+  })
+
+  test('resolves scope conflict to broadest (ALL wins over DEPARTMENT)', async () => {
+    const rolePermsMap = {
+      2: [buildRolePermissionRow(1, 'DEPARTMENT')],
+      3: [buildRolePermissionRow(1, 'ALL')],
+    }
+    vi.doMock('../ai/supabaseClient.js', () => ({
+      getSupabaseServerClient: () => buildMultiRoleClient([2, 3], rolePermsMap),
+    }))
+    const { permissionService: freshService } = await import('./permissionService.js')
+    const perms = await freshService.getUserPermissions(1)
+    expect(perms).toHaveLength(1)
+    expect(perms[0].key).toBe('EMP_ADD')
+    expect(perms[0].scope).toBe('ALL')
+  })
+
+  test('falls back to employee.role_id when employee_roles is empty', async () => {
+    const fallbackClient = {
+      from: (table) => {
+        if (table === 'employee_roles') {
+          return {
+            select: () => ({
+              eq: () => Promise.resolve({ data: [], error: null }),
+            }),
+          }
+        }
+        if (table === 'employee') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: () => Promise.resolve({
+                  data: { role_id: 2, roles: mockSupabaseData.roles.employee },
+                  error: null,
+                }),
+              }),
+            }),
+          }
+        }
+        if (table === 'role_permissions') {
+          return {
+            select: () => ({
+              eq: () => Promise.resolve({
+                data: [buildRolePermissionRow(1, 'ALL')],
+                error: null,
+              }),
+            }),
+          }
+        }
+        if (table === 'permissions') {
+          return {
+            select: () => Promise.resolve({
+              data: mockSupabaseData.permissions,
+              error: null,
+            }),
+          }
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+        }
+      },
+    }
+    vi.doMock('../ai/supabaseClient.js', () => ({
+      getSupabaseServerClient: () => fallbackClient,
+    }))
+    const { permissionService: freshService } = await import('./permissionService.js')
+    const perms = await freshService.getUserPermissions(1)
+    expect(perms).toHaveLength(1)
+    expect(perms[0].key).toBe('EMP_ADD')
+  })
+})
+
 describe('VALID_SCOPES', () => {
   test('contains expected scopes', () => {
     expect(VALID_SCOPES).toEqual(['SELF', 'DEPARTMENT', 'SUBORDINATE', 'ALL'])

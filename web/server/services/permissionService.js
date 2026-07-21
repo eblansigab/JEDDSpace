@@ -192,16 +192,63 @@ class PermissionService {
   }
 
   async getUserPermissions(employeeId) {
+    const cacheKey = `emp_perms_${employeeId}`
+    const now = Date.now()
+    const cached = this.permissionCache.get(cacheKey)
+    if (cached && now - cached.ts < PERMISSION_CACHE_TTL_MS) {
+      return cached.permissions
+    }
+
+    const roleIds = await this.loadEmployeeRoleIds(employeeId)
+    const merged = await this.mergeRolePermissions(roleIds)
+
+    this.permissionCache.set(cacheKey, { permissions: merged, ts: now })
+    return merged
+  }
+
+  async loadEmployeeRoleIds(employeeId) {
+    const client = getSupabaseServerClient()
+    const { data, error } = await client
+      .from('employee_roles')
+      .select('role_id')
+      .eq('employee_id', employeeId)
+
+    if (!error && data && data.length > 0) {
+      const roleIds = data.map((row) => row.role_id)
+      const roles = await Promise.all(roleIds.map((rid) => this.loadRoleByRoleId(rid)))
+      return roleIds
+        .map((rid, idx) => ({ role_id: rid, role: roles[idx] }))
+        .filter((item) => item.role_id)
+    }
+
     const role = await this.loadRole(employeeId)
     if (!role || !role.role_id) return []
-    return this.loadPermissionsByRoleId(role.role_id, role)
+    return [{ role_id: role.role_id, role }]
+  }
+
+  async mergeRolePermissions(roleEntries) {
+    const SCOPE_RANK = { SELF: 1, DEPARTMENT: 2, SUBORDINATE: 3, ALL: 4 }
+    const byKey = new Map()
+
+    for (const entry of roleEntries) {
+      const perms = await this.loadPermissionsByRoleId(entry.role_id, entry.role)
+      for (const perm of perms) {
+        const existing = byKey.get(perm.key)
+        if (!existing) {
+          byKey.set(perm.key, perm)
+          continue
+        }
+        if ((SCOPE_RANK[perm.scope] || 0) > (SCOPE_RANK[existing.scope] || 0)) {
+          byKey.set(perm.key, perm)
+        }
+      }
+    }
+
+    return Array.from(byKey.values())
   }
 
   async hasAdminAccess(employeeId) {
-    const role = await this.loadRole(employeeId)
-    if (!role || !role.role_id) return false
-
-    const perms = await this.loadPermissionsByRoleId(role.role_id, role)
+    const perms = await this.getUserPermissions(employeeId)
     return this.hasPermission(perms, 'ACCESS_ADMIN_DASHBOARD')
   }
 
@@ -223,6 +270,7 @@ class PermissionService {
   invalidateCache(employeeId) {
     if (employeeId) {
       this.roleCache.delete(`employee_${employeeId}`)
+      this.permissionCache.delete(`emp_perms_${employeeId}`)
     } else {
       this.roleCache.clear()
       this.permissionCache.clear()

@@ -47,7 +47,7 @@ const AuthCallbackPage = () => {
           }
 
           try {
-            await createEmployeeRecord(user.id, pendingEmployee)
+            await createEmployeeRecord(user.id, pendingEmployee, pendingEmployee.selectedRoleIds)
             clearPendingEmployeeData()
           } catch (createErr) {
             console.error('Failed to create employee record after verification:', createErr)
