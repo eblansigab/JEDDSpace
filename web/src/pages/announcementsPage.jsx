@@ -65,7 +65,7 @@ const AnnouncementsPage = () => {
       const data = await announcementService.getAnnouncements(viewer)
       setAnnouncements(data)
     } catch (error) {
-      console.error(error)
+      console.error(error.message)
       alertService.error('Unable to load announcements.', 'Load Failed')
     } finally {
       setLoading(false)
@@ -126,6 +126,21 @@ const AnnouncementsPage = () => {
       console.error('[AnnouncementsPage] Error loading images:', error)
       setAnnouncementImages((prev) => ({ ...prev, [announcementId]: [] }))
     }
+  }
+
+  const loadAllAnnouncementImages = async (announcementIds) => {
+    const ids = Array.isArray(announcementIds) ? announcementIds : [announcementIds]
+    await Promise.allSettled(
+      ids.map(async (id) => {
+        try {
+          const images = await announcementService.getAnnouncementImages(id)
+          setAnnouncementImages((prev) => ({ ...prev, [id]: images }))
+        } catch (error) {
+          console.error('[AnnouncementsPage] Error loading images:', error)
+          setAnnouncementImages((prev) => ({ ...prev, [id]: [] }))
+        }
+      })
+    )
   }
 
   // TEMPORARILY DISABLED: Comment functionality disabled for final defense
@@ -226,6 +241,7 @@ const AnnouncementsPage = () => {
   useEffect(() => {
     const ids = announcements.map((item) => item.announcement_id || item.id)
     if (ids.length > 0) {
+      loadAllAnnouncementImages(ids)
       loadReactions(ids)
     }
   }, [announcements])
@@ -299,10 +315,6 @@ const AnnouncementsPage = () => {
     if (profile?.employee_id) {
       await announcementService.markViewed(announcement.announcement_id || announcement.id, profile.employee_id)
     }
-    const announcementId = announcement.announcement_id || announcement.id
-    await loadAnnouncementImages(announcementId)
-    // Comments disabled for final defense
-    // await loadComments(announcementId)
   }
 
   const openViews = async (announcement) => {

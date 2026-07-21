@@ -89,6 +89,13 @@ const EmailsPage = () => {
     }
   }, [])
 
+  useEffect(() => {
+    const ids = messages.map((msg) => msg.email_id)
+    if (ids.length > 0) {
+      loadAllMessageImages(ids)
+    }
+  }, [messages])
+
   // Helper to resolve Sender Name from sender_id
   const getSenderName = (senderId) => {
     if (!senderId) return 'System'
@@ -318,6 +325,21 @@ const EmailsPage = () => {
       console.error('[EmailsPage] Error loading message images:', error)
       setMessageImages((prev) => ({ ...prev, [emailId]: [] }))
     }
+  }
+
+  const loadAllMessageImages = async (emailIds) => {
+    const ids = Array.isArray(emailIds) ? emailIds : [emailIds]
+    await Promise.allSettled(
+      ids.map(async (id) => {
+        try {
+          const images = await getMessageImages(id)
+          setMessageImages((prev) => ({ ...prev, [id]: images }))
+        } catch (error) {
+          console.error('[EmailsPage] Error loading message images:', error)
+          setMessageImages((prev) => ({ ...prev, [id]: [] }))
+        }
+      })
+    )
   }
 
   const handleDeleteMessageImage = async (emailAttachmentId) => {

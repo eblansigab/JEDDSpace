@@ -1,6 +1,6 @@
-import { authorize } from '../server/middleware/authorize.js'
-import { handleGetEmployeeRoles, handleSaveEmployeeRoles } from '../server/admin/employeeRolesHandler.js'
-import { fail, ok } from '../server/_shared/response.js'
+import { authorize } from '../../server/middleware/authorize.js'
+import { handleGetEmployeeRoles, handleSaveEmployeeRoles } from '../../server/admin/employeeRolesHandler.js'
+import { fail, ok } from '../../server/_shared/response.js'
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
