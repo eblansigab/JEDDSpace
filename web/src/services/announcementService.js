@@ -1,8 +1,10 @@
 /* eslint-disable preserve-caught-error */
 import { supabaseClient } from '../supabase/supabaseClient'
+import { AUDIENCE_OPTIONS, mapAudienceToVisibility } from '../components/AudienceSelector'
 
 export const ANNOUNCEMENT_STATUSES = ['Published', 'Draft', 'Archived']
 export const ANNOUNCEMENT_VISIBILITY_SCOPES = ['ORGANIZATION', 'DEPARTMENT', 'ROLE']
+export const ANNOUNCEMENT_AUDIENCE_OPTIONS = AUDIENCE_OPTIONS
 
 // TEMPORARILY DISABLED: Announcement comments are disabled for the final defense.
 // The implementation below is preserved for easy restoration after defense.
@@ -10,12 +12,13 @@ export const ANNOUNCEMENT_VISIBILITY_SCOPES = ['ORGANIZATION', 'DEPARTMENT', 'RO
 
 export const announcementService = {
   async createAnnouncement(data) {
+    const visibility = data.audience ? mapAudienceToVisibility(data.audience) : {}
     const payload = {
       title: data.title?.trim(),
       body: data.body?.trim(),
       status: data.status || 'Draft',
-      visibility_scope: data.visibilityScope || 'ORGANIZATION',
-      visibility_target: data.visibilityTarget || null,
+      visibility_scope: visibility.scope || data.visibilityScope || 'ORGANIZATION',
+      visibility_target: visibility.target || data.visibilityTarget || null,
     }
 
     if (data.userId) {
@@ -70,9 +73,23 @@ export const announcementService = {
   },
 
   async getAnnouncements(viewer) {
+    const userDepartment = String(viewer?.employee?.department || '').trim().toLowerCase()
+    const userRoleId = viewer?.employee?.role_id ?? null
+
+    const conditions = ['visibility_scope.eq.ORGANIZATION']
+
+    if (userDepartment) {
+      conditions.push(`and(visibility_scope.eq.DEPARTMENT,visibility_target.ilike.${userDepartment})`)
+    }
+
+    if (userRoleId) {
+      conditions.push(`and(visibility_scope.eq.ROLE,visibility_target.eq.${String(userRoleId)})`)
+    }
+
     const { data, error } = await supabaseClient
       .from('announcement')
       .select('*')
+      .or(conditions.join(','))
       .order('created_at', {
         ascending: false
       })
@@ -82,12 +99,11 @@ export const announcementService = {
     }
 
     const announcements = data || []
+
     if (!viewer) {
       return announcements
     }
 
-    const userDepartment = String(viewer.employee?.department || '').trim().toLowerCase()
-    const userRoleId = viewer.employee?.role_id ?? null
     const isAdmin = Boolean(viewer.isAdmin)
 
     return announcements.filter((item) => {
@@ -103,8 +119,8 @@ export const announcementService = {
       }
 
       if (visibilityScope === 'DEPARTMENT') {
-        if (!userDepartment) return false
         if (!visibilityTarget) return true
+        if (!userDepartment) return false
         return visibilityTarget.toLowerCase() === userDepartment
       }
 
@@ -118,26 +134,11 @@ export const announcementService = {
     })
   },
 
-  async getAvailableAudiences(viewer) {
-    const userDepartment = String(viewer.employee?.department || '').trim()
-    const userRoleId = viewer.employee?.role_id ?? null
-    const scope = String(viewer.scope || '').trim().toUpperCase()
-
-    const canAccess = (allowed) => allowed.some((s) => s === scope || s === 'ALL')
-
-    const audiences = [{ label: 'Entire Organization', value: 'ORGANIZATION', target: null }]
-
-    if (canAccess(['ALL', 'DEPARTMENT', 'SUBORDINATE'])) {
-      if (userDepartment) {
-        audiences.push({ label: `Department: ${userDepartment}`, value: 'DEPARTMENT', target: userDepartment })
-      }
-    }
-
-    if (canAccess(['ALL', 'SUBORDINATE']) && userRoleId) {
-      audiences.push({ label: 'My Role', value: 'ROLE', target: String(userRoleId) })
-    }
-
-    return audiences
+  async getAvailableAudiences() {
+    return ANNOUNCEMENT_AUDIENCE_OPTIONS.map((option) => ({
+      ...option,
+      ...mapAudienceToVisibility(option.value)
+    }))
   },
 
   async markViewed(announcementId, employeeId) {

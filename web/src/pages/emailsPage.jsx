@@ -8,13 +8,14 @@ import { alertService } from '../utils/alertService'
 import { supabaseClient } from '../supabase/supabaseClient'
 import ComposeMessageModal from '../components/messaging/ComposeMessageModal'
 import { getEmployeeDirectory, getThreadMessages, sendMessageWithAttachments, MESSAGE_REACTION_TYPES, addMessageReaction, getMessageReactionSummary, getMessageReactions, markMessageRead, getMessageReadReceipts, getMessageImages, uploadMessageImage, deleteMessageImage } from '../services/messageService'
+import { mapAudienceToVisibility, getAudienceBadge, getAudienceFromVisibility } from '../components/AudienceSelector'
 
 const EmailsPage = () => {
   const { user, profile } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [messages, setMessages] = useState([])
   const [directory, setDirectory] = useState([])
-  const [activeTab, setActiveTab] = useState('inbox') // 'inbox', 'sent', 'unread'
+  const [activeTab, setActiveTab] = useState('inbox')
   const [isLoading, setIsLoading] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState(null)
   const [threadMessages, setThreadMessages] = useState([])
@@ -22,6 +23,7 @@ const EmailsPage = () => {
   const [composeRecipient, setComposeRecipient] = useState('')
   const [composeSubject, setComposeSubject] = useState('')
   const [composeReplyTo, setComposeReplyTo] = useState(null)
+  const [broadcastAudience, setBroadcastAudience] = useState('BOTH')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [reactionSummaries, setReactionSummaries] = useState({})
@@ -50,7 +52,11 @@ const EmailsPage = () => {
     setIsLoading(true)
     try {
       const [emailData, dirData] = await Promise.all([
-        emailService.getEmailLogs(),
+        emailService.getEmailLogs({
+          email: profile?.email || user?.email,
+          employeeId: profile?.employee_id,
+          department: profile?.department
+        }),
         getEmployeeDirectory()
       ])
       setMessages(emailData)
@@ -111,22 +117,51 @@ const EmailsPage = () => {
     return emp ? `${emp.first_name} ${emp.last_name}` : 'Unknown Recipient'
   }
 
-  // Filter messages based on active tab and search term
-  const filteredMessages = useMemo(() => {
+  const getMessageAudience = (msg) => {
+    return getAudienceFromVisibility(msg.visibility_scope, msg.visibility_target)
+  }
+
+  const isMessageVisible = (msg) => {
     const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const myEmployeeId = profile?.employee_id
+    const userDepartment = String(profile?.department || '').trim().toLowerCase()
+    const recipientClean = String(msg.recipient_email || msg.recipient || '').trim().toLowerCase()
+    const isSentByMe = msg.sender_id === myEmployeeId
+    const scope = String(msg.visibility_scope || '').trim().toUpperCase()
+    const target = String(msg.visibility_target || '').trim()
 
+    if (recipientClean && recipientClean !== 'all') {
+      return recipientClean === myEmail && !isSentByMe
+    }
+
+    if (isSentByMe && activeTab === 'inbox') {
+      return false
+    }
+
+    if (scope === 'ORGANIZATION') {
+      return !isSentByMe
+    }
+
+    if (scope === 'DEPARTMENT' && target) {
+      return target.toLowerCase() === userDepartment && !isSentByMe
+    }
+
+    if (recipientClean === 'all' && !scope) {
+      return !isSentByMe
+    }
+
+    return false
+  }
+
+  // Filter messages based on active tab and search term
+  const filteredMessages = useMemo(() => {
     const tabMsgs = messages.filter((msg) => {
-      const recipientClean = String(msg.recipient_email || msg.recipient || '').trim().toLowerCase()
-      const isSentByMe = msg.sender_id === myEmployeeId
-
       if (activeTab === 'sent') {
-        return isSentByMe
+        return msg.sender_id === profile?.employee_id
       } else if (activeTab === 'unread') {
-        return (recipientClean === myEmail || recipientClean === 'all') && !msg.is_read && !isSentByMe
+        return isMessageVisible(msg) && !msg.is_read
       } else {
-        // inbox folder
-        return (recipientClean === myEmail || recipientClean === 'all') && !isSentByMe
+        return isMessageVisible(msg)
       }
     })
 
@@ -147,7 +182,7 @@ const EmailsPage = () => {
         .toLowerCase()
         .includes(searchTerm.toLowerCase())
     })
-  }, [messages, activeTab, user, profile, searchTerm, directory])
+  }, [messages, activeTab, user, profile, searchTerm, directory, profile?.department, profile?.employee_id])
 
   // Select a message and automatically mark it as read if unread and sent to current user
   const handleSelectMessage = async (msg) => {
@@ -157,10 +192,8 @@ const EmailsPage = () => {
     await loadMessageReactions(msg.email_id)
     await loadReadReceipts(msg.email_id)
     await loadMessageImages(msg.email_id)
-    const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
-    const recipientClean = String(msg.recipient_email || msg.recipient || '').trim().toLowerCase()
 
-    if ((recipientClean === myEmail || recipientClean === 'all') && !msg.is_read) {
+    if (isMessageVisible(msg) && !msg.is_read) {
       try {
         await emailService.markAsRead(msg.email_id)
         await markMessageRead(msg.email_id, profile?.employee_id)
@@ -203,6 +236,7 @@ const EmailsPage = () => {
     setComposeRecipient(prefilledRecipient)
     setComposeSubject(prefilledSubject)
     setComposeReplyTo(replyTo)
+    setBroadcastAudience('BOTH')
     setIsComposeOpen(true)
   }
 
@@ -211,22 +245,27 @@ const EmailsPage = () => {
     setComposeRecipient('')
     setComposeSubject('')
     setComposeReplyTo(null)
+    setBroadcastAudience('BOTH')
   }
 
-  const handleComposeSubmit = async ({ recipient, subject, body, files = [] }) => {
+  const handleComposeSubmit = async ({ recipient, subject, body, files = [], audience: submitAudience = 'BOTH' }) => {
     setIsSubmitting(true)
     try {
       const primaryFile = files[0] || null
       const additionalFiles = files.slice(1)
+      const isBroadcast = recipient === 'all'
+      const visibility = isBroadcast ? mapAudienceToVisibility(submitAudience) : { scope: 'DIRECT', target: recipient }
 
       const createdEmail = await sendMessageWithAttachments({
         senderId: profile?.employee_id,
-        recipientEmail: recipient,
+        recipientEmail: isBroadcast ? 'all' : recipient,
         subject,
         messageBody: body,
         file: primaryFile,
         folder: 'inbox',
-        replyToEmailId: composeReplyTo
+        replyToEmailId: composeReplyTo,
+        visibility_scope: visibility.scope,
+        visibility_target: visibility.target
       })
 
       const emailId = createdEmail?.email_id || composeReplyTo
@@ -238,19 +277,22 @@ const EmailsPage = () => {
         }
       }
 
-      if (recipient === 'all') {
+      if (isBroadcast) {
+        const targetDept = submitAudience === 'ADMINISTRATION' ? 'Administration' : submitAudience === 'ENGINEERING' ? 'Engineering' : null
+        const targetEmps = targetDept
+          ? directory.filter((emp) => String(emp.department || '').trim().toLowerCase() === targetDept.toLowerCase() && emp.employee_id !== profile?.employee_id)
+          : directory.filter((emp) => emp.employee_id !== profile?.employee_id)
+
         await Promise.allSettled(
-          directory
-            .filter((emp) => emp.employee_id !== profile?.employee_id)
-            .map((emp) =>
-              notificationService.createNotification({
-                title: 'New Broadcast Message',
-                message: `${profile?.first_name} ${profile?.last_name} sent a message to all employees: "${subject}"`,
-                type: 'message',
-                userId: emp.user_id || user?.id,
-                notifyTo: emp.employee_id
-              })
-            )
+          targetEmps.map((emp) =>
+            notificationService.createNotification({
+              title: 'New Broadcast Message',
+              message: `${profile?.first_name} ${profile?.last_name} sent a message to all employees: "${subject}"`,
+              type: 'message',
+              userId: emp.user_id || user?.id,
+              notifyTo: emp.employee_id
+            })
+          )
         )
       } else {
         const recipientEmployee = directory.find(
@@ -616,16 +658,30 @@ const EmailsPage = () => {
                            {msg.created_at ? new Date(msg.created_at).toLocaleDateString() : ''}
                          </span>
                        </div>
-                       <div style={{
-                         fontWeight: isUnread ? '700' : '500',
-                         fontSize: isMobile ? '12px' : '13px',
-                         marginBottom: '4px',
-                         overflow: 'hidden',
-                         textOverflow: 'ellipsis',
-                         whiteSpace: 'nowrap'
-                       }}>
-                         {msg.subject || '(No Subject)'}
-                         </div>
+                        <div style={{
+                          fontWeight: isUnread ? '700' : '500',
+                          fontSize: isMobile ? '12px' : '13px',
+                          marginBottom: '4px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {msg.subject || '(No Subject)'}
+                          {msg.recipient_email === 'all' && (
+                            <span style={{
+                              marginLeft: 8,
+                              fontSize: 11,
+                              padding: '1px 6px',
+                              borderRadius: 4,
+                              backgroundColor: '#e0e7ff',
+                              color: '#3730a3',
+                              fontWeight: 600,
+                              textTransform: 'uppercase'
+                            }}>
+                              {getAudienceBadge(getMessageAudience(msg))}
+                            </span>
+                          )}
+                        </div>
                        <div style={{
                            fontSize: isMobile ? '11px' : '12px',
                            color: 'var(--text-secondary, #64748b)',
@@ -655,11 +711,27 @@ const EmailsPage = () => {
                               <h2 style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: '700', marginBottom: '8px' }}>
                                 {selectedMessage.subject || 'No Subject'}
                               </h2>
-                               <div style={{ fontSize: isMobile ? '13px' : '14px', color: 'var(--text-secondary, #64748b)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                 <span><strong>Sender:</strong> {getSenderName(selectedMessage.sender_id)}</span>
-                                 <span><strong>Recipient:</strong> {getRecipientName(selectedMessage.recipient_email)}</span>
-                                 <span><strong>Date:</strong> {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : 'No date'}</span>
-                               </div>
+                                <div style={{ fontSize: isMobile ? '13px' : '14px', color: 'var(--text-secondary, #64748b)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span><strong>Sender:</strong> {getSenderName(selectedMessage.sender_id)}</span>
+                                  <span>
+                                    <strong>Recipient:</strong> {getRecipientName(selectedMessage.recipient_email)}
+                                    {selectedMessage.recipient_email === 'all' && (
+                                      <span style={{
+                                        marginLeft: 8,
+                                        fontSize: 11,
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        backgroundColor: '#e0e7ff',
+                                        color: '#3730a3',
+                                        fontWeight: 600,
+                                        textTransform: 'uppercase'
+                                      }}>
+                                        {getAudienceBadge(getMessageAudience(selectedMessage))}
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span><strong>Date:</strong> {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString() : 'No date'}</span>
+                                </div>
                             </div>
 
                             <div style={{ display: 'flex', gap: '8px' }}>
@@ -809,6 +881,8 @@ const EmailsPage = () => {
         isSubmitting={isSubmitting}
         defaultRecipient={composeRecipient}
         defaultSubject={composeSubject}
+        audience={broadcastAudience}
+        onAudienceChange={setBroadcastAudience}
       />
     </DashboardLayout>
   )

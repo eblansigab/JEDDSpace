@@ -1,11 +1,14 @@
 import { authorize } from '../../server/middleware/authorize.js'
 import { handleListRolePermissions, handleSaveRolePermissions } from '../../server/admin/rolePermissionsHandler.js'
 import { fail, ok } from '../../server/_shared/response.js'
+import { setCorsHeaders, handlePreflight } from '../../server/_shared/cors.js'
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+    return handlePreflight(res)
   }
+
+  setCorsHeaders(res)
 
   if (req.method !== 'GET' && req.method !== 'POST') {
     return fail(res, 405, 'Method not allowed')

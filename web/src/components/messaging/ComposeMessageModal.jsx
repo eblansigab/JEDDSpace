@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Modal from '../Modal'
 import RecipientSelect from './RecipientSelect'
 import { alertService } from '../../utils/alertService'
+import AudienceSelector from '../AudienceSelector'
 
 export default function ComposeMessageModal({
   visible,
@@ -11,12 +12,15 @@ export default function ComposeMessageModal({
   isLoadingDirectory = false,
   isSubmitting = false,
   defaultRecipient = '',
-  defaultSubject = ''
+  defaultSubject = '',
+  audience = 'BOTH',
+  onAudienceChange
 }) {
   const [recipient, setRecipient] = useState(defaultRecipient)
   const [subject, setSubject] = useState(defaultSubject)
   const [body, setBody] = useState('')
   const [attachments, setAttachments] = useState([])
+  const [localAudience, setLocalAudience] = useState(audience)
 
   useEffect(() => {
     if (visible) {
@@ -24,8 +28,13 @@ export default function ComposeMessageModal({
       setSubject(defaultSubject)
       setBody('')
       setAttachments([])
+      setLocalAudience(audience)
     }
-  }, [visible, defaultRecipient, defaultSubject])
+  }, [visible, defaultRecipient, defaultSubject, audience])
+
+  const handleRecipientChange = (value) => {
+    setRecipient(value)
+  }
 
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files || [])
@@ -50,6 +59,13 @@ export default function ComposeMessageModal({
     setAttachments((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const handleAudienceChange = (value) => {
+    setLocalAudience(value)
+    if (onAudienceChange) {
+      onAudienceChange(value)
+    }
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
 
@@ -70,9 +86,12 @@ export default function ComposeMessageModal({
       recipient,
       subject: subject.trim(),
       body: body.trim(),
-      files: attachments
+      files: attachments,
+      audience: recipient === 'all' ? localAudience : 'BOTH'
     })
   }
+
+  const isBroadcast = recipient === 'all'
 
   return (
     <Modal
@@ -135,12 +154,31 @@ export default function ComposeMessageModal({
             <RecipientSelect
               id="compose-recipient"
               value={recipient}
-              onChange={setRecipient}
+              onChange={handleRecipientChange}
               employees={employees}
               isLoading={isLoadingDirectory}
               disabled={isSubmitting}
             />
           </div>
+
+          {isBroadcast && (
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontWeight: '600',
+                  marginBottom: '6px',
+                  fontSize: '14px',
+                  color: '#374151'
+                }}
+              >
+                Audience
+              </label>
+              <div style={{ border: '1px solid #d1d5db', borderRadius: 6, padding: '10px 12px', backgroundColor: '#f8fafc' }}>
+                <AudienceSelector value={localAudience} onChange={handleAudienceChange} disabled={isSubmitting} />
+              </div>
+            </div>
+          )}
 
           <div>
             <label

@@ -84,7 +84,8 @@ const Sidebar = () => {
       try {
         const count = await emailService.getUnreadCount({
           email: profile?.email || user?.email,
-          employeeId: profile?.employee_id
+          employeeId: profile?.employee_id,
+          department: profile?.department
         })
         if (mounted) setUnreadEmailCount(count)
       } catch (err) {

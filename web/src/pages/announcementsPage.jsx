@@ -8,6 +8,8 @@ import { usePermissions } from '../contexts/PermissionContext'
 import { emailService } from '../services/emailService'
 import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
+import { getEmployeeDirectory } from '../services/messageService'
+import { getAudienceBadge, getAudienceFromVisibility } from '../components/AudienceSelector'
 
 export const ANNOUNCEMENT_REACTION_TYPES = [
   { value: 'acknowledged', label: 'Acknowledged', icon: '👍' },
@@ -36,6 +38,7 @@ const AnnouncementsPage = () => {
   const [userReactions, setUserReactions] = useState({})
   const [reactionLoading, setReactionLoading] = useState({})
   const [announcementImages, setAnnouncementImages] = useState({})
+  const [directory, setDirectory] = useState([])
   // TEMPORARILY DISABLED: Announcement comments are hidden for the final defense.
   // The state and handlers below are preserved for easy restoration.
   // const [comments, setComments] = useState({})
@@ -239,6 +242,12 @@ const AnnouncementsPage = () => {
   }, [viewer])
 
   useEffect(() => {
+    if (isAdmin) {
+      getEmployeeDirectory().then((dir) => setDirectory(dir || [])).catch(() => setDirectory([]))
+    }
+  }, [isAdmin])
+
+  useEffect(() => {
     const ids = announcements.map((item) => item.announcement_id || item.id)
     if (ids.length > 0) {
       loadAllAnnouncementImages(ids)
@@ -283,21 +292,43 @@ const AnnouncementsPage = () => {
       )
 
       if (previousStatus !== 'Published' && editStatus === 'Published') {
-        await Promise.allSettled([
-          notificationService.createNotification({
-            title: 'New company announcement posted',
-            message: editTitle.trim(),
-            type: 'announcement',
-            priority: 'Normal',
-            userId: user?.id
-          }),
+        const announcementAudience = getAudienceFromVisibility(editingAnnouncement.visibility_scope, editingAnnouncement.visibility_target)
+        const notificationPayload = {
+          title: 'New company announcement posted',
+          message: editTitle.trim(),
+          type: 'announcement',
+          priority: 'Normal',
+          userId: user?.id
+        }
+
+        const notificationPromises = []
+
+        if (announcementAudience === 'BOTH') {
+          notificationPromises.push(notificationService.createNotification(notificationPayload))
+        } else {
+          const targetDept = announcementAudience === 'ADMINISTRATION' ? 'Administration' : 'Engineering'
+          const targetEmployees = directory.filter((emp) => String(emp.department || '').trim().toLowerCase() === targetDept.toLowerCase())
+          targetEmployees.forEach((emp) => {
+            notificationPromises.push(
+              notificationService.createNotification({
+                ...notificationPayload,
+                userId: emp.user_id || user?.id,
+                notifyTo: emp.employee_id
+              })
+            )
+          })
+        }
+
+        notificationPromises.push(
           emailService.createEmailLog({
             subject: `Announcement: ${editTitle.trim()}`,
             body: editBody.trim(),
             type: 'announcement',
             userId: user?.id
           })
-        ])
+        )
+
+        await Promise.allSettled(notificationPromises)
       }
 
       closeEditModal()
@@ -403,6 +434,17 @@ const AnnouncementsPage = () => {
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <StatusBadge status={item.status || 'Published'} />
+                  <span style={{
+                    fontSize: 11,
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    backgroundColor: '#e0e7ff',
+                    color: '#3730a3',
+                    fontWeight: 600,
+                    textTransform: 'uppercase'
+                  }}>
+                    {getAudienceBadge(getAudienceFromVisibility(item.visibility_scope, item.visibility_target))}
+                  </span>
                   {isAdmin && (
                     <Button variant="outline" onClick={() => openEditModal(item)}>Edit</Button>
                   )}

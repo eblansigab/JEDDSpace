@@ -1,59 +1,37 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import DashboardLayout from '../layouts/dashboardLayout'
-import Sidebar from '../components/sideBar'
 import { Button, Modal, PageHeader, StatusBadge, Table } from '../components'
 import { useAuth } from '../services/authContext'
-import { ANNOUNCEMENT_STATUSES, ANNOUNCEMENT_VISIBILITY_SCOPES, announcementService } from '../services/announcementService'
+import { ANNOUNCEMENT_STATUSES, announcementService } from '../services/announcementService'
 import { emailService } from '../services/emailService'
 import { PRIORITY_LEVELS, getNotificationId, notificationService } from '../services/notificationService'
 import { usePermissions } from '../contexts/PermissionContext'
 import { alertService } from '../utils/alertService'
+import AudienceSelector, { mapAudienceToVisibility } from '../components/AudienceSelector'
+import { getEmployeeDirectory } from '../services/messageService'
 
 const PostAnnouncement = () => {
-  const { user, profile } = useAuth()
-  const { hasPermission, getScope } = usePermissions()
+  const { user } = useAuth()
+  const { hasPermission } = usePermissions()
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [status, setStatus] = useState('Published')
   const [priority, setPriority] = useState('Normal')
-  const [visibilityScope, setVisibilityScope] = useState('ORGANIZATION')
-  const [visibilityTarget, setVisibilityTarget] = useState('')
-  const [availableAudiences, setAvailableAudiences] = useState([])
+  const [audience, setAudience] = useState('BOTH')
   const [isPublishing, setIsPublishing] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [announcementImages, setAnnouncementImages] = useState([])
+  const [directory, setDirectory] = useState([])
 
   const canCreateAnnouncements = hasPermission('ANN_CREATE')
-  const announcementScope = getScope('ANN_CREATE') || 'ALL'
 
   useEffect(() => {
-    if (!canCreateAnnouncements || !profile) {
-      setAvailableAudiences([{ label: 'Entire Organization', value: 'ORGANIZATION', target: null }])
-      return
+    if (canCreateAnnouncements) {
+      getEmployeeDirectory().then((dir) => setDirectory(dir || [])).catch(() => setDirectory([]))
     }
-
-    const audiences = [{ label: 'Entire Organization', value: 'ORGANIZATION', target: null }]
-
-    const scope = String(announcementScope || 'ALL').toUpperCase()
-    const userDepartment = String(profile.department || '').trim()
-    const userRoleId = profile.role_id ?? null
-
-    const canAccess = (allowed) => allowed.some((s) => s === scope || s === 'ALL')
-
-    if (canAccess(['ALL', 'DEPARTMENT', 'SUBORDINATE']) && userDepartment) {
-      audiences.push({ label: `Department: ${userDepartment}`, value: 'DEPARTMENT', target: userDepartment })
-    }
-
-    if (canAccess(['ALL', 'SUBORDINATE']) && userRoleId) {
-      audiences.push({ label: 'My Role', value: 'ROLE', target: String(userRoleId) })
-    }
-
-    setAvailableAudiences(audiences)
-    setVisibilityScope(audiences[0]?.value || 'ORGANIZATION')
-    setVisibilityTarget(audiences[0]?.target || '')
-  }, [canCreateAnnouncements, profile, announcementScope])
+  }, [canCreateAnnouncements])
 
   const loadNotifications = async () => {
     try {
@@ -75,8 +53,7 @@ const PostAnnouncement = () => {
     setContent('')
     setStatus('Published')
     setPriority('Normal')
-    setVisibilityScope('ORGANIZATION')
-    setVisibilityTarget('')
+    setAudience('BOTH')
     setAnnouncementImages([])
   }
 
@@ -105,12 +82,14 @@ const PostAnnouncement = () => {
     setIsPublishing(true)
 
     try {
+      const visibility = mapAudienceToVisibility(audience)
       const created = await announcementService.createAnnouncement({
         title: trimmedTitle,
         body: trimmedContent,
         status,
-        visibilityScope,
-        visibilityTarget: visibilityScope === 'ORGANIZATION' ? null : visibilityTarget || null,
+        audience,
+        visibilityScope: visibility.scope,
+        visibilityTarget: visibility.target,
         userId: user?.id
       })
 
@@ -126,21 +105,36 @@ const PostAnnouncement = () => {
       }
 
       if (status === 'Published') {
-        await Promise.allSettled([
-          notificationService.createNotification({
-            title: 'New company announcement posted',
-            message: trimmedTitle,
-            type: 'announcement',
-            priority,
-            userId: user?.id
-          }),
-          emailService.createEmailLog({
-            subject: `Announcement: ${trimmedTitle}`,
-            body: trimmedContent,
-            type: 'announcement',
-            userId: user?.id
-          })
-        ])
+        const notificationPayload = {
+          title: 'New company announcement posted',
+          message: trimmedTitle,
+          type: 'announcement',
+          priority,
+          userId: user?.id
+        }
+
+        if (audience === 'BOTH') {
+          await notificationService.createNotification(notificationPayload)
+        } else {
+          const targetDept = audience === 'ADMINISTRATION' ? 'Administration' : 'Engineering'
+          const targetEmployees = directory.filter((emp) => String(emp.department || '').trim().toLowerCase() === targetDept.toLowerCase())
+          await Promise.allSettled(
+            targetEmployees.map((emp) =>
+              notificationService.createNotification({
+                ...notificationPayload,
+                userId: emp.user_id || user?.id,
+                notifyTo: emp.employee_id
+              })
+            )
+          )
+        }
+
+        await emailService.createEmailLog({
+          subject: `Announcement: ${trimmedTitle}`,
+          body: trimmedContent,
+          type: 'announcement',
+          userId: user?.id
+        })
       }
 
       await alertService.success('The announcement has been successfully saved.', 'Announcement Saved')
@@ -415,17 +409,10 @@ const PostAnnouncement = () => {
               ))}
             </select>
 
-            <label className="block mb-1">Audience</label>
-            <select value={visibilityScope} onChange={(event) => {
-              const selected = event.target.value
-              setVisibilityScope(selected)
-              const audience = availableAudiences.find((a) => a.value === selected)
-              setVisibilityTarget(audience?.target || '')
-            }} className="border p-2 rounded w-full mb-4">
-              {availableAudiences.map((item) => (
-                <option key={item.value} value={item.value}>{item.label}</option>
-              ))}
-            </select>
+             <label className="block mb-1">Audience</label>
+             <div className="border p-3 rounded w-full mb-4" style={{ backgroundColor: '#f8fafc' }}>
+               <AudienceSelector value={audience} onChange={setAudience} />
+             </div>
 
             <label className="block mb-1">Alert Priority</label>
             <select value={priority} onChange={(event) => setPriority(event.target.value)} className="border p-2 rounded w-full mb-4">

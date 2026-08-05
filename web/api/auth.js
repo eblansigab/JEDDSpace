@@ -1,6 +1,7 @@
 import { getRequestUserContext, getSupabaseServerClient } from '../server/ai/supabaseClient.js'
 import { fail, ok } from '../server/_shared/response.js'
 import { permissionService } from '../server/services/permissionService.js'
+import { setCorsHeaders, handlePreflight } from '../server/_shared/cors.js'
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{3,30}$/
 
@@ -37,14 +38,20 @@ const resolveEmailByUsername = async (username) => {
 
 const resolveUserIdByEmail = async (email) => {
   const client = getSupabaseServerClient()
-  
+
   const { data: authData, error: authError } = await client.auth.admin.getUserByEmail(email)
   if (authError) throw authError
-  
+
   return authData?.user?.id || null
 }
 
 export default async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    return handlePreflight(res)
+  }
+
+  setCorsHeaders(res)
+
   if (req.method !== 'POST') {
     return fail(res, 405, 'Method not allowed')
   }

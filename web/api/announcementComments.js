@@ -4,11 +4,14 @@
 import { getRequestUserContext } from '../server/ai/supabaseClient.js'
 import { announcementCommentService } from '../server/services/announcementCommentService.js'
 import { fail, ok } from '../server/_shared/response.js'
+import { setCorsHeaders, handlePreflight } from '../server/_shared/cors.js'
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+    return handlePreflight(res)
   }
+
+  setCorsHeaders(res)
 
   const viewer = await getRequestUserContext(req)
   if (!viewer?.user?.id) {

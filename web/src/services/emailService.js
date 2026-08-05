@@ -1,11 +1,36 @@
 import { supabaseClient } from '../supabase/supabaseClient'
 
 export const emailService = {
-  async getEmailLogs() {
-    const { data, error } = await supabaseClient
+  async getEmailLogs({ department, employeeId, email } = {}) {
+    const myEmail = String(email || '').trim().toLowerCase()
+    const myDepartment = String(department || '').trim().toLowerCase()
+
+    const orParts = []
+
+    if (myEmail) {
+      orParts.push(`recipient_email.ilike.${myEmail}`)
+    }
+
+    orParts.push('visibility_scope.eq.ORGANIZATION')
+
+    if (myDepartment) {
+      orParts.push(`and(visibility_scope.eq.DEPARTMENT,visibility_target.ilike.${myDepartment})`)
+    }
+
+    if (employeeId) {
+      orParts.push(`sender_id.eq.${employeeId}`)
+    }
+
+    let query = supabaseClient
       .from('email')
       .select('*')
       .order('created_at', { ascending: false })
+
+    if (orParts.length > 0) {
+      query = query.or(orParts.join(','))
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error('[emailService] Error fetching database email logs:', error)
@@ -85,44 +110,70 @@ export const emailService = {
     }))
   },
 
-  async getUnreadCount({ email, employeeId }) {
+  async getUnreadCount({ email, employeeId, department }) {
     const myEmail = String(email || '').trim().toLowerCase()
+    const myDepartment = String(department || '').trim().toLowerCase()
 
     if (!myEmail) return 0
 
-    const directQuery = supabaseClient
+    const myEmployeeId = Number(employeeId)
+    const excludesSelf = Number.isFinite(myEmployeeId) && myEmployeeId > 0
+
+    const queries = []
+
+    let directQ = supabaseClient
       .from('email')
       .select('*', { count: 'exact', head: true })
       .eq('recipient_email', myEmail)
       .eq('is_read', false)
+    if (excludesSelf) directQ = directQuery.neq('sender_id', myEmployeeId)
+    queries.push(directQ)
 
-    const broadcastQuery = supabaseClient
+    let orgQ = supabaseClient
       .from('email')
       .select('*', { count: 'exact', head: true })
-      .eq('recipient_email', 'all')
+      .eq('visibility_scope', 'ORGANIZATION')
       .eq('is_read', false)
+    if (excludesSelf) orgQ = orgQ.neq('sender_id', myEmployeeId)
+    queries.push(orgQ)
 
-    const myEmployeeId = Number(employeeId)
-
-    if (Number.isFinite(myEmployeeId) && myEmployeeId > 0) {
-      directQuery.neq('sender_id', myEmployeeId)
-      broadcastQuery.neq('sender_id', myEmployeeId)
+    if (myDepartment) {
+      let deptQ = supabaseClient
+        .from('email')
+        .select('*', { count: 'exact', head: true })
+        .eq('visibility_scope', 'DEPARTMENT')
+        .eq('visibility_target', myDepartment)
+        .eq('is_read', false)
+      if (excludesSelf) deptQ = deptQ.neq('sender_id', myEmployeeId)
+      queries.push(deptQ)
     }
 
-    const [{ count: directCount, error: directError }, { count: broadcastCount, error: broadcastError }] =
-      await Promise.all([directQuery, broadcastQuery])
+    const results = await Promise.all(queries.map((q) => q))
 
-    if (directError) {
-      console.error('[emailService] Error counting unread emails:', directError)
-      return 0
+    let total = 0
+    for (const { count, error } of results) {
+      if (error) {
+        console.error('[emailService] Error counting unread emails:', error)
+        continue
+      }
+      total += count || 0
     }
 
-    if (broadcastError) {
-      console.error('[emailService] Error counting broadcast unread emails:', broadcastError)
-      return directCount || 0
+    return total
+  }
+
+    const results = await Promise.all(queries.map((q) => q))
+
+    let total = 0
+    for (const { count, error } of results) {
+      if (error) {
+        console.error('[emailService] Error counting unread emails:', error)
+        continue
+      }
+      total += count || 0
     }
 
-    return (directCount || 0) + (broadcastCount || 0)
+    return total
   }
 }
 

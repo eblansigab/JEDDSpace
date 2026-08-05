@@ -4,6 +4,7 @@ import { handleSpeech } from '../server/files/speechHandler.js'
 import { handleUpload } from '../server/files/uploadHandler.js'
 import { getRequestUserContext } from '../server/ai/supabaseClient.js'
 import { fail, ok } from '../server/_shared/response.js'
+import { setCorsHeaders, handlePreflight } from '../server/_shared/cors.js'
 
 const runAction = async ({ action, viewer, payload }) => {
   switch (action) {
@@ -25,6 +26,12 @@ const runAction = async ({ action, viewer, payload }) => {
 }
 
 export default async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    return handlePreflight(res)
+  }
+
+  setCorsHeaders(res)
+
   if (req.method !== 'POST') {
     return fail(res, 405, 'Method not allowed')
   }

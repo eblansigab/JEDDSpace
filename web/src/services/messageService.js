@@ -12,7 +12,7 @@ export const MESSAGE_REACTION_TYPES = [
 export const getEmployeeDirectory = async () => {
   const { data, error } = await supabaseClient
     .from('employee')
-    .select('employee_id, first_name, last_name, email, user_id')
+    .select('employee_id, first_name, last_name, email, user_id, department')
     .eq('is_archived', false)
     .eq('employment_status', 'active')
     .not('email', 'is', null)
@@ -29,7 +29,8 @@ export const getEmployeeDirectory = async () => {
     last_name: employee.last_name || '',
     full_name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim(),
     email: employee.email || '',
-    user_id: employee.user_id || ''
+    user_id: employee.user_id || '',
+    department: employee.department || ''
   }))
 }
 
@@ -40,7 +41,9 @@ export const sendMessage = async ({
   messageBody,
   folder = 'inbox',
   replyToEmailId = null,
-  attachmentUrl = null
+  attachmentUrl = null,
+  visibility_scope = 'ORGANIZATION',
+  visibility_target = null
 }) => {
   const payload = {
     sender_id: senderId,
@@ -49,6 +52,8 @@ export const sendMessage = async ({
     message_body: messageBody,
     folder,
     reply_to_email_id: replyToEmailId,
+    visibility_scope,
+    visibility_target,
     ...(attachmentUrl ? { attachment_url: attachmentUrl } : {})
   }
 
@@ -91,7 +96,9 @@ export const sendMessageWithAttachments = async ({
   messageBody,
   file = null,
   folder = 'inbox',
-  replyToEmailId = null
+  replyToEmailId = null,
+  visibility_scope = 'ORGANIZATION',
+  visibility_target = null
 }) => {
   let attachmentUrl = null
 
@@ -106,7 +113,9 @@ export const sendMessageWithAttachments = async ({
     messageBody,
     folder,
     replyToEmailId,
-    attachmentUrl
+    attachmentUrl,
+    visibility_scope,
+    visibility_target
   })
 }
 

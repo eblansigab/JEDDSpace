@@ -3,6 +3,7 @@ import { handleLogs } from '../server/admin/logsHandler.js'
 import { handleHealth } from '../server/admin/systemHandler.js'
 import { authorize } from '../server/middleware/authorize.js'
 import { fail, ok } from '../server/_shared/response.js'
+import { setCorsHeaders, handlePreflight } from '../server/_shared/cors.js'
 
 const ACTION_PERMISSIONS = {
   analytics: 'AI_ANALYTICS',
@@ -30,6 +31,12 @@ const runAction = async ({ action, viewer, payload }) => {
 }
 
 export default async function handler(req, res) {
+  if (req.method === 'OPTIONS') {
+    return handlePreflight(res)
+  }
+
+  setCorsHeaders(res)
+
   if (req.method !== 'POST') {
     return fail(res, 405, 'Method not allowed')
   }
