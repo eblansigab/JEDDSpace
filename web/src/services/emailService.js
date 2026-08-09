@@ -46,14 +46,16 @@ export const emailService = {
     }))
   },
 
-  async createEmailLog({ subject, body, recipient, type = 'inbox', senderId }) {
-    const payload = {
-      subject,
-      message_body: body,
-      recipient_email: recipient,
-      folder: type || 'inbox',
-      sender_id: senderId || null
-    }
+  async createEmailLog({ subject, body, recipient, type = 'inbox', senderId, visibilityScope, visibilityTarget }) {
+  const payload = {
+    subject,
+    message_body: body,
+    recipient_email: recipient || null,
+    folder: type || 'inbox',
+    sender_id: senderId || null,
+    visibility_scope: visibilityScope || 'ORGANIZATION',
+    visibility_target: visibilityTarget || null
+  }
 
     const { data, error } = await supabaseClient
       .from('email')
@@ -112,7 +114,7 @@ export const emailService = {
 
   async getUnreadCount({ email, employeeId, department }) {
     const myEmail = String(email || '').trim().toLowerCase()
-    const myDepartment = String(department || '').trim().toLowerCase()
+    const myDepartment = String(department || '').trim()   // no .toLowerCase() — keep original casing for exact match
 
     if (!myEmail) return 0
 
@@ -126,7 +128,7 @@ export const emailService = {
       .select('*', { count: 'exact', head: true })
       .eq('recipient_email', myEmail)
       .eq('is_read', false)
-    if (excludesSelf) directQ = directQuery.neq('sender_id', myEmployeeId)
+    if (excludesSelf) directQ = directQ.neq('sender_id', myEmployeeId)
     queries.push(directQ)
 
     let orgQ = supabaseClient
@@ -142,7 +144,7 @@ export const emailService = {
         .from('email')
         .select('*', { count: 'exact', head: true })
         .eq('visibility_scope', 'DEPARTMENT')
-        .eq('visibility_target', myDepartment)
+        .ilike('visibility_target', myDepartment)   // case-insensitive, safer against data inconsistency
         .eq('is_read', false)
       if (excludesSelf) deptQ = deptQ.neq('sender_id', myEmployeeId)
       queries.push(deptQ)

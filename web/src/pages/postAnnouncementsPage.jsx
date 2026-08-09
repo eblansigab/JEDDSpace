@@ -133,7 +133,9 @@ const PostAnnouncement = () => {
           subject: `Announcement: ${trimmedTitle}`,
           body: trimmedContent,
           type: 'announcement',
-          userId: user?.id
+          userId: user?.id,
+            visibilityScope: visibility.scope,
+          visibilityTarget: visibility.target
         })
       }
 
