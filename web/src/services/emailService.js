@@ -161,19 +161,5 @@ export const emailService = {
 
     return total
   }
-
-    const results = await Promise.all(queries.map((q) => q))
-
-    let total = 0
-    for (const { count, error } of results) {
-      if (error) {
-        console.error('[emailService] Error counting unread emails:', error)
-        continue
-      }
-      total += count || 0
-    }
-
-    return total
-  }
 }
 
