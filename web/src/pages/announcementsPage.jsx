@@ -10,6 +10,7 @@ import { notificationService } from '../services/notificationService'
 import { alertService } from '../utils/alertService'
 import { getEmployeeDirectory } from '../services/messageService'
 import { getAudienceBadge, getAudienceFromVisibility } from '../components/AudienceSelector'
+import ImageLightbox from '../components/ImageLightbox'
 
 export const ANNOUNCEMENT_REACTION_TYPES = [
   { value: 'acknowledged', label: 'Acknowledged', icon: '👍' },
@@ -39,6 +40,7 @@ const AnnouncementsPage = () => {
   const [reactionLoading, setReactionLoading] = useState({})
   const [announcementImages, setAnnouncementImages] = useState({})
   const [directory, setDirectory] = useState([])
+  const [activeImage, setActiveImage] = useState(null)
   // TEMPORARILY DISABLED: Announcement comments are hidden for the final defense.
   // The state and handlers below are preserved for easy restoration.
   // const [comments, setComments] = useState({})
@@ -461,7 +463,11 @@ const AnnouncementsPage = () => {
                       key={idx}
                       src={img.image_url}
                       alt={img.file_name || `Announcement image ${idx + 1}`}
-                      style={{ maxWidth: '320px', maxHeight: '320px', borderRadius: '8px', border: '1px solid #e5e7eb', objectFit: 'cover' }}
+                      style={{ width: 'clamp(150px,90vw,300px)', borderRadius: '8px', border: '1px solid #e5e7eb', objectFit: 'cover' }}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        setActiveImage(img.image_url)
+                      }}
                     />
                   ))}
                 </div>
@@ -651,6 +657,11 @@ const AnnouncementsPage = () => {
             </div>
           ))}
         </main>
+        <ImageLightbox
+          imageUrl={activeImage}
+          onClose={()=>setActiveImage(null)}
+          />
+
       <Modal
         visible={Boolean(editingAnnouncement)}
         title="Edit Announcement"

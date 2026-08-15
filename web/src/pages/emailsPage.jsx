@@ -9,6 +9,7 @@ import { supabaseClient } from '../supabase/supabaseClient'
 import ComposeMessageModal from '../components/messaging/ComposeMessageModal'
 import { getEmployeeDirectory, getThreadMessages, sendMessageWithAttachments, MESSAGE_REACTION_TYPES, addMessageReaction, getMessageReactionSummary, getMessageReactions, markMessageRead, getMessageReadReceipts, getMessageImages, uploadMessageImage, deleteMessageImage } from '../services/messageService'
 import { mapAudienceToVisibility, getAudienceBadge, getAudienceFromVisibility } from '../components/AudienceSelector'
+import ImageLightbox from '../components/ImageLightbox'
 
 const EmailsPage = () => {
   const { user, profile } = useAuth()
@@ -31,6 +32,7 @@ const EmailsPage = () => {
   const [reactionLoading, setReactionLoading] = useState({})
   const [readReceipts, setReadReceipts] = useState([])
   const [messageImages, setMessageImages] = useState({})
+  const [activeImage, setActiveImage] = useState(null)
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768)
@@ -796,6 +798,7 @@ const EmailsPage = () => {
                                          src={img.image_url}
                                          alt={img.file_name || `Image ${idx + 1}`}
                                          style={{ maxWidth: '240px', maxHeight: '240px', borderRadius: '6px', border: '1px solid #e5e7eb', objectFit: 'cover' }}
+                                           onClick={() => setActiveImage(img.image_url)}
                                        />
                                        <div style={{ position: 'absolute', top: '4px', right: '4px', display: 'flex', gap: '4px' }}>
                                          <button
@@ -883,6 +886,11 @@ const EmailsPage = () => {
         defaultSubject={composeSubject}
         audience={broadcastAudience}
         onAudienceChange={setBroadcastAudience}
+
+      />
+         <ImageLightbox
+        imageUrl={activeImage}
+        onClose={() => setActiveImage(null)}
       />
     </DashboardLayout>
   )
