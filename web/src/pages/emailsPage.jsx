@@ -124,6 +124,9 @@ const EmailsPage = () => {
   }
 
   const isMessageVisible = (msg) => {
+     if (msg.folder === 'announcement') {
+      return false
+    }
     const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const myEmployeeId = profile?.employee_id
     const userDepartment = String(profile?.department || '').trim().toLowerCase()
@@ -438,6 +441,7 @@ const EmailsPage = () => {
         m.sender_id !== myEmployeeId
     ).length
   }, [messages, user, profile])
+
 
   const sentCount = useMemo(() => {
     return messages.filter((m) => m.sender_id === profile?.employee_id).length
