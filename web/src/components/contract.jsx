@@ -3,10 +3,10 @@ import test from "../../artifacts/test_metadata.json"
 import { supabaseClient } from "../supabase/supabaseClient";
 
 const provider = new ethers.JsonRpcProvider(
-    "https://sepolia.infura.io/v3/b077b0b203bd417ea673ff1eb7dd601d",
+    "https://sepolia.infura.io/v3/b077b0b203bd417ea673ff1eb7dd601d", /*encrypt this in some way*/
 );
 const privateKey =
-    "18096ad45f87801fa1225bb3243f6f67f200988732c3a5ea30ddec70362d188a";
+    "18096ad45f87801fa1225bb3243f6f67f200988732c3a5ea30ddec70362d188a"; /*encrypt this also*/
 const wallet = new ethers.Wallet(privateKey, provider);
 const contract_address = "0x0EC104F233A548A348c48FC7476c349A89B7b87d"
 const contract = new ethers.Contract(contract_address,test.output.abi,wallet)
