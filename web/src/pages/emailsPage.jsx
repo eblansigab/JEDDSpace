@@ -124,7 +124,7 @@ const EmailsPage = () => {
   }
 
   const isMessageVisible = (msg) => {
-    if (msg.is_archived || msg.folder === 'announcement') { return false }
+     if (msg.folder === 'announcement') { return false }
      
     const myEmail = String(profile?.email || user?.email || '').trim().toLowerCase()
     const myEmployeeId = profile?.employee_id
@@ -160,9 +160,7 @@ const EmailsPage = () => {
   // Filter messages based on active tab and search term
   const filteredMessages = useMemo(() => {
     const tabMsgs = messages.filter((msg) => {
-      if (msg.is_archived) {
-        return false
-      } else if (activeTab === 'sent') {
+      if (activeTab === 'sent') {
         return msg.sender_id === profile?.employee_id
       } else if (activeTab === 'unread') {
         return isMessageVisible(msg) && !msg.is_read
@@ -212,25 +210,28 @@ const EmailsPage = () => {
     }
   }
 
-  // Archive current message
-  const handleArchiveMessage = async (emailId) => {
-    const result = await alertService.confirm({
-      title: 'Archive this message?',
-      text: 'This message will be archived and hidden from your inbox.',
-      confirmButtonText: 'Archive',
-      cancelButtonText: 'Cancel'
+  // Delete current message
+  const handleDeleteMessage = async (emailId) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this message deletion!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, delete it!'
     })
 
     if (result.isConfirmed) {
       try {
-        await emailService.archiveMessage(emailId)
-        await alertService.success('Message has been archived.', 'Archived!')
+        await emailService.deleteMessage(emailId)
+        await alertService.success('Message has been deleted.', 'Deleted!')
         if (selectedMessage?.email_id === emailId) {
           setSelectedMessage(null)
         }
         loadData()
       } catch (err) {
-        await alertService.error(err.message || 'Unable to archive message.', 'Error')
+        await alertService.error(err.message || 'Unable to delete message.', 'Error')
       }
     }
   }
@@ -752,10 +753,10 @@ const EmailsPage = () => {
                               <Button
                                 variant="danger"
                                 size="sm"
-                                onClick={() => handleArchiveMessage(selectedMessage.email_id)}
-                                title="Archive this message"
+                                onClick={() => handleDeleteMessage(selectedMessage.email_id)}
+                                title="Delete this message"
                               >
-                                Archive
+                                Delete
                               </Button>
                             </div>
                           </div>

@@ -146,8 +146,9 @@ export const AuthProvider = ({ children }) => {
         if (mounted) {
           setUser(null)
           setProfile(null)
-          setLoading(false)
         }
+      } finally {
+        if (mounted) setLoading(false)
       }
     }
 

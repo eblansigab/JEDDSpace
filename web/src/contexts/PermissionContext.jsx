@@ -87,7 +87,6 @@ export const PermissionProvider = ({ children }) => {
         if (!userId) {
           if (mounted) {
             setPermissions([])
-            setLoading(false)
           }
           return
         }
@@ -106,7 +105,6 @@ export const PermissionProvider = ({ children }) => {
           if (response.status === 401) {
             if (mounted) {
               setPermissions([])
-              setLoading(false)
             }
             return
           }
@@ -131,14 +129,14 @@ export const PermissionProvider = ({ children }) => {
         if (mounted) {
           console.log('Loaded Permissions:', userPermissions)
           setPermissions(userPermissions)
-          setLoading(false)
         }
       } catch (err) {
         console.error('[PermissionContext] Failed to load permissions:', err)
         if (mounted) {
           setPermissions([])
-          setLoading(false)
         }
+      } finally {
+        if (mounted) setLoading(false)
       }
     }
 

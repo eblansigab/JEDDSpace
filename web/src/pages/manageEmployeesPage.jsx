@@ -50,6 +50,7 @@ const ManageEmployeesPage = () => {
   const [availableRoles, setAvailableRoles] = useState([])
   const [adminRoles, setAdminRoles] = useState([])
   const [engineeringRoles, setEngineeringRoles] = useState([])
+  const [isSaving, setIsSaving] = useState(false)
 
   const fetchEmployees = async () => {
     try {
@@ -239,6 +240,7 @@ const ManageEmployeesPage = () => {
     )
     const primaryRole = availableRoles.find((item) => item.role_id === primaryId)
 
+    setIsSaving(true)
     try {
       const result = await registerUser(
         trimmedEmail,
@@ -281,6 +283,8 @@ const ManageEmployeesPage = () => {
     } catch (error) {
       console.error(error.message)
       await alertService.error('Failed to add employee.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -353,6 +357,7 @@ const ManageEmployeesPage = () => {
       return
     }
 
+    setIsSaving(true)
     try {
       await employeeRolesService.saveEmployeeRoles(editingEmployee.employee_id, form.selectedRoleIds)
 
@@ -379,6 +384,8 @@ const ManageEmployeesPage = () => {
     } catch (error) {
       await alertService.error('Failed to update employee.')
       console.error(error.message)
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -498,6 +505,7 @@ const ManageEmployeesPage = () => {
         mode="add"
         adminRoles={adminRoles}
         engineeringRoles={engineeringRoles}
+        loading={isSaving}
       />
 
       <EmployeeModal
@@ -514,6 +522,7 @@ const ManageEmployeesPage = () => {
         mode="edit"
         adminRoles={adminRoles}
         engineeringRoles={engineeringRoles}
+        loading={isSaving}
       />
     </DashboardLayout>
   )
@@ -562,7 +571,7 @@ const RoleCheckbox = ({ role, checked, disabled, isPrimary, onChange }) => (
   </label>
 )
 
-const EmployeeModal = ({ visible, title, form, onChange, onToggleRole, onClose, onSave, mode, adminRoles, engineeringRoles }) => {
+const EmployeeModal = ({ visible, title, form, onChange, onToggleRole, onClose, onSave, mode, adminRoles, engineeringRoles, loading }) => {
   const allRoles = [...(adminRoles || []), ...(engineeringRoles || [])]
   const selectedIds = form.selectedRoleIds || []
   const vpSelected = selectedIds.some((id) => {
@@ -620,12 +629,13 @@ const EmployeeModal = ({ visible, title, form, onChange, onToggleRole, onClose, 
       visible={visible}
       title={title}
       onClose={onClose}
+      loading={loading}
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={onSave}>Save</Button>
+          <Button onClick={onSave} disabled={loading}>Save</Button>
         </div>
       }
     >

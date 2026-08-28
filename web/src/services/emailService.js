@@ -24,7 +24,6 @@ export const emailService = {
     let query = supabaseClient
       .from('email')
       .select('*')
-      .eq('is_archived', false)
       .order('created_at', { ascending: false })
 
     if (orParts.length > 0) {
@@ -95,17 +94,6 @@ export const emailService = {
     return true
   },
 
-  async archiveMessage(emailId) {
-    const { error } = await supabaseClient
-      .from('email')
-      .update({ is_archived: true })
-      .eq('email_id', emailId)
-
-    if (error) throw error
-
-    return true
-  },
-
   async getEmployeeDirectory() {
     const { data, error } = await supabaseClient
       .from('employee')
@@ -139,7 +127,6 @@ export const emailService = {
       .from('email')
       .select('*', { count: 'exact', head: true })
       .eq('recipient_email', myEmail)
-      .eq('is_archived', false)
       .eq('is_read', false)
     if (excludesSelf) directQ = directQ.neq('sender_id', myEmployeeId)
     queries.push(directQ)
@@ -148,7 +135,6 @@ export const emailService = {
       .from('email')
       .select('*', { count: 'exact', head: true })
       .eq('visibility_scope', 'ORGANIZATION')
-      .eq('is_archived', false)
       .eq('is_read', false)
     if (excludesSelf) orgQ = orgQ.neq('sender_id', myEmployeeId)
     queries.push(orgQ)
@@ -159,7 +145,6 @@ export const emailService = {
         .select('*', { count: 'exact', head: true })
         .eq('visibility_scope', 'DEPARTMENT')
         .ilike('visibility_target', myDepartment)   // case-insensitive, safer against data inconsistency
-        .eq('is_archived', false)
         .eq('is_read', false)
       if (excludesSelf) deptQ = deptQ.neq('sender_id', myEmployeeId)
       queries.push(deptQ)

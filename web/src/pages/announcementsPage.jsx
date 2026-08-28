@@ -334,13 +334,13 @@ const AnnouncementsPage = () => {
       }
 
       closeEditModal()
-      setIsSaving(false)
       await alertService.success('Announcement updated successfully.', 'Announcement Updated')
       await loadAnnouncements()
     } catch (error) {
-      setIsSaving(false)
       console.error(error.message)
       await alertService.error('Unable to update announcement.', 'Update Failed')
+    } finally {
+      setIsSaving(false)
     }
   }
 

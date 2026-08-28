@@ -50,12 +50,17 @@ export default function ChatInput({ value, onChange, onSend, loading = false, pl
       alert('Some files were skipped due to unsupported type.')
     }
 
-    for (const file of validFiles) {
-      setIsUploading(true)
-      await onAddAttachment(file)
+    setIsUploading(true)
+    try {
+      for (const file of validFiles) {
+        await onAddAttachment(file)
+      }
+    } catch (error) {
+      console.error('[ChatInput] Failed to add attachment:', error)
+    } finally {
       setIsUploading(false)
+      event.target.value = ''
     }
-    event.target.value = ''
   }
 
   const formatFileSize = (bytes) => {

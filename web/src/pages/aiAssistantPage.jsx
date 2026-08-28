@@ -308,14 +308,13 @@ export default function AiAssistantPage() {
         const historyMessages = messages.map((m) => ({ role: m.role, content: m.content }))
         const reply = await aiService.chatWithContext([...historyMessages, { role: 'user', content: dynamicPrompt }])
         appendMessage('assistant', reply || 'I could not generate a response.')
-        setLoading(false)
-        setLoadingStatus('')
       } catch (error) {
         logAssistantError('Recommendation error', error, {
           sessionId,
           messageCount: messages.length,
         })
         appendMessage('assistant', 'Unable to fetch recommendations at this time.')
+      } finally {
         setLoading(false)
         setLoadingStatus('')
       }

@@ -44,13 +44,17 @@ export default function AttachmentUploader({ attachments = [], onAdd, onRemove }
       alert('Some files were skipped due to unsupported type. Supported: PDF, TXT, CSV, DOCX, XLSX, PNG, JPG, WEBP, MP3, WAV, M4A')
     }
 
-    for (const file of validFiles) {
-      setIsUploading(true)
-      await onAdd(file)
+    setIsUploading(true)
+    try {
+      for (const file of validFiles) {
+        await onAdd(file)
+      }
+    } catch (error) {
+      console.error('[AttachmentUploader] Failed to add attachment:', error)
+    } finally {
       setIsUploading(false)
+      event.target.value = ''
     }
-
-    event.target.value = ''
   }
 
   const formatFileSize = (bytes) => {
