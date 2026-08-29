@@ -280,6 +280,13 @@ const AnnouncementsPage = () => {
     }
 
     setIsSaving(true)
+    console.log('[Announcements] handleSaveEdit start', {
+      announcementId: editingAnnouncement?.announcement_id || editingAnnouncement?.id,
+      title: editTitle,
+      body: editBody,
+      status: editStatus,
+      isSaving: true,
+    })
 
     try {
       const previousStatus = editingAnnouncement.status || 'Published'
