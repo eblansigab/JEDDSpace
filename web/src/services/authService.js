@@ -480,7 +480,37 @@ export const loginWithUsername = async (username, password) => {
   }
 };
 
+export const ensureFreshSession = async () => {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabaseClient.auth.getSession();
+
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  if (!session) {
+    return null;
+  }
+
+  const expiresAtMs = Number(session.expires_at || 0) * 1000;
+  const refreshThresholdMs = Date.now() + 60_000;
+
+  if (expiresAtMs <= refreshThresholdMs) {
+    const { data: refreshed, error: refreshError } = await supabaseClient.auth.refreshSession();
+    if (refreshError) {
+      throw refreshError;
+    }
+
+    return refreshed.session || session;
+  }
+
+  return session;
+};
+
 export const logoutUser = async () => {
+  await ensureFreshSession().catch(() => null);
   const { error } = await supabaseClient.auth.signOut();
   if (error) throw error;
 
@@ -488,6 +518,7 @@ export const logoutUser = async () => {
 };
 
 export const logoutAllDevices = async () => {
+  await ensureFreshSession().catch(() => null);
   const { error } = await supabaseClient.auth.signOut({
     scope: 'global',
   });

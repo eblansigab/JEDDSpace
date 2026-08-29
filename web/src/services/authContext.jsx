@@ -94,6 +94,36 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [isEmailVerified, setIsEmailVerified] = useState(false)
 
+  const refreshSessionIfNeeded = async () => {
+    const {
+      data: { session },
+      error,
+    } = await supabaseClient.auth.getSession()
+
+    if (error) {
+      throw error
+    }
+
+    if (!session) {
+      return null
+    }
+
+    const expiresAtMs = Number(session.expires_at || 0) * 1000
+    const refreshThresholdMs = Date.now() + 60_000
+
+    if (expiresAtMs <= refreshThresholdMs) {
+      const { data: refreshed, error: refreshError } = await supabaseClient.auth.refreshSession()
+      if (refreshError) {
+        console.warn('[AuthContext] Session refresh failed, continuing with current session:', refreshError)
+        return session
+      }
+
+      return refreshed.session || session
+    }
+
+    return session
+  }
+
   useEffect(() => {
     let mounted = true
 
@@ -136,10 +166,7 @@ export const AuthProvider = ({ children }) => {
 
     const initialize = async () => {
       try {
-        const {
-          data: { session }
-        } = await supabaseClient.auth.getSession()
-
+        const session = await refreshSessionIfNeeded()
         await loadUser(session, true)
       } catch (err) {
         console.error('[AuthContext] Initialization error:', err)
