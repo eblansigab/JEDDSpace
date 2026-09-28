@@ -10,6 +10,23 @@ import { alertService } from '../utils/alertService'
 import AudienceSelector, { mapAudienceToVisibility } from '../components/AudienceSelector'
 import { getEmployeeDirectory } from '../services/messageService'
 
+const POST_OPERATION_TIMEOUT_MS = 4000
+
+const withPostTimeout = (operation, label) => {
+  let timeoutId
+
+  return Promise.race([
+    operation,
+    new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`${label} timed out. Please try again.`))
+      }, POST_OPERATION_TIMEOUT_MS)
+    }),
+  ]).finally(() => {
+    clearTimeout(timeoutId)
+  })
+}
+
 const PostAnnouncement = () => {
   const { user } = useAuth()
   const { hasPermission } = usePermissions()
@@ -83,21 +100,27 @@ const PostAnnouncement = () => {
 
     try {
       const visibility = mapAudienceToVisibility(audience)
-      const created = await announcementService.createAnnouncement({
-        title: trimmedTitle,
-        body: trimmedContent,
-        status,
-        audience,
-        visibilityScope: visibility.scope,
-        visibilityTarget: visibility.target,
-        userId: user?.id
-      })
+      const created = await withPostTimeout(
+        announcementService.createAnnouncement({
+          title: trimmedTitle,
+          body: trimmedContent,
+          status,
+          audience,
+          visibilityScope: visibility.scope,
+          visibilityTarget: visibility.target,
+          userId: user?.id
+        }),
+        'Announcement save'
+      )
 
       const announcementId = created?.announcement_id || created?.id
       if (announcementId && announcementImages.length > 0) {
         await Promise.allSettled(
           announcementImages.map((file) =>
-            announcementService.uploadAnnouncementImage(announcementId, file).catch((err) => {
+            withPostTimeout(
+              announcementService.uploadAnnouncementImage(announcementId, file),
+              'Announcement image upload'
+            ).catch((err) => {
               console.error('[PostAnnouncement] Failed to upload image:', err)
             })
           )
@@ -114,29 +137,38 @@ const PostAnnouncement = () => {
         }
 
         if (audience === 'BOTH') {
-          await notificationService.createNotification(notificationPayload)
+          await withPostTimeout(
+            notificationService.createNotification(notificationPayload),
+            'Announcement notification'
+          )
         } else {
           const targetDept = audience === 'ADMINISTRATION' ? 'Administration' : 'Engineering'
           const targetEmployees = directory.filter((emp) => String(emp.department || '').trim().toLowerCase() === targetDept.toLowerCase())
           await Promise.allSettled(
             targetEmployees.map((emp) =>
-              notificationService.createNotification({
-                ...notificationPayload,
-                userId: emp.user_id || user?.id,
-                notifyTo: emp.employee_id
-              })
+              withPostTimeout(
+                notificationService.createNotification({
+                  ...notificationPayload,
+                  userId: emp.user_id || user?.id,
+                  notifyTo: emp.employee_id
+                }),
+                'Announcement notification'
+              )
             )
           )
         }
 
-        await emailService.createEmailLog({
-          subject: `Announcement: ${trimmedTitle}`,
-          body: trimmedContent,
-          type: 'announcement',
-          userId: user?.id,
-            visibilityScope: visibility.scope,
-          visibilityTarget: visibility.target
-        })
+        await withPostTimeout(
+          emailService.createEmailLog({
+            subject: `Announcement: ${trimmedTitle}`,
+            body: trimmedContent,
+            type: 'announcement',
+            userId: user?.id,
+              visibilityScope: visibility.scope,
+            visibilityTarget: visibility.target
+          }),
+          'Announcement email log'
+        )
       }
 
       await alertService.success('The announcement has been successfully saved.', 'Announcement Saved')
@@ -145,7 +177,21 @@ const PostAnnouncement = () => {
       loadNotifications()
     } catch (error) {
       console.error(error)
-      alertService.error('Unable to save announcement.', 'Save Failed')
+      const isTimeout = /timed out/i.test(error?.message || '')
+      if (isTimeout) {
+        const shouldReconnect = await alertService.confirm({
+          title: 'Connection paused',
+          text: 'The page stopped responding after the tab was restored. Reload the app to reconnect.',
+          confirmButtonText: 'Reload app',
+          cancelButtonText: 'Try again later'
+        })
+
+        if (shouldReconnect.isConfirmed) {
+          window.location.reload()
+        }
+      } else {
+        await alertService.error('Unable to save announcement.', 'Save Failed')
+      }
     } finally {
       setIsPublishing(false)
     }

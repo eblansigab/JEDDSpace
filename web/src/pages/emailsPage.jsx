@@ -204,6 +204,7 @@ const EmailsPage = () => {
         setMessages((prev) =>
           prev.map((m) => (m.email_id === msg.email_id ? { ...m, is_read: true } : m))
         )
+        window.dispatchEvent(new Event('messages:updated'))
       } catch (err) {
         console.error('[EmailsPage] Error marking message as read:', err)
       }

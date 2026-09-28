@@ -79,6 +79,8 @@ export const PermissionProvider = ({ children }) => {
     let mounted = true
 
     const loadPermissions = async () => {
+      let result = {}
+
       try {
         const {
           data: { session },
@@ -91,25 +93,49 @@ export const PermissionProvider = ({ children }) => {
           return
         }
 
-        const response = await fetch('/api/auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ action: 'current-permissions' }),
+        console.log('[PermissionContext] requesting current-permissions', {
+          hasSession: !!session,
+          hasAccessToken: !!session?.access_token,
+          expiresAt: session?.expires_at,
+          now: Date.now(),
         })
 
-        const result = await response.json().catch(() => ({}))
-        if (!response.ok || result?.success === false) {
-          if (response.status === 401) {
-            if (mounted) {
-              setPermissions([])
-            }
-            return
-          }
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 8000)
 
-          throw new Error(result?.error || 'Failed to load permissions.')
+        try {
+          const response = await fetch('/api/auth', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ action: 'current-permissions' }),
+            signal: controller.signal,
+          })
+
+          result = await response.json().catch(() => ({}))
+
+          console.log('[PermissionContext] current-permissions response', {
+            ok: response.ok,
+            status: response.status,
+            hasResult: !!result,
+            success: result?.success,
+            permissionsCount: Array.isArray(result?.permissions || result?.data?.permissions) ? (result?.permissions || result?.data?.permissions).length : 0,
+          })
+
+          if (!response.ok || result?.success === false) {
+            if (response.status === 401) {
+              if (mounted) {
+                setPermissions([])
+              }
+              return
+            }
+
+            throw new Error(result?.error || 'Failed to load permissions.')
+          }
+        } finally {
+          clearTimeout(timeout)
         }
 
         const userPermissions = (result?.permissions || result?.data?.permissions || []).map((perm) => {

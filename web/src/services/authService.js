@@ -2,6 +2,22 @@ import { supabaseClient, signupClient } from '../supabase/supabaseClient';
 import { getDepartmentForRole } from '../utils/roleMetadata';
 
 const PENDING_EMPLOYEE_KEY = 'jeddspace_pending_employee';
+const AUTH_OPERATION_TIMEOUT_MS = 4000
+
+const withAuthTimeout = (operation, label) => {
+  let timeoutId
+
+  return Promise.race([
+    operation,
+    new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`${label} timed out. Please try again.`))
+      }, AUTH_OPERATION_TIMEOUT_MS)
+    }),
+  ]).finally(() => {
+    clearTimeout(timeoutId)
+  })
+}
 
 const savePendingEmployee = (payload) => {
   try {
@@ -455,10 +471,13 @@ export const registerUser = async (
 };
 
 export const loginUser = async (email, password) => {
-  const { data, error } = await supabaseClient.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } = await withAuthTimeout(
+    supabaseClient.auth.signInWithPassword({
+      email,
+      password,
+    }),
+    'Login'
+  )
 
   if (error) throw error;
 
@@ -468,7 +487,10 @@ export const loginUser = async (email, password) => {
 export const loginWithUsername = async (username, password) => {
   try {
     const normalizedUsername = validateUsername(username);
-    const email = await getEmployeeEmailByUsername(normalizedUsername);
+    const email = await withAuthTimeout(
+      getEmployeeEmailByUsername(normalizedUsername),
+      'Username lookup'
+    )
 
     if (!email) {
       throw new Error('Invalid username or password.');
@@ -510,20 +532,97 @@ export const ensureFreshSession = async () => {
 };
 
 export const logoutUser = async () => {
-  await ensureFreshSession().catch(() => null);
-  const { error } = await supabaseClient.auth.signOut();
-  if (error) throw error;
+  let session = null
+  let sessionCheckTimedOut = false
+  let signOutTimedOut = false
 
-  return true;
+  try {
+    console.log('[DEBUG-LOGOUT] authService step 0: before getSession()')
+    const timeoutMarker = Symbol('logout-session-timeout')
+    let timeoutId
+    const sessionResult = await Promise.race([
+      supabaseClient.auth.getSession(),
+      new Promise((resolve) => {
+        timeoutId = setTimeout(() => resolve(timeoutMarker), 4000)
+      }),
+    ])
+    clearTimeout(timeoutId)
+
+    if (sessionResult === timeoutMarker) {
+      sessionCheckTimedOut = true
+      console.log('[DEBUG-LOGOUT] authService step 0.1: getSession() timed out after 4 seconds')
+    } else {
+      console.log('[DEBUG-LOGOUT] authService step 0.1: getSession() resolved')
+      session = sessionResult?.data?.session || null
+    }
+  } catch {
+    session = null
+  }
+
+  console.log('[DEBUG-LOGOUT] authService step 1: logoutUser() entered', {
+    now: Date.now(),
+    hasSession: !!session,
+  })
+
+  if (!sessionCheckTimedOut) {
+    console.log('[DEBUG-LOGOUT] authService step 2: before ensureFreshSession()')
+    await ensureFreshSession().catch(() => null);
+  } else {
+    console.log('[DEBUG-LOGOUT] authService step 2: skipping ensureFreshSession() after timeout')
+  }
+  console.log('[DEBUG-LOGOUT] authService step 3: before supabaseClient.auth.signOut()')
+  const signOutTimeoutMarker = Symbol('logout-sign-out-timeout')
+  let signOutTimeoutId
+  const signOutResult = await Promise.race([
+    supabaseClient.auth.signOut(),
+    new Promise((resolve) => {
+      signOutTimeoutId = setTimeout(() => resolve(signOutTimeoutMarker), 4000)
+    }),
+  ])
+  clearTimeout(signOutTimeoutId)
+
+  if (signOutResult === signOutTimeoutMarker) {
+    signOutTimedOut = true
+    console.log('[DEBUG-LOGOUT] authService step 4: signOut() timed out after 4 seconds; continuing')
+  } else {
+    const { error } = signOutResult
+    console.log('[DEBUG-LOGOUT] authService step 4: supabaseClient.auth.signOut() resolved', {
+      hasError: !!error,
+    })
+    if (error) throw error
+  }
+
+  clearLocalAuthState({ clearSupabaseStorage: signOutTimedOut })
+  console.log('[DEBUG-LOGOUT] authService step 5: local app state cleared', {
+    signOutTimedOut,
+  })
+
+  console.log('[DEBUG-LOGOUT] authService step 6: logoutUser() complete')
+  return { success: true, signOutTimedOut }
 };
 
+export const clearLocalAuthState = ({ clearSupabaseStorage = false } = {}) => {
+  localStorage.removeItem('jeddspace_current_session_id')
+
+  if (clearSupabaseStorage) {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('sb-') && key.endsWith('-auth-token'))
+      .forEach((key) => localStorage.removeItem(key))
+  }
+}
+
 export const logoutAllDevices = async () => {
+  console.log('[authService] logoutAllDevices start', {
+    now: Date.now(),
+  })
+
   await ensureFreshSession().catch(() => null);
   const { error } = await supabaseClient.auth.signOut({
     scope: 'global',
   });
   if (error) throw error;
 
+  console.log('[authService] logoutAllDevices complete')
   return true;
 };
 

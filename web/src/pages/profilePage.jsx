@@ -67,7 +67,7 @@ const ProfileField = ({ label, help, children }) => (
 
 const ProfileSettings = () => {
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user, profile, clearAuthState } = useAuth()
   const { hasPermission } = usePermissions()
   const isAdmin = hasPermission('EMP_PROFILE')
 
@@ -94,6 +94,7 @@ const ProfileSettings = () => {
   const [sessionsLoading, setSessionsLoading] = useState(false)
   const [selectedSession, setSelectedSession] = useState(null)
   const [isInspectModalOpen, setIsInspectModalOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     applyTheme(theme)
@@ -292,22 +293,40 @@ const ProfileSettings = () => {
   }
 
   const handleLogout = async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    console.log('[DEBUG-LOGOUT] profile step 1: before confirmation dialog')
     const confirmation = await alertService.confirm({
       title: 'Log out?',
       text: 'You will be logged out of your session.',
       confirmButtonText: 'Log out',
       cancelButtonText: 'Cancel'
     })
+    console.log('[DEBUG-LOGOUT] profile step 2: confirmation resolved', {
+      isConfirmed: confirmation.isConfirmed,
+    })
 
-    if (!confirmation.isConfirmed) return
+    if (!confirmation.isConfirmed) {
+      setIsLoggingOut(false)
+      return
+    }
 
     try {
-      await logoutUser()
+      console.log('[DEBUG-LOGOUT] profile step 3: before logoutUser()')
+      const logoutResult = await logoutUser()
+      console.log('[DEBUG-LOGOUT] profile step 4: logoutUser() resolved')
+      clearAuthState()
       document.body.classList.remove('sidebar-collapsed', 'mobile-sidebar-open')
+      if (logoutResult?.signOutTimedOut) {
+        window.location.reload()
+        return
+      }
+      console.log('[DEBUG-LOGOUT] profile step 5: before navigate(/)')
       navigate('/')
     } catch (error) {
       console.error('Error logging out:', error)
       await alertService.error('An error occurred during logout.')
+      setIsLoggingOut(false)
     }
   }
 

@@ -9,6 +9,7 @@ import { supabaseClient } from '../supabase/supabaseClient'
 import { withRoleDerivedFields } from '../utils/roleMetadata'
 
 const AuthContext = createContext()
+let refreshInFlight = null
 
 /**
  * Ensures an employee record exists for the given user. If the user was
@@ -95,37 +96,132 @@ export const AuthProvider = ({ children }) => {
   const [isEmailVerified, setIsEmailVerified] = useState(false)
 
   const refreshSessionIfNeeded = async () => {
-    const {
-      data: { session },
-      error,
-    } = await supabaseClient.auth.getSession()
-
-    if (error) {
-      throw error
+    if (refreshInFlight) {
+      console.log('[DEBUG-AUTH-CONTEXT] refresh step 0: reusing in-flight refresh')
+      return refreshInFlight
     }
 
-    if (!session) {
-      return null
-    }
+    const refreshPromise = (async () => {
+      console.log('[DEBUG-AUTH-CONTEXT] refresh step 1: before getSession()')
+      try {
+        const sessionTimeoutMarker = Symbol('auth-context-session-timeout')
+        let sessionTimeoutId
+        const sessionResult = await Promise.race([
+          supabaseClient.auth.getSession(),
+          new Promise((resolve) => {
+            sessionTimeoutId = setTimeout(() => resolve(sessionTimeoutMarker), 4000)
+          }),
+        ])
+        clearTimeout(sessionTimeoutId)
 
-    const expiresAtMs = Number(session.expires_at || 0) * 1000
-    const refreshThresholdMs = Date.now() + 60_000
+        if (sessionResult === sessionTimeoutMarker) {
+          console.warn('[DEBUG-AUTH-CONTEXT] refresh step 2: getSession() timed out after 4 seconds')
+          return null
+        }
 
-    if (expiresAtMs <= refreshThresholdMs) {
-      const { data: refreshed, error: refreshError } = await supabaseClient.auth.refreshSession()
-      if (refreshError) {
-        console.warn('[AuthContext] Session refresh failed, continuing with current session:', refreshError)
+        const {
+          data: { session },
+          error,
+        } = sessionResult
+
+        if (error) {
+          throw error
+        }
+
+        console.log('[DEBUG-AUTH-CONTEXT] refresh step 2: getSession() resolved', {
+          hasSession: !!session,
+        })
+
+        if (!session) {
+          return null
+        }
+
+        const expiresAtMs = Number(session.expires_at || 0) * 1000
+        const refreshThresholdMs = Date.now() + 60_000
+
+        if (expiresAtMs <= refreshThresholdMs) {
+          console.log('[DEBUG-AUTH-CONTEXT] refresh step 3: before refreshSession()')
+          const refreshTimeoutMarker = Symbol('auth-context-refresh-timeout')
+          let refreshTimeoutId
+          const refreshResult = await Promise.race([
+            supabaseClient.auth.refreshSession(),
+            new Promise((resolve) => {
+              refreshTimeoutId = setTimeout(() => resolve(refreshTimeoutMarker), 4000)
+            }),
+          ])
+          clearTimeout(refreshTimeoutId)
+
+          if (refreshResult === refreshTimeoutMarker) {
+            console.warn('[DEBUG-AUTH-CONTEXT] refresh step 4: refreshSession() timed out after 4 seconds; using current session')
+            return session
+          }
+
+          const { data: refreshed, error: refreshError } = refreshResult
+          console.log('[DEBUG-AUTH-CONTEXT] refresh step 4: refreshSession() resolved', {
+            hasSession: !!refreshed?.session,
+            hasError: !!refreshError,
+          })
+          if (refreshError) {
+            console.warn('[AuthContext] Session refresh failed, continuing with current session:', refreshError)
+            return session
+          }
+
+          return refreshed.session || session
+        }
+
         return session
+      } catch (err) {
+        console.warn('[AuthContext] refreshSessionIfNeeded failed:', err)
+        return null
       }
+    })()
 
-      return refreshed.session || session
+    refreshInFlight = refreshPromise
+
+    try {
+      return await refreshPromise
+    } finally {
+      if (refreshInFlight === refreshPromise) {
+        refreshInFlight = null
+        console.log('[DEBUG-AUTH-CONTEXT] refresh step 5: in-flight refresh cleared')
+      }
     }
-
-    return session
   }
 
   useEffect(() => {
     let mounted = true
+
+    const refreshOnVisibleState = async () => {
+      console.log('[DEBUG-AUTH-CONTEXT] visibility step 1: refresh triggered')
+      const session = await refreshSessionIfNeeded()
+      console.log('[DEBUG-AUTH-CONTEXT] visibility step 2: refresh completed', {
+        hasSession: !!session,
+      })
+      if (session) {
+        await loadUser(session)
+      }
+    }
+
+    const handleVisibility = () => {
+      console.log('[DEBUG-AUTH-CONTEXT] visibility step 0: visibilitychange', {
+        visibilityState: document.visibilityState,
+      })
+      if (document.visibilityState === 'visible') {
+        refreshOnVisibleState()
+      }
+    }
+
+    const handleFocus = () => {
+      console.log('[DEBUG-AUTH-CONTEXT] visibility step 0: window focus')
+      refreshOnVisibleState()
+    }
+
+    const refreshInterval = setInterval(() => {
+      refreshOnVisibleState()
+    }, 60_000)
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', handleFocus)
 
     const loadUser = async (session, isInitial = false) => {
       if (isInitial && mounted) {
@@ -182,13 +278,23 @@ export const AuthProvider = ({ children }) => {
     initialize()
 
     const { data: listener } = supabaseClient.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('[DEBUG-AUTH-CONTEXT] auth listener step 1: state change received', {
+          event,
+          hasSession: !!session,
+        })
         await loadUser(session, false)
+        console.log('[DEBUG-AUTH-CONTEXT] auth listener step 2: loadUser() resolved', {
+          event,
+        })
       }
     )
 
     return () => {
       mounted = false
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', handleFocus)
+      clearInterval(refreshInterval)
       const subscription = listener?.subscription
       subscription?.unsubscribe?.()
     }
@@ -201,7 +307,12 @@ export const AuthProvider = ({ children }) => {
         profile,
         loading,
         isEmailVerified,
-        signOut: () => supabaseClient.auth.signOut()
+        signOut: () => supabaseClient.auth.signOut(),
+        clearAuthState: () => {
+          setUser(null)
+          setProfile(null)
+          setIsEmailVerified(false)
+        },
       }}
     >
       {children}

@@ -16,9 +16,10 @@ const Sidebar = () => {
   const [unreadEmailCount, setUnreadEmailCount] = useState(0)
   const [avatarError, setAvatarError] = useState(false)
   const [theme, setTheme] = useState(localStorage.getItem('theme') || localStorage.getItem('jeddspace_theme') || 'light')
-  const { profile, loading, user } = useAuth()
+  const { profile, loading, user, clearAuthState } = useAuth()
   const { hasAdminAccess } = usePermissions()
   const [role, setRole] = useState(String(profile?.role || '').trim().toLowerCase() || '') 
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const applyTheme = (nextTheme) => {
     document.documentElement.dataset.theme = nextTheme
@@ -33,22 +34,41 @@ const Sidebar = () => {
   }
 
   const handleLogout = async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    console.log('[DEBUG-LOGOUT] sidebar step 1: before confirmation dialog')
     const confirmation = await alertService.confirm({
       title: 'Log out?',
       text: 'You will be logged out of your session.',
       confirmButtonText: 'Log out',
       cancelButtonText: 'Cancel'
     })
+    console.log('[DEBUG-LOGOUT] sidebar step 2: confirmation resolved', {
+      isConfirmed: confirmation.isConfirmed,
+    })
 
-    if (!confirmation.isConfirmed) return
+    if (!confirmation.isConfirmed) {
+      setIsLoggingOut(false)
+      return
+    }
 
     try {
-      await logoutUser()
+      console.log('[DEBUG-LOGOUT] sidebar step 3: before logoutUser()')
+      const logoutResult = await logoutUser()
+      console.log('[DEBUG-LOGOUT] sidebar step 4: logoutUser() resolved')
+      clearAuthState()
       document.body.classList.remove('sidebar-collapsed', 'mobile-sidebar-open')
+      if (logoutResult?.signOutTimedOut) {
+        console.log('[DEBUG-LOGOUT] sidebar recovery: reloading after signOut timeout')
+        window.location.reload()
+        return
+      }
+      console.log('[DEBUG-LOGOUT] sidebar step 5: before navigate(/)')
       navigate('/')
     } catch (error) {
       console.error('Error logging out:', error)
       await alertService.error('An error occurred during logout.')
+      setIsLoggingOut(false)
     }
   }
 
@@ -93,10 +113,18 @@ const Sidebar = () => {
       }
     }
 
+    const handleMessagesUpdated = () => {
+      loadUnreadCount()
+    }
+
     ensureRole()
     loadUnreadCount()
+    window.addEventListener('messages:updated', handleMessagesUpdated)
 
-    return () => { mounted = false }
+    return () => {
+      mounted = false
+      window.removeEventListener('messages:updated', handleMessagesUpdated)
+    }
   }, [profile, user])
 
   const handleStatusChange = async (e) => {
@@ -321,7 +349,7 @@ const Sidebar = () => {
           </Link>
         </li>
         <li>
-          <button type="button" onClick={handleLogout} title="Logout" style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', color: 'inherit' }}>
+          <button type="button" onClick={handleLogout} disabled={isLoggingOut} title="Logout" style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: isLoggingOut ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', color: 'inherit', opacity: isLoggingOut ? 0.6 : 1 }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
             <span className="sidebar-link-text">Logout</span>
           </button>

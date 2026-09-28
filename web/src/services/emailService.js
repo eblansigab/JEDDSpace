@@ -114,54 +114,33 @@ export const emailService = {
 
   async getUnreadCount({ email, employeeId, department }) {
     const myEmail = String(email || '').trim().toLowerCase()
-    const myDepartment = String(department || '').trim()   // no .toLowerCase() — keep original casing for exact match
+    const myDepartment = String(department || '').trim().toLowerCase()
 
     if (!myEmail) return 0
 
     const myEmployeeId = Number(employeeId)
     const excludesSelf = Number.isFinite(myEmployeeId) && myEmployeeId > 0
 
-    const queries = []
-
-    let directQ = supabaseClient
-      .from('email')
-      .select('*', { count: 'exact', head: true })
-      .eq('recipient_email', myEmail)
-      .eq('is_read', false)
-    if (excludesSelf) directQ = directQ.neq('sender_id', myEmployeeId)
-    queries.push(directQ)
-
-    let orgQ = supabaseClient
-      .from('email')
-      .select('*', { count: 'exact', head: true })
-      .eq('visibility_scope', 'ORGANIZATION')
-      .eq('is_read', false)
-    if (excludesSelf) orgQ = orgQ.neq('sender_id', myEmployeeId)
-    queries.push(orgQ)
-
+    const visibilityParts = [`recipient_email.eq.${myEmail}`, 'visibility_scope.eq.ORGANIZATION']
     if (myDepartment) {
-      let deptQ = supabaseClient
-        .from('email')
-        .select('*', { count: 'exact', head: true })
-        .eq('visibility_scope', 'DEPARTMENT')
-        .ilike('visibility_target', myDepartment)   // case-insensitive, safer against data inconsistency
-        .eq('is_read', false)
-      if (excludesSelf) deptQ = deptQ.neq('sender_id', myEmployeeId)
-      queries.push(deptQ)
+      visibilityParts.push(`and(visibility_scope.eq.DEPARTMENT,visibility_target.ilike.${myDepartment})`)
     }
 
-    const results = await Promise.all(queries.map((q) => q))
+    let unreadQ = supabaseClient
+      .from('email')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_read', false)
+      .neq('folder', 'announcement')
+      .or(visibilityParts.join(','))
+    if (excludesSelf) unreadQ = unreadQ.neq('sender_id', myEmployeeId)
 
-    let total = 0
-    for (const { count, error } of results) {
-      if (error) {
-        console.error('[emailService] Error counting unread emails:', error)
-        continue
-      }
-      total += count || 0
+    const { count, error } = await unreadQ
+    if (error) {
+      console.error('[emailService] Error counting unread emails:', error)
+      throw error
     }
 
-    return total
+    return count || 0
   }
 }
 

@@ -7,9 +7,18 @@ const authConfig = {
   persistSession: true,
   autoRefreshToken: true,
   detectSessionInUrl: true,
-  lock: async (_name, _acquireTimeout, fn) => fn(),
+  lock: async (name, _acquireTimeout, fn) => {
+    console.log('[DEBUG-SUPABASE] auth lock step 1: before callback', { name })
+    const result = await fn()
+    console.log('[DEBUG-SUPABASE] auth lock step 2: callback resolved', { name })
+    return result
+  },
 }
 
+console.log('[DEBUG-SUPABASE] client initialization: creating persistent auth client', {
+  autoRefreshToken: authConfig.autoRefreshToken,
+  persistSession: authConfig.persistSession,
+})
 export const supabaseClient = createClient(supabaseUrl, supabaseKey, {
   auth: authConfig,
 })
@@ -19,7 +28,12 @@ const signupAuthConfig = {
   autoRefreshToken: false,
   detectSessionInUrl: false,
   storageKey: 'jeddspace-signup-auth-token',
-  lock: async (_name, _acquireTimeout, fn) => fn(),
+  lock: async (name, _acquireTimeout, fn) => {
+    console.log('[DEBUG-SUPABASE] signup auth lock step 1: before callback', { name })
+    const result = await fn()
+    console.log('[DEBUG-SUPABASE] signup auth lock step 2: callback resolved', { name })
+    return result
+  },
 }
 
 export const signupClient = createClient(supabaseUrl, supabaseKey, {
