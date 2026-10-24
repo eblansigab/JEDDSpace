@@ -136,16 +136,16 @@ export default function AiAssistantPage() {
       {
         label: 'Recommendation Explanation',
         description: 'Explain why workers were recommended for tomorrow.',
-        message: 'Explain why the recommended worker was selected for this assignment window.',
+        message: 'Explain why the top recommended workers were selected for the next 7 days.',
       },
       {
-        label: 'Previous Summaries',
+        label: 'Previous Questions',
         description: 'View previous AI-generated summaries.',
-        message: 'Show previous AI summaries.',
+        message: 'Show my previous questions.',
       },
       {
-        label: 'Document Summary',
-        description: 'Summarize uploaded documents.',
+        label: 'Uploaded Documents',
+        description: 'List documents you have uploaded.',
         message: 'List the uploaded documents.',
       },
      

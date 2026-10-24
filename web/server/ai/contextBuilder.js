@@ -225,7 +225,7 @@ export const buildAIContext = async ({ viewer, intent, message, messages = [], a
       requestContext,
       'database',
       () => withTimeout(
-        loadDataForIntent(intent, message, viewer, true),
+        loadDataForIntent(intent, message, viewer),
         DATABASE_TIMEOUT_MS,
         'Database retrieval exceeded the allowed processing time.'
       ),
@@ -244,7 +244,8 @@ export const buildAIContext = async ({ viewer, intent, message, messages = [], a
     attachmentContext = referencedDocumentContext
   }
 
-  const lowConfidenceEntities = getLowConfidenceEntities(entities)
+  const hasBackReference = /\b(it|that|this|them|those|these)\b/i.test(trimmedMessage)
+  const lowConfidenceEntities = hasBackReference ? getLowConfidenceEntities(entities) : []
   if (lowConfidenceEntities.length) {
     warnings.push('One or more follow-up references had low confidence. Ask the user to clarify if the answer depends on that entity.')
   }

@@ -135,6 +135,9 @@ export const groqClient = {
     }
 
     const data = await response.json()
+    console.log('[GroqClient] completion finished', {
+      finishReason: data?.choices?.[0]?.finish_reason || null,
+    })
     return {
       content: String(data?.choices?.[0]?.message?.content || '').trim(),
       model: data?.model || GROQ_MODEL,

@@ -74,6 +74,9 @@ const EMAIL_SELECT = `
   subject,
   message_body,
   is_read,
+  visibility_scope,
+  visibility_target,
+  is_archived,
   created_at,
   sender:sender_id (
     employee_id,
@@ -112,10 +115,11 @@ const orderByCreatedAtDesc = { ascending: false }
 
 const getClient = () => getSupabaseServerClient()
 
-const isAdmin = (viewer) => Boolean(viewer?.isAdmin) || Number(viewer?.employee?.hierarchy_level || 0) <= 4
+const isAdmin = (viewer) => Boolean(viewer?.isAdmin)
 const viewerEmployeeId = (viewer) => viewer?.employee?.employee_id ?? null
 const viewerUserId = (viewer) => viewer?.employee?.user_id || viewer?.user?.id || null
 const viewerEmail = (viewer) => viewer?.user?.email || viewer?.employee?.email || null
+const viewerDepartment = (viewer) => viewer?.employee?.department || null
 
 const queryOrThrow = async (query) => {
   const { data, error } = await query
@@ -148,6 +152,19 @@ const resolveEmployeeByName = async (name, viewer) => {
   if (error || !data?.length) return null
   const exact = data.find(e => `${e.first_name} ${e.last_name}`.toLowerCase() === name.toLowerCase())
   return exact || data[0]
+}
+
+const isVisibleBroadcast = (message, department) => {
+  if (message.is_archived === true) return false
+
+  const scope = String(message.visibility_scope || '').toUpperCase()
+  if (scope === 'ORGANIZATION') return true
+  if (scope === 'DEPARTMENT') {
+    return Boolean(department) &&
+      String(message.visibility_target || '').toLowerCase() === String(department).toLowerCase()
+  }
+
+  return false
 }
 
 const loadInboxMessages = async (options = {}) => {
@@ -189,8 +206,12 @@ const loadInboxMessages = async (options = {}) => {
   }
 
   const messages = await queryOrThrow(query)
+  const department = scope === 'employee' ? targetEmployee?.department : viewerDepartment(viewer)
+  const visibleMessages = messages.filter((message) => (
+    message.recipient_email !== 'all' || isVisibleBroadcast(message, department)
+  ))
 
-  const recipientEmails = [...new Set(messages.map((m) => m.recipient_email).filter(Boolean))]
+  const recipientEmails = [...new Set(visibleMessages.map((m) => m.recipient_email).filter(Boolean))]
   if (recipientEmails.length > 0) {
     const { data: recipients } = await getClient()
       .from('employee')
@@ -199,13 +220,13 @@ const loadInboxMessages = async (options = {}) => {
 
     const recipientMap = new Map((recipients || []).map((r) => [String(r.email || '').toLowerCase(), r]))
 
-    return messages.map((msg) => ({
+    return visibleMessages.map((msg) => ({
       ...msg,
       recipient: recipientMap.get(String(msg.recipient_email || '').toLowerCase()) || null,
     }))
   }
 
-  return messages
+  return visibleMessages
 }
 
 const loadEmployees = async (options = {}) => {
@@ -218,7 +239,7 @@ const loadEmployees = async (options = {}) => {
   }
 
   if (fieldWorkersOnly) {
-    query = query.eq('employee_type', 'field_worker')
+    query = query.eq('department', 'Engineering')
   }
 
   query = scopeEmployeeQuery(query, viewer, adminMode)
@@ -236,6 +257,16 @@ const loadApprovedLeaves = async (limit = 25, viewer = null, adminMode = false) 
     .from('leaveform')
     .select(LEAVE_SELECT)
     .eq('status', 'approved')
+    .order('start_date', orderByCreatedAtDesc)
+    .limit(limit)
+
+  return await queryOrThrow(scopeEmployeeQuery(query, viewer, adminMode))
+}
+
+const loadLeaves = async (limit = 25, viewer = null, adminMode = false) => {
+  const query = getClient()
+    .from('leaveform')
+    .select(LEAVE_SELECT)
     .order('start_date', orderByCreatedAtDesc)
     .limit(limit)
 
@@ -383,13 +414,19 @@ const loadOperations = async (viewer = null, adminMode = false) => {
   ])
 
   const activeJobs = (jobs || []).filter((j) => String(j.status || '').toLowerCase() === 'open' || String(j.status || '').toLowerCase() === 'ongoing')
-  const onLeave = leaves || []
+  const today = new Date()
+  const onLeave = (leaves || []).filter((leave) => (
+    leave.start_date &&
+    leave.end_date &&
+    new Date(leave.start_date) <= today &&
+    new Date(leave.end_date) >= today
+  ))
   const expiringContracts = (contracts || []).filter((c) => {
     const end = c.end_date ? new Date(c.end_date) : null
     if (!end) return false
     const thirtyDays = new Date()
     thirtyDays.setDate(thirtyDays.getDate() + 30)
-    return end <= thirtyDays
+    return end >= today && end <= thirtyDays
   })
   const unreadNotifications = (notifications || []).filter((n) => !n.is_read)
 
@@ -427,27 +464,14 @@ export const loadDataForIntent = async (intent, message, viewer = null, adminMod
     }
 
     if (intent === 'chat_logs') {
-      if (!isAdmin(viewer) && !adminMode) {
-        const userId = viewerUserId(viewer)
-        if (!userId) return { logs: [] }
-
-        const { data: logs, error } = await getClient()
-          .from('ai_chat_logs')
-          .select('prompt, response, intent, created_at')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(10)
-
-        if (error) return { logs: [] }
-        return { logs: logs || [] }
-      }
-
+      const userId = viewerUserId(viewer)
+      if (!userId) return { logs: [] }
       const { data: logs, error } = await getClient()
-        .from('ai_summarization')
-        .select('content_summary, created_at, reference_type')
-        .in('reference_type', ['weekly_leave_summary', 'contract_summary', 'notification_summary', 'job_daily_summary', 'employee_activity_summary'])
+        .from('ai_chat_logs')
+        .select('prompt, response, intent, created_at')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(10)
 
       if (error) return { logs: [] }
       return { logs: logs || [] }
@@ -473,7 +497,7 @@ export const loadDataForIntent = async (intent, message, viewer = null, adminMod
     }
 
     if (intent === 'leave') {
-      const leaves = await loadApprovedLeaves(25, viewer, adminMode)
+      const leaves = await loadLeaves(25, viewer, adminMode)
       return { leaves }
     }
 
@@ -495,13 +519,7 @@ export const loadDataForIntent = async (intent, message, viewer = null, adminMod
 
     if (intent === 'document') {
       const documents = await loadDocuments(25, viewer, adminMode)
-      const documentsWithSummaries = await Promise.all(
-        (documents || []).map(async (doc) => {
-          const summary = await loadDocumentSummary(doc.document_id)
-          return { ...doc, ai_summary: summary }
-        })
-      )
-      return { documents: documentsWithSummaries }
+      return { documents }
     }
 
     if (intent === 'inbox') {

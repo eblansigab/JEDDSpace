@@ -162,6 +162,7 @@ export const handleChat = async ({ viewer, payload = {} }) => {
   const { requestContext, intent, message, messages = [], sessionId, context, groqMessages } = prepared
 
     const groqResult = await timedStage(
+      requestContext,
       'groq',
       () => groqClient.chatWithMetadata(groqMessages),
       { model: 'openai/gpt-oss-120b' }

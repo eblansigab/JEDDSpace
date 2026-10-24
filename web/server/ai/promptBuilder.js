@@ -1,20 +1,23 @@
 const getCurrentDateTime = () => {
   const now = new Date()
+  const timeZone = 'Asia/Manila'
   const date = now.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone,
   })
   const time = now.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+    timeZone,
   })
   try {
-    return { date, time, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }
+    return { date, time, timezone: timeZone }
   } catch {
-    return { date, time, timezone: 'UTC' }
+    return { date, time, timezone: timeZone }
   }
 }
 
@@ -272,6 +275,16 @@ const buildDataContext = ({ intent, data = {} }) => {
     } else {
       contextParts.push('No employees found.')
     }
+    const leaveRows = (data.leaves || []).map(formatLeave).filter(Boolean)
+    if (leaveRows.length) {
+      contextParts.push('Leave Requests')
+      contextParts.push(buildMarkdownTable(leaveRows))
+    }
+    const jobRows = (data.jobs || []).map(formatJob).filter(Boolean)
+    if (jobRows.length) {
+      contextParts.push('Current Jobs')
+      contextParts.push(buildMarkdownTable(jobRows))
+    }
   } else if (intent === 'job') {
     const rows = (data.jobs || []).map(formatJob).filter(Boolean)
     if (rows.length) {
@@ -283,10 +296,10 @@ const buildDataContext = ({ intent, data = {} }) => {
   } else if (intent === 'leave') {
     const rows = (data.leaves || []).map(formatLeave).filter(Boolean)
     if (rows.length) {
-      contextParts.push('Approved Leave Requests')
+      contextParts.push('Leave Requests')
       contextParts.push(buildMarkdownTable(rows))
     } else {
-      contextParts.push('No approved leave requests found.')
+      contextParts.push('No leave requests found.')
     }
   } else if (intent === 'contract') {
     const rows = (data.contracts || []).map(formatContract).filter(Boolean)
@@ -350,7 +363,7 @@ const buildDataContext = ({ intent, data = {} }) => {
     }
     contextParts.push('')
     if (leaveRows.length) {
-      contextParts.push('Approved Leave Requests')
+      contextParts.push('Leave Requests')
       contextParts.push(buildMarkdownTable(leaveRows))
     }
     contextParts.push('')

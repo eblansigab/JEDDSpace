@@ -1,6 +1,9 @@
 const normalize = (value) => String(value || '').trim().toLowerCase()
 
-const includesAny = (text, keywords) => keywords.some((keyword) => text.includes(keyword))
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const includesAny = (text, keywords) => keywords.some((keyword) => (
+  new RegExp(`\\b${escapeRegExp(keyword)}\\b`, 'i').test(text)
+))
 
 const isAdmin = (viewer) => Boolean(viewer?.isAdmin)
 
@@ -123,6 +126,8 @@ export const detectIntent = (message) => {
     includesAny(text, [
       'job',
       'jobs',
+      'project',
+      'projects',
       'assignment',
       'assignments',
       'today\'s jobs',
@@ -184,13 +189,13 @@ export const detectIntent = (message) => {
 export const isGeneralKnowledgeQuestion = (message) => {
   const text = String(message || '').trim().toLowerCase()
 
-  const hasCompanyKeyword = [
+  const hasCompanyKeyword = includesAny(text, [
     'employee', 'worker', 'staff', 'contract', 'agreement', 'job', 'assignment',
     'leave', 'absence', 'vacation', 'document', 'file', 'upload', 'pdf',
     'notification', 'alert', 'recommendation', 'operation', 'status', 'overview',
     'dashboard', 'today', 'schedule', 'department', 'position',
     'inbox', 'message', 'email', 'mail', 'conversation', 'emails'
-  ].some((keyword) => text.includes(keyword))
+  ])
 
   if (hasCompanyKeyword) return false
 
